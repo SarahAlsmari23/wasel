@@ -1,11 +1,16 @@
 import { createClient } from '@supabase/supabase-js'
-import { geminiProvider } from '@/lib/ai/gemini'
+import { cloudflareProvider } from '@/lib/ai/cloudflare'
 import type { RetrievalFilters, RetrievedDocument } from '@/lib/rag/types'
 
 const RPC_TIMEOUT_MS = 10_000
 const MAX_RESULTS = 5
 const EXCERPT_MAX_LENGTH = 300
-const SIMILARITY_THRESHOLD = 0.7
+// Recalibrated for @cf/google/embeddinggemma-300m, which produces
+// meaningfully lower cosine-similarity scores than gemini-embedding-2 did
+// for the same semantic matches (observed ~0.46 vs. ~0.76 previously for an
+// identical query/document pair). Provisional — based on one test query,
+// not a rigorous tuning pass; revisit as real usage accumulates.
+const SIMILARITY_THRESHOLD = 0.4
 
 /**
  * Wraps every retrieval failure mode (missing service-role config, RPC
@@ -168,7 +173,7 @@ export async function retrieveRelevantDocuments(
   filters?: RetrievalFilters,
 ): Promise<RetrievedDocument[]> {
   const formattedQuery = formatQueryForEmbedding(query)
-  const queryEmbedding = await geminiProvider.embed(formattedQuery)
+  const queryEmbedding = await cloudflareProvider.embed(formattedQuery)
 
   const supabase = getServiceRoleClient()
 

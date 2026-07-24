@@ -41,6 +41,7 @@ export type ChatSource = {
   title: string
   entityName?: string
   officialUrl?: string
+  similarity: number
   excerpt?: string
 }
 

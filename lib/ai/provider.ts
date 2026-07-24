@@ -9,10 +9,10 @@ export type AiGenerateInput = {
 export type AiGenerateOutput = Omit<ChatSuccessResponse, 'sources'>
 
 /**
- * Provider abstraction so callers (the future Route Handler) never depend
- * on a specific vendor SDK directly. lib/ai/gemini.ts (a later, separately
- * approved sub-phase) will implement this interface. No implementation, no
- * network call, and no SDK import belongs in this file.
+ * Provider abstraction so callers (app/api/ai/chat/route.ts) never depend
+ * on a specific vendor SDK directly. lib/ai/cloudflare.ts implements this
+ * interface. No implementation, no network call, and no SDK import belongs
+ * in this file.
  */
 export interface AiProvider {
   generate(input: AiGenerateInput): Promise<AiGenerateOutput>

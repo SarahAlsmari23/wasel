@@ -1,18 +1,20 @@
 import { NextResponse } from 'next/server'
 import { validateChatRequest } from '@/lib/ai/contracts'
-import { AiProviderError, geminiProvider } from '@/lib/ai/gemini'
+import { AiProviderError, cloudflareProvider } from '@/lib/ai/cloudflare'
 import { buildPrompt } from '@/lib/ai/prompts'
 import { sanitizeComplaintContext, sanitizeHistory, sanitizeMessage } from '@/lib/ai/sanitize'
+import { retrieveRelevantDocuments, RetrievalError } from '@/lib/rag/retrieve'
+import type { RetrievedDocument } from '@/lib/rag/types'
 import { createClient } from '@/lib/supabase/server'
-import type { ChatErrorResponse, ChatSuccessResponse } from '@/types/ai'
+import type { ChatErrorResponse, ChatSource, ChatSuccessResponse } from '@/types/ai'
 
 const RATE_LIMIT_MAX_REQUESTS = 10
 const RATE_LIMIT_WINDOW_MS = 60_000
 
 // In-memory, per-process sliding-window limiter. Development-only: state
 // resets on server restart and is not shared across multiple instances.
-// Exists only to prevent accidental spam / unnecessary Gemini usage during
-// this phase — not a production rate-limiting solution.
+// Exists only to prevent accidental spam / unnecessary AI-provider usage
+// during this phase — not a production rate-limiting solution.
 const requestTimestampsByUser = new Map<string, number[]>()
 
 /**
@@ -36,6 +38,22 @@ export function checkRateLimit(userId: string): boolean {
 
 function errorResponse(error: string, status: number) {
   return NextResponse.json<ChatErrorResponse>({ error }, { status })
+}
+
+// TEMPORARY DIAGNOSTICS — structural only. Never logs secrets, prompts,
+// embeddings, document content, raw provider/database errors, or stack
+// traces. RetrievalError/AiProviderError messages are already generic,
+// internal-only strings by design (defined in lib/rag/retrieve.ts and
+// lib/ai/cloudflare.ts respectively) — safe to log as-is. Remove after this
+// diagnostic pass.
+function categorizeRetrievalFailure(error: unknown): string {
+  if (error instanceof RetrievalError) return error.message
+  return error instanceof Error ? error.name : typeof error
+}
+
+function categorizeGenerationFailure(error: unknown): string {
+  if (error instanceof AiProviderError) return error.message
+  return error instanceof Error ? error.name : typeof error
 }
 
 export async function POST(request: Request) {
@@ -65,20 +83,59 @@ export async function POST(request: Request) {
   }
 
   const { message, history, intent, complaintContext } = validation.value
+  const sanitizedMessage = sanitizeMessage(message)
+
+  console.log(
+    `[chat] SUPABASE_SERVICE_ROLE_KEY exists: ${Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY)}`,
+  )
+
+  // Retrieval is non-fatal: a failure or timeout here must never surface to
+  // the user or block the chat response — it just falls back to no
+  // retrieved context, same as before RAG existed.
+  console.log('[chat] retrieval-start')
+  const retrievalStart = Date.now()
+  let retrievedDocuments: RetrievedDocument[] = []
+  try {
+    retrievedDocuments = await retrieveRelevantDocuments(sanitizedMessage)
+    console.log(
+      `[chat] retrieval-success count=${retrievedDocuments.length} elapsedMs=${Date.now() - retrievalStart}`,
+    )
+  } catch (error) {
+    retrievedDocuments = []
+    console.log(
+      `[chat] retrieval-fallback category=${categorizeRetrievalFailure(error)} elapsedMs=${Date.now() - retrievalStart}`,
+    )
+  }
 
   const prompt = buildPrompt({
-    sanitizedMessage: sanitizeMessage(message),
+    sanitizedMessage,
     sanitizedHistory: sanitizeHistory(history),
     intent,
     complaintContext: sanitizeComplaintContext(complaintContext),
-    retrievedDocuments: [], // no RAG in this phase
+    retrievedDocuments,
   })
+  console.log(
+    `[chat] prompt-built length=${prompt.length} retrievedDocumentCount=${retrievedDocuments.length}`,
+  )
 
+  console.log('[chat] generation-start')
+  const generationStart = Date.now()
   try {
-    const result = await geminiProvider.generate({ prompt })
-    const response: ChatSuccessResponse = { ...result, sources: [] }
+    const result = await cloudflareProvider.generate({ prompt })
+    console.log(`[chat] generation-success elapsedMs=${Date.now() - generationStart}`)
+    const sources: ChatSource[] = retrievedDocuments.slice(0, 5).map((doc) => ({
+      id: doc.id,
+      title: doc.title,
+      entityName: doc.entityName,
+      officialUrl: doc.officialUrl,
+      similarity: doc.similarity,
+    }))
+    const response: ChatSuccessResponse = { ...result, sources }
     return NextResponse.json<ChatSuccessResponse>(response, { status: 200 })
   } catch (error) {
+    console.log(
+      `[chat] generation-failed category=${categorizeGenerationFailure(error)} elapsedMs=${Date.now() - generationStart}`,
+    )
     if (error instanceof AiProviderError) {
       return errorResponse('تعذر التواصل مع المساعد الذكي حالياً. حاول مرة أخرى لاحقاً.', 502)
     }
