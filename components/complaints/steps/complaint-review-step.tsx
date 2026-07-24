@@ -1,5 +1,6 @@
 'use client'
 
+import { Button } from '@/components/ui/button'
 import { maskNationalId } from '@/lib/complaints/generate-draft'
 import {
   MOCK_COMPLAINT_TYPES,
@@ -42,18 +43,18 @@ export function ComplaintReviewStep({
 
   return (
     <div className="flex flex-col gap-6">
-      <section className="rounded-lg border border-black/10 p-4 dark:border-white/10">
+      <section className="bg-surface rounded-xl border border-gray-200 p-4 shadow-sm">
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-sm font-semibold">نوع الشكوى</h2>
+          <h2 className="text-foreground text-sm font-semibold">نوع الشكوى</h2>
           <button
             type="button"
             onClick={() => onEditStep(1)}
-            className="text-xs font-medium underline"
+            className="text-primary text-xs font-medium underline"
           >
             تعديل
           </button>
         </div>
-        <dl className="flex flex-col gap-1 text-sm text-black/60 dark:text-white/60">
+        <dl className="flex flex-col gap-1 text-sm text-gray-600">
           <div className="flex justify-between gap-2">
             <dt>المجال</dt>
             <dd>{findName(MOCK_DOMAINS, values.type.domainId)}</dd>
@@ -72,22 +73,22 @@ export function ComplaintReviewStep({
           </div>
         </dl>
         {Object.keys(typeErrors).length > 0 ? (
-          <p className="mt-2 text-xs text-red-600">يوجد حقول ناقصة في هذه الخطوة.</p>
+          <p className="text-danger mt-2 text-xs">يوجد حقول ناقصة في هذه الخطوة.</p>
         ) : null}
       </section>
 
-      <section className="rounded-lg border border-black/10 p-4 dark:border-white/10">
+      <section className="bg-surface rounded-xl border border-gray-200 p-4 shadow-sm">
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-sm font-semibold">تفاصيل المشكلة</h2>
+          <h2 className="text-foreground text-sm font-semibold">تفاصيل المشكلة</h2>
           <button
             type="button"
             onClick={() => onEditStep(2)}
-            className="text-xs font-medium underline"
+            className="text-primary text-xs font-medium underline"
           >
             تعديل
           </button>
         </div>
-        <dl className="flex flex-col gap-1 text-sm text-black/60 dark:text-white/60">
+        <dl className="flex flex-col gap-1 text-sm text-gray-600">
           <div className="flex justify-between gap-2">
             <dt>العنوان</dt>
             <dd>{values.problem.title || '—'}</dd>
@@ -110,22 +111,22 @@ export function ComplaintReviewStep({
           </div>
         </dl>
         {Object.keys(problemErrors).length > 0 ? (
-          <p className="mt-2 text-xs text-red-600">يوجد حقول ناقصة في هذه الخطوة.</p>
+          <p className="text-danger mt-2 text-xs">يوجد حقول ناقصة في هذه الخطوة.</p>
         ) : null}
       </section>
 
-      <section className="rounded-lg border border-black/10 p-4 dark:border-white/10">
+      <section className="bg-surface rounded-xl border border-gray-200 p-4 shadow-sm">
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-sm font-semibold">بيانات التواصل</h2>
+          <h2 className="text-foreground text-sm font-semibold">بيانات التواصل</h2>
           <button
             type="button"
             onClick={() => onEditStep(3)}
-            className="text-xs font-medium underline"
+            className="text-primary text-xs font-medium underline"
           >
             تعديل
           </button>
         </div>
-        <dl className="flex flex-col gap-1 text-sm text-black/60 dark:text-white/60">
+        <dl className="flex flex-col gap-1 text-sm text-gray-600">
           <div className="flex justify-between gap-2">
             <dt>الاسم</dt>
             <dd>{values.contact.fullName || '—'}</dd>
@@ -148,24 +149,17 @@ export function ComplaintReviewStep({
           </div>
         </dl>
         {Object.keys(contactErrors).length > 0 ? (
-          <p className="mt-2 text-xs text-red-600">يوجد حقول ناقصة في هذه الخطوة.</p>
+          <p className="text-danger mt-2 text-xs">يوجد حقول ناقصة في هذه الخطوة.</p>
         ) : null}
       </section>
 
       {hasErrors ? (
-        <p className="text-sm text-red-600">
-          يرجى إكمال الحقول المطلوبة الناقصة قبل إنشاء المسودة.
-        </p>
+        <p className="text-danger text-sm">يرجى إكمال الحقول المطلوبة الناقصة قبل إنشاء المسودة.</p>
       ) : null}
 
-      <button
-        type="button"
-        onClick={onGenerateDraft}
-        disabled={hasErrors || isGenerating}
-        className="bg-foreground text-background rounded-md px-4 py-2 text-sm font-medium disabled:opacity-50"
-      >
+      <Button type="button" onClick={onGenerateDraft} disabled={hasErrors || isGenerating}>
         إنشاء المسودة
-      </button>
+      </Button>
     </div>
   )
 }

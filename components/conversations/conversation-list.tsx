@@ -1,8 +1,11 @@
 'use client'
 
+import { MessagesSquare } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { ConversationListItem } from '@/components/conversations/conversation-list-item'
 import { EmptyState } from '@/components/empty-state'
+import { SearchInput } from '@/components/ui/search-input'
+import { Tabs } from '@/components/ui/tabs'
 import type { ConversationStatus, MockConversation } from '@/types/conversation'
 
 type TabValue = 'all' | ConversationStatus
@@ -35,30 +38,13 @@ export function ConversationList({ conversations }: ConversationListProps) {
 
   return (
     <div className="flex flex-col gap-4">
-      <input
-        type="text"
+      <SearchInput
         value={query}
         onChange={(event) => setQuery(event.target.value)}
         placeholder="ابحث في المحادثات..."
-        className="w-full rounded-md border border-black/10 px-3 py-2 text-sm dark:border-white/20"
       />
 
-      <div className="flex gap-2">
-        {TABS.map((tab) => (
-          <button
-            key={tab.value}
-            type="button"
-            onClick={() => setActiveTab(tab.value)}
-            className={`rounded-md px-3 py-1.5 text-sm font-medium ${
-              activeTab === tab.value
-                ? 'bg-foreground text-background'
-                : 'bg-black/5 dark:bg-white/10'
-            }`}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
+      <Tabs items={TABS} value={activeTab} onChange={(value) => setActiveTab(value as TabValue)} />
 
       {filtered.length > 0 ? (
         <div className="flex flex-col gap-3">
@@ -67,7 +53,11 @@ export function ConversationList({ conversations }: ConversationListProps) {
           ))}
         </div>
       ) : (
-        <EmptyState title="لا توجد نتائج" description="لم يتم العثور على محادثات مطابقة لبحثك." />
+        <EmptyState
+          icon={MessagesSquare}
+          title="لا توجد نتائج"
+          description="لم يتم العثور على محادثات مطابقة لبحثك."
+        />
       )}
     </div>
   )

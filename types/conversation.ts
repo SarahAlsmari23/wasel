@@ -1,3 +1,5 @@
+import type { ChatSource, ChatSuggestedEntity } from '@/types/ai'
+
 export type ConversationStatus = 'active' | 'completed'
 
 export type MessageRole = 'user' | 'assistant'
@@ -7,6 +9,8 @@ export type MockMessage = {
   role: MessageRole
   content: string
   createdAt: string
+  suggestedEntity?: ChatSuggestedEntity
+  sources?: ChatSource[]
 }
 
 export type MockConversation = {

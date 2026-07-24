@@ -1,6 +1,8 @@
 'use client'
 
+import { Copy, Pencil, Printer } from 'lucide-react'
 import { useState } from 'react'
+import { Button } from '@/components/ui/button'
 
 type ComplaintDraftPreviewProps = {
   draftText: string
@@ -32,48 +34,35 @@ export function ComplaintDraftPreview({
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="rounded-lg border border-black/10 p-4 text-sm leading-relaxed whitespace-pre-wrap dark:border-white/10">
+      <div className="bg-surface text-foreground rounded-xl border border-gray-200 p-6 text-sm leading-relaxed whitespace-pre-wrap shadow-sm">
         {draftText}
       </div>
 
       <div className="flex flex-wrap items-center gap-2 print:hidden">
-        <button
-          type="button"
-          onClick={handleCopy}
-          className="rounded-md border border-black/10 px-4 py-2 text-sm font-medium dark:border-white/20"
-        >
+        <Button type="button" variant="outline" onClick={handleCopy}>
+          <Copy className="h-4 w-4" aria-hidden="true" />
           نسخ النص
-        </button>
-        <button
-          type="button"
-          onClick={handlePrint}
-          className="rounded-md border border-black/10 px-4 py-2 text-sm font-medium dark:border-white/20"
-        >
+        </Button>
+        <Button type="button" variant="outline" onClick={handlePrint}>
+          <Printer className="h-4 w-4" aria-hidden="true" />
           طباعة
-        </button>
+        </Button>
         {onEdit ? (
-          <button
-            type="button"
-            onClick={onEdit}
-            className="rounded-md border border-black/10 px-4 py-2 text-sm font-medium dark:border-white/20"
-          >
+          <Button type="button" variant="outline" onClick={onEdit}>
+            <Pencil className="h-4 w-4" aria-hidden="true" />
             تعديل البيانات
-          </button>
+          </Button>
         ) : null}
         {onStartNew ? (
-          <button
-            type="button"
-            onClick={onStartNew}
-            className="bg-foreground text-background rounded-md px-4 py-2 text-sm font-medium"
-          >
+          <Button type="button" onClick={onStartNew}>
             بدء شكوى جديدة
-          </button>
+          </Button>
         ) : null}
         {copyState === 'success' ? (
-          <span className="text-xs text-emerald-600">تم نسخ النص.</span>
+          <span className="text-secondary text-xs">تم نسخ النص.</span>
         ) : null}
         {copyState === 'error' ? (
-          <span className="text-xs text-red-600">تعذر نسخ النص، حاول مرة أخرى.</span>
+          <span className="text-danger text-xs">تعذر نسخ النص، حاول مرة أخرى.</span>
         ) : null}
       </div>
     </div>

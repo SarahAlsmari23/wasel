@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { ComplaintDraftPreview } from '@/components/complaints/complaint-draft-preview'
 import { ComplaintStepper } from '@/components/complaints/complaint-stepper'
+import { Button } from '@/components/ui/button'
 import { ComplaintTypeStep } from '@/components/complaints/steps/complaint-type-step'
 import { ComplaintReviewStep } from '@/components/complaints/steps/complaint-review-step'
 import { ContactDetailsStep } from '@/components/complaints/steps/contact-details-step'
@@ -190,21 +191,12 @@ export function ComplaintBuilder() {
 
       {currentStep < 4 ? (
         <div className="flex items-center justify-between">
-          <button
-            type="button"
-            onClick={handleBack}
-            disabled={currentStep === 1}
-            className="rounded-md border border-black/10 px-4 py-2 text-sm font-medium disabled:opacity-50 dark:border-white/20"
-          >
+          <Button type="button" variant="outline" onClick={handleBack} disabled={currentStep === 1}>
             السابق
-          </button>
-          <button
-            type="button"
-            onClick={handleNext}
-            className="bg-foreground text-background rounded-md px-4 py-2 text-sm font-medium"
-          >
+          </Button>
+          <Button type="button" onClick={handleNext}>
             التالي
-          </button>
+          </Button>
         </div>
       ) : null}
     </div>

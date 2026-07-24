@@ -22,25 +22,25 @@ export default async function ComplaintDetailPage({ params }: { params: Promise<
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between gap-3 border-b border-black/10 pb-4 dark:border-white/10">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-200 pb-4">
         <div>
           <Link
             href="/complaints"
-            className="mb-1 inline-block text-xs font-medium text-black/60 underline dark:text-white/60"
+            className="mb-1 inline-block text-xs font-medium text-gray-600 underline"
           >
             العودة إلى الشكاوى
           </Link>
-          <h1 className="text-xl font-semibold">{complaint.title}</h1>
-          <p className="text-sm text-black/60 dark:text-white/60">
+          <h1 className="text-foreground text-xl font-semibold">{complaint.title}</h1>
+          <p className="text-sm text-gray-600">
             {complaint.entityName} · {complaint.categoryName}
           </p>
         </div>
         <ComplaintStatusBadge status={complaint.status} />
       </div>
 
-      <div className="rounded-lg border border-black/10 p-4 dark:border-white/10">
-        <h2 className="mb-3 text-sm font-semibold">سجل الشكوى</h2>
-        <ul className="flex flex-col gap-2 text-sm text-black/60 dark:text-white/60">
+      <div className="bg-surface rounded-xl border border-gray-200 p-4 shadow-sm">
+        <h2 className="text-foreground mb-3 text-sm font-semibold">سجل الشكوى</h2>
+        <ul className="flex flex-col gap-2 text-sm text-gray-600">
           {complaint.timeline.map((event) => (
             <li key={event.at} className="flex items-center justify-between gap-3">
               <span>{event.label}</span>

@@ -14,15 +14,13 @@ export function MessageBubble({ message }: MessageBubbleProps) {
   return (
     <div className={`flex max-w-[80%] flex-col gap-1 ${isUser ? 'self-start' : 'self-end'}`}>
       <div
-        className={`rounded-2xl px-4 py-2 text-sm ${
-          isUser ? 'bg-foreground text-background' : 'bg-black/5 dark:bg-white/10'
+        className={`rounded-2xl px-4 py-2.5 text-sm shadow-sm ${
+          isUser ? 'bg-primary text-primary-foreground' : 'bg-surface text-foreground'
         }`}
       >
         {message.content}
       </div>
-      <span className="text-xs text-black/40 dark:text-white/40">
-        {formatTime(message.createdAt)}
-      </span>
+      <span className="text-xs text-gray-400">{formatTime(message.createdAt)}</span>
     </div>
   )
 }

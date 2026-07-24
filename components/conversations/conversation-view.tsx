@@ -1,8 +1,9 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { ConversationStatusBadge } from '@/components/conversations/conversation-status-badge'
+import { EntityRecommendationCard } from '@/components/conversations/entity-recommendation-card'
 import { MessageBubble } from '@/components/conversations/message-bubble'
 import { MessageComposer } from '@/components/conversations/message-composer'
 import { TypingIndicator } from '@/components/conversations/typing-indicator'
@@ -29,6 +30,22 @@ export function ConversationView({ conversation }: ConversationViewProps) {
       abortControllerRef.current?.abort()
     }
   }, [])
+
+  // Persistent side panel shows the most recent recommendation, rather than
+  // repeating a card under every message that carried one. The official URL
+  // (if any) comes only from a matching RAG source already returned by the
+  // API today — never invented.
+  const latestEntityRecommendation = useMemo(() => {
+    for (let index = messages.length - 1; index >= 0; index--) {
+      const message = messages[index]
+      if (!message.suggestedEntity) continue
+      const matchingSource = message.sources?.find(
+        (source) => source.entityName === message.suggestedEntity?.name && source.officialUrl,
+      )
+      return { entity: message.suggestedEntity, officialUrl: matchingSource?.officialUrl }
+    }
+    return undefined
+  }, [messages])
 
   async function handleSend(content: string) {
     if (isAssistantTyping) return
@@ -79,6 +96,8 @@ export function ConversationView({ conversation }: ConversationViewProps) {
           role: 'assistant',
           content: payload.answer,
           createdAt: new Date().toISOString(),
+          suggestedEntity: payload.suggestedEntity,
+          sources: payload.sources,
         },
       ])
     } catch (error) {
@@ -95,41 +114,52 @@ export function ConversationView({ conversation }: ConversationViewProps) {
   }
 
   return (
-    <div className="flex min-h-[60vh] flex-col">
-      <div className="flex items-center justify-between gap-3 border-b border-black/10 pb-4 dark:border-white/10">
-        <div>
-          <Link
-            href="/conversations"
-            className="mb-1 inline-block text-xs font-medium text-black/60 underline dark:text-white/60"
-          >
-            العودة إلى المحادثات
-          </Link>
-          <h1 className="text-xl font-semibold">{conversation.title}</h1>
+    <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
+      <div className="flex min-h-[70vh] flex-1 flex-col">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-200 pb-4">
+          <div>
+            <Link
+              href="/conversations"
+              className="mb-1 inline-block text-xs font-medium text-gray-600 underline"
+            >
+              العودة إلى المحادثات
+            </Link>
+            <h1 className="text-foreground text-xl font-semibold">{conversation.title}</h1>
+          </div>
+          <ConversationStatusBadge status={conversation.status} />
         </div>
-        <ConversationStatusBadge status={conversation.status} />
+
+        <div className="flex flex-1 flex-col gap-4 overflow-y-auto py-4">
+          {messages.map((message) => (
+            <MessageBubble key={message.id} message={message} />
+          ))}
+          {isAssistantTyping ? <TypingIndicator /> : null}
+        </div>
+
+        {sendError ? (
+          <div className="bg-danger/5 flex items-center justify-between gap-3 border-t border-gray-200 px-4 py-2">
+            <p className="text-danger text-sm">{GENERIC_ERROR_MESSAGE}</p>
+            <button
+              type="button"
+              onClick={() => handleSend(sendError)}
+              className="text-danger text-sm font-medium underline"
+            >
+              إعادة المحاولة
+            </button>
+          </div>
+        ) : null}
+
+        <MessageComposer onSend={handleSend} disabled={isAssistantTyping} />
       </div>
 
-      <div className="flex flex-1 flex-col gap-4 overflow-y-auto py-4">
-        {messages.map((message) => (
-          <MessageBubble key={message.id} message={message} />
-        ))}
-        {isAssistantTyping ? <TypingIndicator /> : null}
-      </div>
-
-      {sendError ? (
-        <div className="flex items-center justify-between gap-3 border-t border-black/10 px-4 py-2 dark:border-white/10">
-          <p className="text-sm text-red-600">{GENERIC_ERROR_MESSAGE}</p>
-          <button
-            type="button"
-            onClick={() => handleSend(sendError)}
-            className="text-sm font-medium underline"
-          >
-            إعادة المحاولة
-          </button>
-        </div>
+      {latestEntityRecommendation ? (
+        <aside className="w-full shrink-0 lg:sticky lg:top-24 lg:w-80">
+          <EntityRecommendationCard
+            entity={latestEntityRecommendation.entity}
+            officialUrl={latestEntityRecommendation.officialUrl}
+          />
+        </aside>
       ) : null}
-
-      <MessageComposer onSend={handleSend} disabled={isAssistantTyping} />
     </div>
   )
 }

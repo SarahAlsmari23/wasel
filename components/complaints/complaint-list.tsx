@@ -1,8 +1,11 @@
 'use client'
 
+import { FileText } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { ComplaintListItem } from '@/components/complaints/complaint-list-item'
 import { EmptyState } from '@/components/empty-state'
+import { SearchInput } from '@/components/ui/search-input'
+import { Tabs } from '@/components/ui/tabs'
 import type { ComplaintStatus, MockComplaint } from '@/types/complaint'
 
 type TabValue = 'all' | ComplaintStatus
@@ -37,30 +40,13 @@ export function ComplaintList({ complaints }: ComplaintListProps) {
 
   return (
     <div className="flex flex-col gap-4">
-      <input
-        type="text"
+      <SearchInput
         value={query}
         onChange={(event) => setQuery(event.target.value)}
         placeholder="ابحث في الشكاوى..."
-        className="w-full rounded-md border border-black/10 px-3 py-2 text-sm dark:border-white/20"
       />
 
-      <div className="flex flex-wrap gap-2">
-        {TABS.map((tab) => (
-          <button
-            key={tab.value}
-            type="button"
-            onClick={() => setActiveTab(tab.value)}
-            className={`rounded-md px-3 py-1.5 text-sm font-medium ${
-              activeTab === tab.value
-                ? 'bg-foreground text-background'
-                : 'bg-black/5 dark:bg-white/10'
-            }`}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
+      <Tabs items={TABS} value={activeTab} onChange={(value) => setActiveTab(value as TabValue)} />
 
       {filtered.length > 0 ? (
         <div className="flex flex-col gap-3">
@@ -69,7 +55,11 @@ export function ComplaintList({ complaints }: ComplaintListProps) {
           ))}
         </div>
       ) : (
-        <EmptyState title="لا توجد نتائج" description="لم يتم العثور على شكاوى مطابقة لبحثك." />
+        <EmptyState
+          icon={FileText}
+          title="لا توجد نتائج"
+          description="لم يتم العثور على شكاوى مطابقة لبحثك."
+        />
       )}
     </div>
   )

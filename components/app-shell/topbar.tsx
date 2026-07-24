@@ -1,5 +1,6 @@
 'use client'
 
+import { Menu } from 'lucide-react'
 import { SignOutButton } from '@/components/auth/sign-out-button'
 
 type TopbarProps = {
@@ -9,20 +10,21 @@ type TopbarProps = {
 
 export function Topbar({ userEmail, onMenuClick }: TopbarProps) {
   return (
-    <header className="bg-background sticky top-0 z-20 flex items-center justify-between border-b border-black/10 px-4 py-3 dark:border-white/10">
+    <header className="bg-surface sticky top-0 z-20 flex items-center justify-between border-b border-gray-200 px-4 py-3 md:px-6">
       <button
         type="button"
         onClick={onMenuClick}
-        className="rounded-md border border-black/10 px-3 py-1.5 text-sm font-medium md:hidden dark:border-white/20"
+        className="text-foreground flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-1.5 text-sm font-medium md:hidden"
         aria-label="فتح القائمة"
       >
+        <Menu className="h-4 w-4" aria-hidden="true" />
         القائمة
       </button>
 
       <div className="hidden md:block" />
 
       <div className="flex items-center gap-3">
-        {userEmail ? <p className="text-sm text-black/60 dark:text-white/60">{userEmail}</p> : null}
+        {userEmail ? <p className="text-sm text-gray-600">{userEmail}</p> : null}
         <SignOutButton />
       </div>
     </header>

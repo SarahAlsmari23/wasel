@@ -22,30 +22,28 @@ export function ComplaintStepper({ currentStep, onStepClick }: ComplaintStepperP
               type="button"
               disabled={!isClickable}
               onClick={() => isClickable && onStepClick?.(step)}
-              className={`flex items-center gap-2 rounded-md px-2 py-1 ${
+              className={`flex items-center gap-2 rounded-lg px-2 py-1 ${
                 isCurrent
-                  ? 'font-semibold'
+                  ? 'text-foreground font-semibold'
                   : isCompleted
-                    ? 'text-black/60 dark:text-white/60'
-                    : 'text-black/30 dark:text-white/30'
+                    ? 'text-gray-600'
+                    : 'text-gray-300'
               } ${isClickable ? 'cursor-pointer hover:underline' : 'cursor-default'}`}
             >
               <span
                 className={`flex h-6 w-6 items-center justify-center rounded-full text-xs ${
                   isCurrent
-                    ? 'bg-foreground text-background'
+                    ? 'bg-primary text-primary-foreground'
                     : isCompleted
-                      ? 'bg-black/10 dark:bg-white/10'
-                      : 'bg-black/5 dark:bg-white/5'
+                      ? 'bg-secondary/20 text-secondary'
+                      : 'bg-gray-100 text-gray-400'
                 }`}
               >
                 {step}
               </span>
               {label}
             </button>
-            {step < STEP_LABELS.length ? (
-              <span className="text-black/20 dark:text-white/20">—</span>
-            ) : null}
+            {step < STEP_LABELS.length ? <span className="text-gray-300">—</span> : null}
           </li>
         )
       })}

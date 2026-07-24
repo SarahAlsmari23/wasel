@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { getAuthErrorMessage } from '@/lib/auth/error-messages'
+import { Button } from '@/components/ui/button'
 
 export function SignOutButton() {
   const router = useRouter()
@@ -32,15 +33,16 @@ export function SignOutButton() {
 
   return (
     <div>
-      <button
+      <Button
         type="button"
+        variant="outline"
         onClick={handleClick}
         disabled={isSubmitting}
-        className="rounded-md border border-black/10 px-3 py-1.5 text-sm font-medium disabled:opacity-50 dark:border-white/20"
+        className="px-3 py-1.5"
       >
         تسجيل الخروج
-      </button>
-      {error ? <p className="mt-2 text-sm text-red-600">{error}</p> : null}
+      </Button>
+      {error ? <p className="text-danger mt-2 text-sm">{error}</p> : null}
     </div>
   )
 }

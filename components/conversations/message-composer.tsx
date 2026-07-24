@@ -1,6 +1,8 @@
 'use client'
 
+import { Send } from 'lucide-react'
 import { useState, type KeyboardEvent } from 'react'
+import { Button } from '@/components/ui/button'
 
 type MessageComposerProps = {
   onSend: (content: string) => void
@@ -29,7 +31,7 @@ export function MessageComposer({ onSend, disabled = false }: MessageComposerPro
   const isEmpty = value.trim() === ''
 
   return (
-    <div className="flex items-end gap-2 border-t border-black/10 p-4 dark:border-white/10">
+    <div className="bg-surface flex items-end gap-2 border-t border-gray-200 p-4">
       <textarea
         value={value}
         onChange={(event) => setValue(event.target.value)}
@@ -37,16 +39,12 @@ export function MessageComposer({ onSend, disabled = false }: MessageComposerPro
         disabled={disabled}
         rows={1}
         placeholder="اكتب رسالتك هنا..."
-        className="max-h-40 flex-1 resize-none rounded-md border border-black/10 px-3 py-2 text-sm disabled:opacity-50 dark:border-white/20"
+        className="focus:border-primary focus:ring-primary max-h-40 flex-1 resize-none rounded-lg border border-gray-200 px-3 py-2 text-sm focus:ring-1 focus:outline-none disabled:opacity-50"
       />
-      <button
-        type="button"
-        onClick={handleSend}
-        disabled={disabled || isEmpty}
-        className="bg-foreground text-background rounded-md px-4 py-2 text-sm font-medium disabled:opacity-50"
-      >
+      <Button type="button" onClick={handleSend} disabled={disabled || isEmpty}>
+        <Send className="h-4 w-4" aria-hidden="true" />
         إرسال
-      </button>
+      </Button>
     </div>
   )
 }

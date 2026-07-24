@@ -19,7 +19,7 @@ export function ProblemDetailsStep({ values, errors, onChange }: ProblemDetailsS
           value={values.title}
           onChange={(event) => onChange({ ...values, title: event.target.value })}
           placeholder="مثال: تأخر معالجة طلب بلدي"
-          className="w-full rounded-md border border-black/10 px-3 py-2 text-sm dark:border-white/20"
+          className="bg-surface text-foreground focus:border-primary focus:ring-primary w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:ring-1 focus:outline-none"
         />
       </FormField>
 
@@ -30,7 +30,7 @@ export function ProblemDetailsStep({ values, errors, onChange }: ProblemDetailsS
           onChange={(event) => onChange({ ...values, description: event.target.value })}
           rows={4}
           placeholder="اشرح المشكلة بالتفصيل..."
-          className="w-full resize-none rounded-md border border-black/10 px-3 py-2 text-sm dark:border-white/20"
+          className="bg-surface text-foreground focus:border-primary focus:ring-primary w-full resize-none rounded-lg border border-gray-200 px-3 py-2 text-sm focus:ring-1 focus:outline-none"
         />
       </FormField>
 
@@ -40,7 +40,7 @@ export function ProblemDetailsStep({ values, errors, onChange }: ProblemDetailsS
           type="date"
           value={values.issueDate}
           onChange={(event) => onChange({ ...values, issueDate: event.target.value })}
-          className="w-full rounded-md border border-black/10 px-3 py-2 text-sm dark:border-white/20"
+          className="bg-surface text-foreground focus:border-primary focus:ring-primary w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:ring-1 focus:outline-none"
         />
       </FormField>
 
@@ -51,7 +51,7 @@ export function ProblemDetailsStep({ values, errors, onChange }: ProblemDetailsS
           value={values.city}
           onChange={(event) => onChange({ ...values, city: event.target.value })}
           placeholder="مثال: الرياض"
-          className="w-full rounded-md border border-black/10 px-3 py-2 text-sm dark:border-white/20"
+          className="bg-surface text-foreground focus:border-primary focus:ring-primary w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:ring-1 focus:outline-none"
         />
       </FormField>
 
@@ -62,7 +62,7 @@ export function ProblemDetailsStep({ values, errors, onChange }: ProblemDetailsS
           value={values.referenceNumber}
           onChange={(event) => onChange({ ...values, referenceNumber: event.target.value })}
           placeholder="مثال: 458291"
-          className="w-full rounded-md border border-black/10 px-3 py-2 text-sm dark:border-white/20"
+          className="bg-surface text-foreground focus:border-primary focus:ring-primary w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:ring-1 focus:outline-none"
         />
       </FormField>
     </div>

@@ -41,22 +41,18 @@ export function ComplaintListItem({ complaint }: ComplaintListItemProps) {
   return (
     <Link
       href={`/complaints/${complaint.id}`}
-      className={`flex flex-col gap-1 rounded-lg border px-4 py-3 transition-colors ${
-        isActive
-          ? 'border-foreground/30 bg-foreground/5'
-          : 'border-black/10 hover:bg-black/5 dark:border-white/10 dark:hover:bg-white/5'
+      className={`bg-surface flex flex-col gap-1.5 rounded-xl border px-4 py-3.5 shadow-sm transition-all hover:shadow-md ${
+        isActive ? 'border-primary/40' : 'border-gray-200'
       }`}
     >
       <div className="flex items-center justify-between gap-2">
-        <p className="text-sm font-medium">{complaint.title}</p>
+        <p className="text-foreground text-sm font-medium">{complaint.title}</p>
         <ComplaintStatusBadge status={complaint.status} />
       </div>
-      <p className="text-sm text-black/60 dark:text-white/60">
+      <p className="text-sm text-gray-600">
         {complaint.entityName} · {complaint.categoryName}
       </p>
-      <p className="text-xs text-black/40 dark:text-white/40">
-        {formatRelativeTime(complaint.updatedAt)}
-      </p>
+      <p className="text-xs text-gray-400">{formatRelativeTime(complaint.updatedAt)}</p>
     </Link>
   )
 }

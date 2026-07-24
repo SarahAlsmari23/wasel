@@ -1,3 +1,4 @@
+import { Badge } from '@/components/ui/badge'
 import type { ConversationStatus } from '@/types/conversation'
 
 const STATUS_LABELS: Record<ConversationStatus, string> = {
@@ -5,9 +6,9 @@ const STATUS_LABELS: Record<ConversationStatus, string> = {
   completed: 'مكتملة',
 }
 
-const STATUS_STYLES: Record<ConversationStatus, string> = {
-  active: 'bg-emerald-600/10 text-emerald-700 dark:text-emerald-400',
-  completed: 'bg-black/10 text-black/60 dark:bg-white/10 dark:text-white/60',
+const STATUS_VARIANTS: Record<ConversationStatus, 'primary' | 'neutral'> = {
+  active: 'primary',
+  completed: 'neutral',
 }
 
 type ConversationStatusBadgeProps = {
@@ -15,11 +16,5 @@ type ConversationStatusBadgeProps = {
 }
 
 export function ConversationStatusBadge({ status }: ConversationStatusBadgeProps) {
-  return (
-    <span
-      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${STATUS_STYLES[status]}`}
-    >
-      {STATUS_LABELS[status]}
-    </span>
-  )
+  return <Badge variant={STATUS_VARIANTS[status]}>{STATUS_LABELS[status]}</Badge>
 }

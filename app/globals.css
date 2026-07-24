@@ -1,26 +1,35 @@
 @import 'tailwindcss';
 
+/* Wasal design system — fixed 4-color palette. No dark mode. */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #fff2e6; /* off-white page background */
+  --surface: #ffffff; /* card/panel surface, elevated above the page */
+  --foreground: #1a1a1a; /* near-black body text */
+
+  --primary: #052102; /* matt green */
+  --primary-foreground: #fff2e6;
+  --secondary: #586357; /* light green */
+  --secondary-foreground: #fff2e6;
+  --danger: #3d0000; /* burgundy */
+  --danger-foreground: #fff2e6;
 }
 
 @theme inline {
   --color-background: var(--background);
+  --color-surface: var(--surface);
   --color-foreground: var(--foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-danger: var(--danger);
+  --color-danger-foreground: var(--danger-foreground);
   --font-sans: var(--font-ibm-plex-sans-arabic);
   --font-arabic: var(--font-ibm-plex-sans-arabic);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
 body {
-  background: var(--background);
-  color: var(--foreground);
+  background: var(--color-background);
+  color: var(--color-foreground);
   font-family: var(--font-ibm-plex-sans-arabic), ui-sans-serif, system-ui, sans-serif;
 }

@@ -19,7 +19,7 @@ export function ContactDetailsStep({ values, errors, onChange }: ContactDetailsS
           value={values.fullName}
           onChange={(event) => onChange({ ...values, fullName: event.target.value })}
           placeholder="مثال: عبدالله محمد (اسم توضيحي فقط)"
-          className="w-full rounded-md border border-black/10 px-3 py-2 text-sm dark:border-white/20"
+          className="bg-surface text-foreground focus:border-primary focus:ring-primary w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:ring-1 focus:outline-none"
         />
       </FormField>
 
@@ -31,7 +31,7 @@ export function ContactDetailsStep({ values, errors, onChange }: ContactDetailsS
           value={values.nationalId}
           onChange={(event) => onChange({ ...values, nationalId: event.target.value })}
           placeholder="مثال: 1000000000 (رقم توضيحي فقط)"
-          className="w-full rounded-md border border-black/10 px-3 py-2 text-sm dark:border-white/20"
+          className="bg-surface text-foreground focus:border-primary focus:ring-primary w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:ring-1 focus:outline-none"
         />
       </FormField>
 
@@ -42,7 +42,7 @@ export function ContactDetailsStep({ values, errors, onChange }: ContactDetailsS
           value={values.phone}
           onChange={(event) => onChange({ ...values, phone: event.target.value })}
           placeholder="مثال: 0500000000 (رقم توضيحي فقط)"
-          className="w-full rounded-md border border-black/10 px-3 py-2 text-sm dark:border-white/20"
+          className="bg-surface text-foreground focus:border-primary focus:ring-primary w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:ring-1 focus:outline-none"
         />
       </FormField>
 
@@ -53,7 +53,7 @@ export function ContactDetailsStep({ values, errors, onChange }: ContactDetailsS
           value={values.email}
           onChange={(event) => onChange({ ...values, email: event.target.value })}
           placeholder="مثال: example@email.com"
-          className="w-full rounded-md border border-black/10 px-3 py-2 text-sm dark:border-white/20"
+          className="bg-surface text-foreground focus:border-primary focus:ring-primary w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:ring-1 focus:outline-none"
         />
       </FormField>
 
@@ -68,7 +68,7 @@ export function ContactDetailsStep({ values, errors, onChange }: ContactDetailsS
                 .value as ContactDetailsStepValues['preferredContactMethod'],
             })
           }
-          className="w-full rounded-md border border-black/10 px-3 py-2 text-sm dark:border-white/20"
+          className="bg-surface text-foreground focus:border-primary focus:ring-primary w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:ring-1 focus:outline-none"
         >
           <option value="phone">الهاتف</option>
           <option value="email">البريد الإلكتروني</option>

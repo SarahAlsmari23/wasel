@@ -1,6 +1,8 @@
 'use client'
 
+import { AlertTriangle } from 'lucide-react'
 import { useEffect } from 'react'
+import { Button } from '@/components/ui/button'
 
 export default function GlobalError({
   error,
@@ -14,16 +16,15 @@ export default function GlobalError({
   }, [error])
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center gap-4 px-4 text-center">
-      <h1 className="text-xl font-semibold">حدث خطأ غير متوقع</h1>
-      <p className="text-sm text-black/60 dark:text-white/60">نأسف على الإزعاج. حاول مرة أخرى.</p>
-      <button
-        type="button"
-        onClick={() => reset()}
-        className="rounded-md border border-black/10 px-4 py-2 text-sm font-medium dark:border-white/20"
-      >
+    <main className="bg-background flex min-h-screen flex-col items-center justify-center gap-4 px-4 text-center">
+      <span className="bg-danger/10 text-danger flex h-12 w-12 items-center justify-center rounded-full">
+        <AlertTriangle className="h-6 w-6" aria-hidden="true" />
+      </span>
+      <h1 className="text-foreground text-xl font-semibold">حدث خطأ غير متوقع</h1>
+      <p className="text-sm text-gray-600">نأسف على الإزعاج. حاول مرة أخرى.</p>
+      <Button type="button" variant="primary" onClick={() => reset()}>
         إعادة المحاولة
-      </button>
+      </Button>
     </main>
   )
 }
