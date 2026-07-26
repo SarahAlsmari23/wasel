@@ -1,143 +1,227 @@
+import { dateDaysAgo, daysAgo, hoursAgo } from '@/lib/mock/clock'
+import { getGovernmentEntityById } from '@/lib/mock/government-entities'
 import type { MockComplaint } from '@/types/complaint'
 
 export const MOCK_COMPLAINTS: MockComplaint[] = [
   {
     id: 'p1',
-    title: 'تأخر معالجة طلب بلدي',
-    entityName: 'وزارة البلديات والإسكان',
-    categoryName: 'تأخر في تقديم الخدمة',
-    status: 'ready',
-    updatedAt: '2026-07-22T09:30:00.000Z',
-    referenceNumber: '458291',
-    description: 'تم تقديم طلب صيانة رصيف منذ أكثر من ثلاثة أسابيع دون أي تحديث على حالته.',
+    title: 'اعتراض على فاتورة اتصالات',
+    entityId: 'cst',
+    entityName: 'هيئة الاتصالات والفضاء والتقنية',
+    entityIconKey: 'telecom',
+    categoryName: 'اعتراض على فاتورة',
+    status: 'draft',
+    createdAt: hoursAgo(3),
+    updatedAt: hoursAgo(2),
+    referenceNumber: '',
+    description:
+      'رفضت شركة الاتصالات تعويض فاتورتي رغم انقطاع الخدمة لأكثر من أسبوع، ولم يتم الرد على شكواي لديهم.',
+    summary: 'رفض تعويض فاتورة رغم انقطاع الخدمة لأكثر من أسبوع.',
     city: 'الرياض',
-    issueDate: '2026-07-01',
-    contactFullName: 'محمد عبدالله',
-    draftText: `إلى: وزارة البلديات والإسكان
-الموضوع: تأخر معالجة طلب بلدي
+    issueDate: dateDaysAgo(12),
+    contactFullName: 'جمانة الحربي',
+    requiredDocuments: getGovernmentEntityById('cst')?.requiredDocuments ?? [],
+    draftText: `إلى: هيئة الاتصالات والفضاء والتقنية
+الموضوع: اعتراض على فاتورة
 
 السلام عليكم ورحمة الله وبركاته،
 
-أتقدم أنا الموقع أدناه، محمد عبدالله، بصفتي أحد المستفيدين من خدمات وزارة البلديات والإسكان، بشكوى بخصوص تأخر في تقديم الخدمة ضمن خدمة صيانة الطرق والإنارة.
+أتقدم أنا الموقعة أدناه، جمانة الحربي، بصفتي أحد المستفيدين من خدمات هيئة الاتصالات والفضاء والتقنية، بشكوى بخصوص اعتراض على فاتورة.
+
+تفاصيل المشكلة:
+رفضت شركة الاتصالات تعويض فاتورتي رغم انقطاع الخدمة لأكثر من أسبوع، ولم يتم الرد على شكواي لديهم.
+
+المدينة: الرياض
+
+آمل التكرم بالنظر في هذه الشكوى واتخاذ الإجراء اللازم لحل المشكلة في أقرب وقت ممكن.
+
+وتفضلوا بقبول فائق الاحترام والتقدير،
+جمانة الحربي`,
+    timeline: [{ label: 'تم إنشاء المسودة', at: hoursAgo(3) }],
+    conversationId: 'c1',
+  },
+  {
+    id: 'p2',
+    title: 'تأخر معالجة طلب بلدي',
+    entityId: 'balady',
+    entityName: 'وزارة البلديات والإسكان',
+    entityIconKey: 'municipality',
+    categoryName: 'تأخر في تقديم الخدمة',
+    status: 'ready',
+    createdAt: daysAgo(10),
+    updatedAt: daysAgo(3),
+    referenceNumber: '458291',
+    description: 'تم تقديم طلب صيانة رصيف منذ أكثر من ثلاثة أسابيع دون أي تحديث على حالته.',
+    summary: 'طلب صيانة رصيف متوقف منذ أكثر من ثلاثة أسابيع.',
+    city: 'الرياض',
+    issueDate: dateDaysAgo(24),
+    contactFullName: 'جمانة الحربي',
+    requiredDocuments: getGovernmentEntityById('balady')?.requiredDocuments ?? [],
+    draftText: `إلى: وزارة البلديات والإسكان
+الموضوع: تأخر في تقديم الخدمة
+
+السلام عليكم ورحمة الله وبركاته،
+
+أتقدم أنا الموقعة أدناه، جمانة الحربي، بصفتي أحد المستفيدين من خدمات وزارة البلديات والإسكان، بشكوى بخصوص تأخر في تقديم الخدمة.
 
 تفاصيل المشكلة:
 تم تقديم طلب صيانة رصيف منذ أكثر من ثلاثة أسابيع دون أي تحديث على حالته.
 
-تاريخ حدوث المشكلة: 2026-07-01
 المدينة: الرياض
 الرقم المرجعي السابق: 458291
 
 آمل التكرم بالنظر في هذه الشكوى واتخاذ الإجراء اللازم لحل المشكلة في أقرب وقت ممكن.
 
 وتفضلوا بقبول فائق الاحترام والتقدير،
-محمد عبدالله`,
+جمانة الحربي`,
     timeline: [
-      { label: 'تم إنشاء الشكوى', at: '2026-07-15T09:00:00.000Z' },
-      { label: 'تم تحديث الحالة إلى جاهزة للتقديم', at: '2026-07-22T09:30:00.000Z' },
-    ],
-  },
-  {
-    id: 'p2',
-    title: 'اعتراض على فاتورة مياه',
-    entityName: 'الشركة الوطنية للمياه',
-    categoryName: 'اعتراض على فاتورة',
-    status: 'completed',
-    updatedAt: '2026-07-19T13:00:00.000Z',
-    referenceNumber: '',
-    description: 'الفاتورة الأخيرة أعلى من المعتاد بشكل ملحوظ رغم عدم تغير الاستهلاك.',
-    city: 'جدة',
-    issueDate: '2026-07-05',
-    contactFullName: 'سارة أحمد',
-    draftText: `إلى: الشركة الوطنية للمياه
-الموضوع: اعتراض على فاتورة مياه
-
-السلام عليكم ورحمة الله وبركاته،
-
-أتقدم أنا الموقعة أدناه، سارة أحمد، بصفتي أحد المستفيدين من خدمات الشركة الوطنية للمياه، بشكوى بخصوص اعتراض على فاتورة ضمن خدمة فوترة المياه.
-
-تفاصيل المشكلة:
-الفاتورة الأخيرة أعلى من المعتاد بشكل ملحوظ رغم عدم تغير الاستهلاك.
-
-تاريخ حدوث المشكلة: 2026-07-05
-المدينة: جدة
-
-آمل التكرم بالنظر في هذه الشكوى واتخاذ الإجراء اللازم لحل المشكلة في أقرب وقت ممكن.
-
-وتفضلوا بقبول فائق الاحترام والتقدير،
-سارة أحمد`,
-    timeline: [
-      { label: 'تم إنشاء الشكوى', at: '2026-07-10T10:00:00.000Z' },
-      { label: 'تم تقديم الشكوى إلى الجهة المختصة', at: '2026-07-12T08:00:00.000Z' },
-      { label: 'تم حل المشكلة وتصحيح الفاتورة', at: '2026-07-19T13:00:00.000Z' },
+      { label: 'تم إنشاء البلاغ', at: daysAgo(10) },
+      { label: 'تم تحديد الجهة المختصة', at: daysAgo(10) },
+      { label: 'تم تحديث الحالة إلى جاهز للتقديم', at: daysAgo(3) },
     ],
   },
   {
     id: 'p3',
-    title: 'ضعف تغطية شبكة اتصال',
-    entityName: 'هيئة الاتصالات والفضاء والتقنية',
-    categoryName: 'ضعف التغطية',
-    status: 'draft',
-    updatedAt: '2026-07-23T07:45:00.000Z',
-    referenceNumber: '',
-    description: 'ضعف واضح في تغطية شبكة الجوال في الحي خلال الأسابيع الماضية.',
-    city: 'الدمام',
-    issueDate: '2026-07-18',
-    contactFullName: 'خالد ناصر',
-    draftText: `إلى: هيئة الاتصالات والفضاء والتقنية
-الموضوع: ضعف تغطية شبكة اتصال
+    title: 'رفض استرجاع منتج من متجر إلكتروني',
+    entityId: 'mc',
+    entityName: 'وزارة التجارة',
+    entityIconKey: 'commerce',
+    categoryName: 'رفض استرجاع أو تعويض',
+    status: 'submitted',
+    createdAt: daysAgo(18),
+    updatedAt: daysAgo(6),
+    referenceNumber: '772103',
+    description:
+      'رفض المتجر استرجاع منتج وصل تالفاً رغم تقديم الطلب خلال مدة الاسترجاع المعلنة على موقعه.',
+    summary: 'رفض استرجاع منتج تالف رغم التقديم خلال مدة الاسترجاع.',
+    city: 'جدة',
+    issueDate: dateDaysAgo(21),
+    contactFullName: 'جمانة الحربي',
+    requiredDocuments: getGovernmentEntityById('mc')?.requiredDocuments ?? [],
+    draftText: `إلى: وزارة التجارة
+الموضوع: رفض استرجاع أو تعويض
 
 السلام عليكم ورحمة الله وبركاته،
 
-أتقدم أنا الموقع أدناه، خالد ناصر، بصفتي أحد المستفيدين من خدمات هيئة الاتصالات والفضاء والتقنية، بشكوى بخصوص ضعف التغطية ضمن خدمة تغطية الشبكة.
+أتقدم أنا الموقعة أدناه، جمانة الحربي، بصفتي أحد المستفيدين، بشكوى بخصوص رفض استرجاع أو تعويض.
 
 تفاصيل المشكلة:
-ضعف واضح في تغطية شبكة الجوال في الحي خلال الأسابيع الماضية.
+رفض المتجر استرجاع منتج وصل تالفاً رغم تقديم الطلب خلال مدة الاسترجاع المعلنة على موقعه.
 
-تاريخ حدوث المشكلة: 2026-07-18
-المدينة: الدمام
+المدينة: جدة
+الرقم المرجعي السابق: 772103
 
 آمل التكرم بالنظر في هذه الشكوى واتخاذ الإجراء اللازم لحل المشكلة في أقرب وقت ممكن.
 
 وتفضلوا بقبول فائق الاحترام والتقدير،
-خالد ناصر`,
-    timeline: [{ label: 'تم إنشاء المسودة', at: '2026-07-23T07:45:00.000Z' }],
+جمانة الحربي`,
+    timeline: [
+      { label: 'تم إنشاء البلاغ', at: daysAgo(18) },
+      { label: 'تم تحديد الجهة المختصة', at: daysAgo(18) },
+      { label: 'تم تقديم البلاغ إلى الجهة', at: daysAgo(6) },
+    ],
   },
   {
     id: 'p4',
-    title: 'بلاغ عن انقطاع إنارة شارع',
-    entityName: 'الشركة السعودية للكهرباء',
-    categoryName: 'انقطاع الخدمة',
-    status: 'ready',
-    updatedAt: '2026-07-21T18:20:00.000Z',
-    referenceNumber: '',
-    description: 'انطفاء إنارة الشارع الرئيسي في الحي منذ أكثر من أسبوع.',
-    city: 'مكة المكرمة',
-    issueDate: '2026-07-14',
-    contactFullName: 'منى سالم',
-    draftText: `إلى: الشركة السعودية للكهرباء
-الموضوع: بلاغ عن انقطاع إنارة شارع
+    title: 'اعتراض على فاتورة مياه',
+    entityId: 'nwc',
+    entityName: 'الشركة الوطنية للمياه',
+    entityIconKey: 'water',
+    categoryName: 'اعتراض على فاتورة',
+    status: 'completed',
+    createdAt: daysAgo(32),
+    updatedAt: daysAgo(14),
+    referenceNumber: '331204',
+    description: 'الفاتورة الأخيرة أعلى من المعتاد بشكل ملحوظ رغم عدم تغير الاستهلاك.',
+    summary: 'فاتورة مياه مرتفعة بشكل غير معتاد دون تغير في الاستهلاك.',
+    city: 'الدمام',
+    issueDate: dateDaysAgo(36),
+    contactFullName: 'جمانة الحربي',
+    requiredDocuments: getGovernmentEntityById('nwc')?.requiredDocuments ?? [],
+    draftText: `إلى: الشركة الوطنية للمياه
+الموضوع: اعتراض على فاتورة
 
 السلام عليكم ورحمة الله وبركاته،
 
-أتقدم أنا الموقعة أدناه، منى سالم، بصفتي أحد المستفيدين من خدمات الشركة السعودية للكهرباء، بشكوى بخصوص انقطاع الخدمة ضمن خدمة انقطاع التيار الكهربائي.
+أتقدم أنا الموقعة أدناه، جمانة الحربي، بصفتي أحد المستفيدين من خدمات الشركة الوطنية للمياه، بشكوى بخصوص اعتراض على فاتورة.
 
 تفاصيل المشكلة:
-انطفاء إنارة الشارع الرئيسي في الحي منذ أكثر من أسبوع.
+الفاتورة الأخيرة أعلى من المعتاد بشكل ملحوظ رغم عدم تغير الاستهلاك.
 
-تاريخ حدوث المشكلة: 2026-07-14
+المدينة: الدمام
+الرقم المرجعي السابق: 331204
+
+آمل التكرم بالنظر في هذه الشكوى واتخاذ الإجراء اللازم لحل المشكلة في أقرب وقت ممكن.
+
+وتفضلوا بقبول فائق الاحترام والتقدير،
+جمانة الحربي`,
+    timeline: [
+      { label: 'تم إنشاء البلاغ', at: daysAgo(32) },
+      { label: 'تم تقديم البلاغ إلى الجهة', at: daysAgo(28) },
+      { label: 'تم تصحيح الفاتورة وإغلاق البلاغ', at: daysAgo(14) },
+    ],
+  },
+  {
+    id: 'p5',
+    title: 'انقطاع إنارة شارع رئيسي',
+    entityId: 'sec',
+    entityName: 'الشركة السعودية للكهرباء',
+    entityIconKey: 'electricity',
+    categoryName: 'أعطال الإنارة',
+    status: 'draft',
+    createdAt: daysAgo(5),
+    updatedAt: daysAgo(4),
+    referenceNumber: '',
+    description: 'انطفاء إنارة الشارع الرئيسي في الحي منذ أكثر من أسبوع دون معالجة.',
+    summary: 'إنارة شارع رئيسي متوقفة منذ أكثر من أسبوع.',
+    city: 'مكة المكرمة',
+    issueDate: dateDaysAgo(12),
+    contactFullName: 'جمانة الحربي',
+    requiredDocuments: getGovernmentEntityById('sec')?.requiredDocuments ?? [],
+    draftText: `إلى: الشركة السعودية للكهرباء
+الموضوع: أعطال الإنارة
+
+السلام عليكم ورحمة الله وبركاته،
+
+أتقدم أنا الموقعة أدناه، جمانة الحربي، بصفتي أحد المستفيدين من خدمات الشركة السعودية للكهرباء، بشكوى بخصوص أعطال الإنارة.
+
+تفاصيل المشكلة:
+انطفاء إنارة الشارع الرئيسي في الحي منذ أكثر من أسبوع دون معالجة.
+
 المدينة: مكة المكرمة
 
 آمل التكرم بالنظر في هذه الشكوى واتخاذ الإجراء اللازم لحل المشكلة في أقرب وقت ممكن.
 
 وتفضلوا بقبول فائق الاحترام والتقدير،
-منى سالم`,
-    timeline: [
-      { label: 'تم إنشاء الشكوى', at: '2026-07-16T12:00:00.000Z' },
-      { label: 'تم تحديث الحالة إلى جاهزة للتقديم', at: '2026-07-21T18:20:00.000Z' },
-    ],
+جمانة الحربي`,
+    timeline: [{ label: 'تم إنشاء المسودة', at: daysAgo(5) }],
   },
 ]
 
 export function getMockComplaintById(id: string): MockComplaint | undefined {
+  if (!id) return undefined
   return MOCK_COMPLAINTS.find((complaint) => complaint.id === id)
+}
+
+/**
+ * Sorts newest-first, treating an unparseable date as epoch 0 so a malformed
+ * `updatedAt` pushes the record to the end instead of producing NaN
+ * comparisons and an unstable order.
+ */
+function byUpdatedAtDescending(a: MockComplaint, b: MockComplaint): number {
+  const left = new Date(b.updatedAt).getTime() || 0
+  const right = new Date(a.updatedAt).getTime() || 0
+  return left - right
+}
+
+/** Drafts, newest first — powers "Continue Where You Left Off" and /drafts. */
+export function getMockDrafts(): MockComplaint[] {
+  return MOCK_COMPLAINTS.filter((complaint) => complaint.status === 'draft').sort(
+    byUpdatedAtDescending,
+  )
+}
+
+/** All complaints, newest first. */
+export function getMockComplaintsByRecency(): MockComplaint[] {
+  return [...MOCK_COMPLAINTS].sort(byUpdatedAtDescending)
 }

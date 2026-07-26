@@ -1,54 +1,62 @@
+import { Mail } from 'lucide-react'
 import Link from 'next/link'
+import { WaselLogo } from '@/components/brand/wasel-logo'
 
-const FOOTER_LINKS = [
+const NAV_LINKS = [
   { href: '/', label: 'الرئيسية' },
-  { href: '/conversations', label: 'وصال' },
+  { href: '/wasal', label: 'واصل' },
   { href: '/entities', label: 'الجهات الحكومية' },
-  { href: '/about', label: 'عن وصال' },
+  { href: '/about', label: 'عن واصل' },
 ]
 
-// Privacy policy / terms / contact do not exist yet as real pages — rendered
-// as muted, non-navigating labels rather than linking to fabricated content.
-const PENDING_LINKS = ['سياسة الخصوصية', 'الشروط والأحكام', 'تواصل معنا']
+// Privacy policy / terms do not exist yet as real pages — rendered as muted,
+// non-navigating labels rather than linking to content that isn't written.
+const PENDING_LINKS = ['سياسة الخصوصية', 'الشروط والأحكام']
 
 export function SiteFooter() {
   return (
-    <footer className="bg-surface border-t border-gray-200">
-      <div className="mx-auto flex max-w-6xl flex-col gap-8 px-6 py-10 md:flex-row md:justify-between">
-        <div>
-          <p className="text-primary text-lg font-semibold">وصال</p>
-          <p className="mt-2 max-w-xs text-sm text-gray-600">
-            منصة ذكية تساعدك على تحليل شكواك وتوجيهها إلى الجهة الحكومية المناسبة.
+    <footer className="border-border bg-surface border-t">
+      <div className="mx-auto grid max-w-6xl gap-10 px-5 py-14 md:grid-cols-[1.5fr_1fr_1fr] md:px-6">
+        <div className="flex flex-col gap-3">
+          <WaselLogo variant="horizontal" size="sm" />
+          <p className="text-muted-foreground max-w-xs text-sm leading-relaxed">
+            منصة ذكية تساعدك على فهم شكواك، وتحديد الجهة الحكومية المناسبة، وصياغة البلاغ باحترافية
+            قبل إرساله.
           </p>
         </div>
 
-        <div className="flex flex-wrap gap-10">
-          <div className="flex flex-col gap-2">
-            <p className="text-foreground text-sm font-semibold">روابط</p>
-            {FOOTER_LINKS.map((link) => (
-              <Link
-                key={link.href}
-                href={link.href}
-                className="hover:text-primary text-sm text-gray-600 transition-colors"
-              >
-                {link.label}
-              </Link>
-            ))}
-          </div>
+        <nav aria-label="روابط التذييل" className="flex flex-col gap-3">
+          <p className="text-foreground text-sm font-semibold">روابط سريعة</p>
+          {NAV_LINKS.map((link) => (
+            <Link
+              key={link.href}
+              href={link.href}
+              className="text-muted-foreground hover:text-primary text-sm transition-colors"
+            >
+              {link.label}
+            </Link>
+          ))}
+        </nav>
 
-          <div className="flex flex-col gap-2">
-            <p className="text-foreground text-sm font-semibold">قانوني</p>
-            {PENDING_LINKS.map((label) => (
-              <span key={label} className="text-sm text-gray-400" title="سيتوفر قريباً">
-                {label}
-              </span>
-            ))}
-          </div>
+        <div className="flex flex-col gap-3">
+          <p className="text-foreground text-sm font-semibold">تواصل معنا</p>
+          <a
+            href="mailto:support@wasal.sa"
+            className="text-muted-foreground hover:text-primary flex items-center gap-2 text-sm transition-colors"
+          >
+            <Mail className="h-3.5 w-3.5" aria-hidden="true" />
+            support@wasal.sa
+          </a>
+          {PENDING_LINKS.map((label) => (
+            <span key={label} className="text-muted-foreground/60 text-sm" title="سيتوفر قريباً">
+              {label}
+            </span>
+          ))}
         </div>
       </div>
 
-      <div className="border-t border-gray-200 px-6 py-4 text-center text-xs text-gray-400">
-        جميع الحقوق محفوظة © وصال {new Date().getFullYear()}
+      <div className="border-border text-muted-foreground border-t px-5 py-5 text-center text-xs md:px-6">
+        جميع الحقوق محفوظة © واصل {new Date().getFullYear()}
       </div>
     </footer>
   )

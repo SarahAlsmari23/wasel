@@ -8,8 +8,12 @@ import type { RetrievedDocument } from '@/lib/rag/types'
 import { createClient } from '@/lib/supabase/server'
 import type { ChatErrorResponse, ChatSource, ChatSuccessResponse } from '@/types/ai'
 
-const RATE_LIMIT_MAX_REQUESTS = 10
 const RATE_LIMIT_WINDOW_MS = 60_000
+// Guests get a tighter budget than signed-in users: the assistant is open to
+// everyone (Phase 1 "Guest User"), so the anonymous path is the one exposed
+// to casual abuse.
+const RATE_LIMIT_MAX_REQUESTS_AUTHENTICATED = 10
+const RATE_LIMIT_MAX_REQUESTS_GUEST = 5
 
 // In-memory, per-process sliding-window limiter. Development-only: state
 // resets on server restart and is not shared across multiple instances.
@@ -19,21 +23,32 @@ const requestTimestampsByUser = new Map<string, number[]>()
 
 /**
  * Exported so its logic can be verified directly (called repeatedly with a
- * fake user id) without HTTP, auth, or any network call.
+ * fake key) without HTTP, auth, or any network call.
  */
-export function checkRateLimit(userId: string): boolean {
+export function checkRateLimit(key: string, maxRequests: number): boolean {
   const now = Date.now()
-  const timestamps = requestTimestampsByUser.get(userId) ?? []
+  const timestamps = requestTimestampsByUser.get(key) ?? []
   const recent = timestamps.filter((timestamp) => now - timestamp < RATE_LIMIT_WINDOW_MS)
 
-  if (recent.length >= RATE_LIMIT_MAX_REQUESTS) {
-    requestTimestampsByUser.set(userId, recent)
+  if (recent.length >= maxRequests) {
+    requestTimestampsByUser.set(key, recent)
     return false
   }
 
   recent.push(now)
-  requestTimestampsByUser.set(userId, recent)
+  requestTimestampsByUser.set(key, recent)
   return true
+}
+
+/**
+ * Best-effort client identity for guest rate limiting. Proxy headers are
+ * spoofable, so this only raises the cost of casual abuse — it is not an
+ * authentication signal and is never used for anything but the limiter key.
+ */
+function getGuestRateLimitKey(request: Request): string {
+  const forwardedFor = request.headers.get('x-forwarded-for')
+  const clientIp = forwardedFor?.split(',')[0]?.trim() || request.headers.get('x-real-ip')
+  return `guest:${clientIp || 'unknown'}`
 }
 
 function errorResponse(error: string, status: number) {
@@ -69,11 +84,13 @@ export async function POST(request: Request) {
     data: { user },
   } = await supabase.auth.getUser()
 
-  if (!user) {
-    return errorResponse('يجب تسجيل الدخول لاستخدام هذه الخدمة.', 401)
-  }
+  // The assistant is open to guests by design — asking general questions
+  // never requires an account. Only complaint creation and persistence are
+  // gated, and neither happens here.
+  const rateLimitKey = user ? user.id : getGuestRateLimitKey(request)
+  const maxRequests = user ? RATE_LIMIT_MAX_REQUESTS_AUTHENTICATED : RATE_LIMIT_MAX_REQUESTS_GUEST
 
-  if (!checkRateLimit(user.id)) {
+  if (!checkRateLimit(rateLimitKey, maxRequests)) {
     return errorResponse('لقد تجاوزت الحد المسموح به من الطلبات. حاول مرة أخرى بعد قليل.', 429)
   }
 

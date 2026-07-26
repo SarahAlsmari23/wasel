@@ -1,154 +1,243 @@
 'use client'
 
-import { useState, type FormEvent } from 'react'
+import { MailCheck } from 'lucide-react'
+import { Suspense, useState, type FormEvent } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
-import { getAuthErrorMessage } from '@/lib/auth/error-messages'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { AuthCard, AuthDivider } from '@/components/auth/auth-card'
+import { AuthErrorNotice } from '@/components/auth/auth-error-notice'
 import { GoogleOAuthButton } from '@/components/auth/google-oauth-button'
-import { Button } from '@/components/ui/button'
-import { Card } from '@/components/ui/card'
+import { Button, buttonClasses } from '@/components/ui/button'
+import { Field, TextInput } from '@/components/ui/field'
+import { useToast } from '@/components/ui/toast'
+import { getAuthErrorDetails, type AuthErrorDetails } from '@/lib/auth/error-messages'
+import { resolveRedirectPath } from '@/lib/auth/redirect'
+import { createClient } from '@/lib/supabase/client'
 
-export default function SignUpPage() {
+const MIN_PASSWORD_LENGTH = 6
+
+function SignUpForm() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const { showToast } = useToast()
+  const nextPath = resolveRedirectPath(searchParams.get('next'))
+
   const [fullName, setFullName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [checkEmail, setCheckEmail] = useState(false)
+  const [error, setError] = useState<AuthErrorDetails | null>(null)
+  const [confirmError, setConfirmError] = useState<string | null>(null)
+  const [awaitingEmailConfirmation, setAwaitingEmailConfirmation] = useState(false)
+  /** The address actually submitted, shown on the confirmation screen. */
+  const [attemptedEmail, setAttemptedEmail] = useState('')
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (isSubmitting) return
-    setIsSubmitting(true)
+
     setError(null)
+    setConfirmError(null)
+
+    // Read from the form rather than React state alone — credentials entered
+    // before hydration (slow connection, password manager autofill) never fire
+    // onChange, which would submit an empty email.
+    const formData = new FormData(event.currentTarget)
+    const submittedEmail = String(formData.get('email') ?? '').trim() || email.trim()
+    const submittedPassword = String(formData.get('password') ?? '') || password
+    const submittedConfirm = String(formData.get('confirmPassword') ?? '') || confirmPassword
+    const submittedName = String(formData.get('fullName') ?? '').trim() || fullName.trim()
+
+    if (submittedPassword !== submittedConfirm) {
+      setConfirmError('كلمتا المرور غير متطابقتين.')
+      return
+    }
+
+    if (!submittedEmail || !submittedPassword) {
+      setError({
+        message: 'يرجى إدخال البريد الإلكتروني وكلمة المرور.',
+        code: 'missing_credentials',
+      })
+      return
+    }
+
+    setIsSubmitting(true)
+    setAttemptedEmail(submittedEmail)
 
     try {
       const supabase = createClient()
+      const trimmedEmail = submittedEmail
       const { data, error: signUpError } = await supabase.auth.signUp({
-        email,
-        password,
+        email: trimmedEmail,
+        password: submittedPassword,
         options: {
-          data: { full_name: fullName || undefined },
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
+          data: { full_name: submittedName || undefined },
+          emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(nextPath)}`,
         },
       })
 
       if (signUpError) {
-        setError(getAuthErrorMessage(signUpError.message))
+        setError(getAuthErrorDetails(signUpError))
         return
       }
 
+      // When confirmations are on, Supabase hides account enumeration by
+      // returning a user with an empty `identities` array for an address that
+      // is already registered. Without this check the UI would claim a new
+      // account was created and send the user to an inbox with nothing in it.
+      if (data.user && data.user.identities && data.user.identities.length === 0) {
+        setError({
+          message:
+            'هذا البريد الإلكتروني مسجل بالفعل. سجّل الدخول، أو أعد إرسال رابط التفعيل من صفحة تسجيل الدخول.',
+          code: 'user_already_exists',
+        })
+        return
+      }
+
+      // A session is only returned when email confirmation is disabled on the
+      // Supabase project. Otherwise the user must click the emailed link first.
       if (data.session) {
-        router.push('/')
+        showToast('تم إنشاء حسابك بنجاح.')
+        router.push(nextPath)
         router.refresh()
         return
       }
 
-      setCheckEmail(true)
+      setAwaitingEmailConfirmation(true)
+    } catch (unexpectedError) {
+      setError(getAuthErrorDetails(unexpectedError))
     } finally {
       setIsSubmitting(false)
     }
   }
 
-  if (checkEmail) {
+  if (awaitingEmailConfirmation) {
     return (
-      <main className="bg-background flex min-h-screen items-center justify-center px-4">
-        <Card className="w-full max-w-sm text-center">
-          <h1 className="text-foreground mb-4 text-xl font-semibold">تم إنشاء الحساب</h1>
-          <p className="text-sm text-gray-600">
-            يرجى التحقق من بريدك الإلكتروني لتفعيل الحساب قبل تسجيل الدخول.
-          </p>
-          <p className="mt-6 text-sm">
-            <Link href="/auth/sign-in" className="text-primary font-medium underline">
-              العودة إلى تسجيل الدخول
-            </Link>
-          </p>
-        </Card>
-      </main>
+      <div className="animate-scale-in bg-surface border-border shadow-lift w-full max-w-md rounded-3xl border p-8 text-center">
+        <span className="bg-status-completed/12 text-status-completed mx-auto flex h-14 w-14 items-center justify-center rounded-2xl">
+          <MailCheck className="h-6 w-6" aria-hidden="true" />
+        </span>
+        <h1 className="text-heading mt-5 text-xl font-semibold">فعّل بريدك الإلكتروني</h1>
+        <p className="text-muted-foreground mt-2 text-sm leading-relaxed">
+          أرسلنا رابط تفعيل إلى <span dir="ltr">{attemptedEmail || email.trim()}</span>. يجب الضغط
+          على الرابط قبل أن تتمكن من تسجيل الدخول.
+        </p>
+        <p className="text-muted-foreground bg-surface-muted mt-4 rounded-xl px-3 py-2.5 text-xs leading-relaxed">
+          لم تصلك الرسالة؟ تحقق من مجلد الرسائل غير المرغوب فيها، أو أعد إرسال الرابط من صفحة تسجيل
+          الدخول بعد إدخال بياناتك.
+        </p>
+        <Link
+          href={`/auth/sign-in?next=${encodeURIComponent(nextPath)}`}
+          className={buttonClasses('primary', 'md', 'mt-6 w-full')}
+        >
+          الذهاب إلى تسجيل الدخول
+        </Link>
+      </div>
     )
   }
 
   return (
-    <main className="bg-background flex min-h-screen items-center justify-center px-4">
-      <div className="w-full max-w-sm">
-        <p className="font-arabic text-primary mb-2 text-center text-2xl font-semibold">وصال</p>
-        <Card className="mt-4">
-          <h1 className="text-foreground mb-6 text-center text-xl font-semibold">إنشاء حساب</h1>
+    <AuthCard
+      title="إنشاء حساب"
+      subtitle="أنشئ حسابك لبدء إعداد بلاغاتك وحفظها."
+      footer={
+        <>
+          لديك حساب بالفعل؟{' '}
+          <Link
+            href={`/auth/sign-in?next=${encodeURIComponent(nextPath)}`}
+            className="text-primary font-medium hover:underline"
+          >
+            تسجيل الدخول
+          </Link>
+        </>
+      }
+    >
+      <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
+        <Field htmlFor="fullName" label="الاسم الكامل">
+          <TextInput
+            id="fullName"
+            name="fullName"
+            type="text"
+            required
+            autoComplete="name"
+            placeholder="مثال: محمد عبدالله"
+            defaultValue=""
+            onChange={(event) => setFullName(event.target.value)}
+            disabled={isSubmitting}
+          />
+        </Field>
 
-          <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-            <div>
-              <label htmlFor="fullName" className="text-foreground mb-1 block text-sm font-medium">
-                الاسم الكامل
-              </label>
-              <input
-                id="fullName"
-                type="text"
-                autoComplete="name"
-                value={fullName}
-                onChange={(event) => setFullName(event.target.value)}
-                disabled={isSubmitting}
-                className="text-foreground focus:border-primary focus:ring-primary w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:ring-1 focus:outline-none disabled:opacity-50"
-              />
-            </div>
+        <Field htmlFor="email" label="البريد الإلكتروني">
+          <TextInput
+            id="email"
+            name="email"
+            type="email"
+            required
+            autoComplete="email"
+            dir="ltr"
+            placeholder="name@example.com"
+            defaultValue=""
+            onChange={(event) => setEmail(event.target.value)}
+            disabled={isSubmitting}
+          />
+        </Field>
 
-            <div>
-              <label htmlFor="email" className="text-foreground mb-1 block text-sm font-medium">
-                البريد الإلكتروني
-              </label>
-              <input
-                id="email"
-                type="email"
-                required
-                autoComplete="email"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                disabled={isSubmitting}
-                className="text-foreground focus:border-primary focus:ring-primary w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:ring-1 focus:outline-none disabled:opacity-50"
-              />
-            </div>
+        <Field
+          htmlFor="password"
+          label="كلمة المرور"
+          hint={`${MIN_PASSWORD_LENGTH} أحرف على الأقل.`}
+        >
+          <TextInput
+            id="password"
+            name="password"
+            type="password"
+            required
+            minLength={MIN_PASSWORD_LENGTH}
+            autoComplete="new-password"
+            defaultValue=""
+            onChange={(event) => setPassword(event.target.value)}
+            disabled={isSubmitting}
+          />
+        </Field>
 
-            <div>
-              <label htmlFor="password" className="text-foreground mb-1 block text-sm font-medium">
-                كلمة المرور
-              </label>
-              <input
-                id="password"
-                type="password"
-                required
-                minLength={6}
-                autoComplete="new-password"
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                disabled={isSubmitting}
-                className="text-foreground focus:border-primary focus:ring-primary w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:ring-1 focus:outline-none disabled:opacity-50"
-              />
-            </div>
+        <Field
+          htmlFor="confirmPassword"
+          label="تأكيد كلمة المرور"
+          error={confirmError ?? undefined}
+        >
+          <TextInput
+            id="confirmPassword"
+            name="confirmPassword"
+            type="password"
+            required
+            autoComplete="new-password"
+            defaultValue=""
+            onChange={(event) => setConfirmPassword(event.target.value)}
+            disabled={isSubmitting}
+            aria-invalid={confirmError ? true : undefined}
+            aria-describedby={confirmError ? 'confirmPassword-error' : undefined}
+          />
+        </Field>
 
-            {error ? <p className="text-danger text-sm">{error}</p> : null}
+        {error ? <AuthErrorNotice details={error} /> : null}
 
-            <Button type="submit" disabled={isSubmitting} className="w-full">
-              إنشاء حساب
-            </Button>
-          </form>
+        <Button type="submit" isLoading={isSubmitting} className="mt-1 w-full">
+          إنشاء الحساب
+        </Button>
+      </form>
 
-          <div className="my-4 flex items-center gap-3 text-xs text-gray-400">
-            <span className="h-px flex-1 bg-gray-200" />
-            أو
-            <span className="h-px flex-1 bg-gray-200" />
-          </div>
+      <AuthDivider />
 
-          <GoogleOAuthButton />
+      <GoogleOAuthButton nextPath={nextPath} />
+    </AuthCard>
+  )
+}
 
-          <p className="mt-6 text-center text-sm text-gray-600">
-            لديك حساب بالفعل؟{' '}
-            <Link href="/auth/sign-in" className="text-primary font-medium underline">
-              تسجيل الدخول
-            </Link>
-          </p>
-        </Card>
-      </div>
-    </main>
+export default function SignUpPage() {
+  return (
+    <Suspense fallback={null}>
+      <SignUpForm />
+    </Suspense>
   )
 }

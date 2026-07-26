@@ -1,35 +1,339 @@
 @import 'tailwindcss';
 
-/* Wasal design system — fixed 4-color palette. No dark mode. */
-:root {
-  --background: #fff2e6; /* off-white page background */
-  --surface: #ffffff; /* card/panel surface, elevated above the page */
-  --foreground: #1a1a1a; /* near-black body text */
+/*
+ * Dark mode is driven by a `.dark` class on <html>, set before first paint by
+ * the inline script in the root layout — not by prefers-color-scheme alone —
+ * so an explicit user choice always wins over the OS setting.
+ */
+@custom-variant dark (&:where(.dark, .dark *));
 
-  --primary: #052102; /* matt green */
-  --primary-foreground: #fff2e6;
-  --secondary: #586357; /* light green */
-  --secondary-foreground: #fff2e6;
-  --danger: #3d0000; /* burgundy */
-  --danger-foreground: #fff2e6;
+/*
+ * واصل · Wasel — official brand tokens.
+ *
+ * Palette (Saudi Inspired):
+ *   #006C35 Saudi Green  — primary, 25%
+ *   #22B8A0 Teal         — accent / highlights, 10%
+ *   #12355B Deep Navy    — headings, charts, secondary elements
+ *   #E6F4EF Mint Green   — active states, tinted surfaces, 5%
+ *   #E6EDF2 Light Gray   — borders, rules
+ *   #F7F9FA Off White    — page background, 60%
+ *
+ * Dark mode re-declares the same token names, so every component follows
+ * automatically: only colours change, never spacing, layout or hierarchy.
+ */
+:root {
+  color-scheme: light;
+  --background: #f7f9fa; /* off-white page background */
+  --surface: #ffffff; /* card/panel surface */
+  --surface-muted: #f1f5f9; /* subtle inset panels */
+  --surface-tint: #e6f4ef; /* mint — active/selected surfaces */
+
+  --foreground: #334155; /* primary body text */
+  --heading: #12355b; /* headings — deep navy */
+  --muted-foreground: #64748b; /* secondary text */
+  --subtle-foreground: #94a3b8; /* light/disabled text */
+
+  --primary: #006c35; /* Saudi green */
+  --primary-foreground: #ffffff;
+  --primary-hover: #005a2c; /* darker green for hover */
+
+  --secondary: #12355b; /* deep navy */
+  --secondary-foreground: #ffffff;
+
+  --accent: #22b8a0; /* teal */
+  --accent-foreground: #ffffff;
+
+  --danger: #e5484d;
+  --danger-foreground: #ffffff;
+
+  --border: #e6edf2; /* light gray hairline */
+  --border-strong: #cfd9e4;
+  --ring: #006c35;
+
+  /* Dark surface used by the brand's navy panels. */
+  --surface-dark: #0f2d52;
+  --surface-dark-foreground: #f7f9fa;
+
+  /* Status colours, matching the identity sheet. */
+  --status-success: #006c35;
+  --status-info: #12355b;
+  --status-warning: #b7791f;
+  --status-error: #e5484d;
+
+  /* Complaint statuses — one distinct hue each. */
+  --status-draft: #64748b;
+  --status-ready: #22b8a0;
+  --status-submitted: #12355b;
+  --status-completed: #006c35;
+  --status-pending: #b7791f;
+
+  /* Signature brand gradient: green → teal. */
+  --brand-gradient: linear-gradient(135deg, #006c35 0%, #22b8a0 100%);
+
+  /* Which artwork the shared landing canvas paints. */
+  --canvas-image: url('/brand/hero-bg-light.jpeg');
+  --canvas-scrim: linear-gradient(
+    to bottom,
+    rgb(247 249 250 / 0.9) 0%,
+    rgb(247 249 250 / 0.62) 55%,
+    rgb(247 249 250 / 0.86) 100%
+  );
+}
+
+/*
+ * Dark mode. Greens and teals are lifted a step so they keep their contrast
+ * against a navy page — the same hues, tuned for a dark surface rather than a
+ * different palette.
+ */
+.dark {
+  color-scheme: dark;
+
+  --background: #081c34; /* deep navy page */
+  --surface: #0f2d52; /* the identity sheet's navy — cards sit here */
+  --surface-muted: #143761;
+  --surface-tint: #0e3a30; /* dark mint — active/selected surfaces */
+
+  --foreground: #d8e2ec;
+  --heading: #f2f6fa;
+  --muted-foreground: #93a6bd;
+  --subtle-foreground: #6b819b;
+
+  --primary: #0f9950; /* Saudi green, lifted for dark surfaces */
+  --primary-foreground: #ffffff;
+  --primary-hover: #13ad5c;
+
+  --secondary: #7ba5d0; /* navy is invisible on navy — use its light tint */
+  --secondary-foreground: #081c34;
+
+  --accent: #2ed3b7; /* teal, lifted */
+  --accent-foreground: #081c34;
+
+  --danger: #ff6369;
+  --danger-foreground: #240709;
+
+  --border: #1e3d63;
+  --border-strong: #2b5183;
+  --ring: #2ed3b7;
+
+  --surface-dark: #0b2444;
+  --surface-dark-foreground: #f2f6fa;
+
+  --status-success: #2fbe6f;
+  --status-info: #7ba5d0;
+  --status-warning: #e0a53c;
+  --status-error: #ff6369;
+
+  --status-draft: #93a6bd;
+  --status-ready: #2ed3b7;
+  --status-submitted: #7ba5d0;
+  --status-completed: #2fbe6f;
+  --status-pending: #e0a53c;
+
+  --brand-gradient: linear-gradient(135deg, #13ad5c 0%, #2ed3b7 100%);
+
+  --canvas-image: url('/brand/hero-bg-dark.png');
+  --canvas-scrim: linear-gradient(
+    to bottom,
+    rgb(8 28 52 / 0.82) 0%,
+    rgb(8 28 52 / 0.55) 55%,
+    rgb(8 28 52 / 0.8) 100%
+  );
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-surface: var(--surface);
+  --color-surface-muted: var(--surface-muted);
+  --color-surface-tint: var(--surface-tint);
+  --color-surface-dark: var(--surface-dark);
+  --color-surface-dark-foreground: var(--surface-dark-foreground);
+
   --color-foreground: var(--foreground);
+  --color-heading: var(--heading);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-subtle-foreground: var(--subtle-foreground);
+
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
+  --color-primary-hover: var(--primary-hover);
   --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
   --color-danger: var(--danger);
   --color-danger-foreground: var(--danger-foreground);
+
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-ring: var(--ring);
+
+  --color-status-success: var(--status-success);
+  --color-status-info: var(--status-info);
+  --color-status-warning: var(--status-warning);
+  --color-status-error: var(--status-error);
+  --color-status-draft: var(--status-draft);
+  --color-status-ready: var(--status-ready);
+  --color-status-submitted: var(--status-submitted);
+  --color-status-completed: var(--status-completed);
+  --color-status-pending: var(--status-pending);
+
   --font-sans: var(--font-ibm-plex-sans-arabic);
   --font-arabic: var(--font-ibm-plex-sans-arabic);
+
+  --radius-card: 1rem;
+  --radius-pill: 999px;
+
+  /* Shadows tinted with the navy rather than neutral black. */
+  --shadow-soft: 0 1px 2px rgb(18 53 91 / 0.04), 0 8px 24px -12px rgb(18 53 91 / 0.12);
+  --shadow-lift: 0 2px 4px rgb(18 53 91 / 0.06), 0 18px 40px -18px rgb(18 53 91 / 0.22);
+
+  --animate-fade-in: fade-in 0.5s ease-out both;
+  --animate-fade-up: fade-up 0.5s ease-out both;
+  --animate-scale-in: scale-in 0.18s ease-out both;
+  --animate-bubble-in: bubble-in 0.28s cubic-bezier(0.22, 1, 0.36, 1) both;
+  --animate-slide-in-start: slide-in-start 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+  --animate-shimmer: shimmer 1.6s ease-in-out infinite;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes bubble-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* RTL-aware: "start" is the right edge, so the card slides in from the right. */
+@keyframes slide-in-start {
+  from {
+    opacity: 0;
+    transform: translateX(24px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes shimmer {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
+  }
+}
+
+html {
+  scroll-behavior: smooth;
+  /* Sticky navbar height, so in-page anchors are not hidden behind it. */
+  scroll-padding-top: 5.5rem;
 }
 
 body {
   background: var(--color-background);
   color: var(--color-foreground);
   font-family: var(--font-ibm-plex-sans-arabic), ui-sans-serif, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* A single, consistently visible focus ring across the whole app. */
+:focus-visible {
+  outline: 2px solid var(--color-ring);
+  outline-offset: 2px;
+  border-radius: 0.375rem;
+}
+
+/* The brand's green→teal gradient, for headline and accent text. */
+.text-brand-gradient {
+  background: var(--brand-gradient);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.bg-brand-gradient {
+  background: var(--brand-gradient);
+}
+
+/*
+ * The shared landing canvas.
+ *
+ * One instance is rendered per marketing page (see the marketing layout) and
+ * pinned with position:sticky inside a container spanning all of that page's
+ * sections. The artwork stays put while content scrolls over it — one
+ * continuous branded space rather than a background repeated per section — and
+ * it ends exactly where its container ends, immediately above the footer.
+ *
+ * Sticky is used in preference to background-attachment:fixed, which iOS
+ * Safari silently downgrades to scroll.
+ */
+.wasel-canvas {
+  background-color: var(--color-background);
+  background-image: var(--canvas-scrim), var(--canvas-image);
+  background-position: center, center;
+  /* cover on a viewport-sized box: never tiled, never stretched. */
+  background-size: cover, cover;
+  background-repeat: no-repeat;
+}
+
+/* Navy panel for the statistics section — the artwork, darkened, in both themes. */
+.bg-wasel-panel {
+  background-color: var(--color-surface-dark);
+  background-image:
+    linear-gradient(to bottom, rgb(11 36 68 / 0.86) 0%, rgb(11 36 68 / 0.72) 100%),
+    var(--canvas-image);
+  background-position: center, center;
+  background-size: cover, cover;
+  background-repeat: no-repeat;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
