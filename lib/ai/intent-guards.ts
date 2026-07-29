@@ -248,29 +248,41 @@ const QUESTION_MARK_PATTERN = /[؟?]/
 const QUESTION_WORD_PATTERN = /^\s*(هل|متي|كيف|لماذا|ليه|وش|ايش|ما\s+هي|ما\s+هو|كم|وين|اين)(\s|$)/
 
 /**
- * Phase 7.4, Part 1 — whole-message Saudi colloquial forms of a yes/no answer
- * to a boolean-shaped complaint field (e.g. "هل سبق أن تواصلت مع مزود
- * الخدمة؟"). Deliberately never inferred from "نعم"/"لا" alone: real answers
- * routinely carry the same meaning without either word ("ما تواصلت", "سبق
- * وتواصلت", "للحين لا"). Matched only as the *entire* normalized message
- * (never a substring), with the same bounded typo tolerance
- * (isFuzzyPhraseMatch) already used for GREETING_PHRASES/IDENTITY_EXTRA_PHRASES
- * above — never both lists at once, since no phrase appears in both.
+ * Phase 7.4, Part 1 (expanded Phase 7.6, Part 1) — whole-message Saudi
+ * colloquial forms of a yes/no answer to a boolean-shaped complaint field
+ * (e.g. "هل سبق أن تواصلت مع مزود الخدمة؟"). Deliberately never inferred from
+ * "نعم"/"لا" alone: real answers routinely carry the same meaning without
+ * either word ("ما تواصلت", "سبق وتواصلت", "للحين لا"). Matched only as the
+ * *entire* normalized message (never a substring), with the same bounded typo
+ * tolerance (isFuzzyPhraseMatch) already used for
+ * GREETING_PHRASES/IDENTITY_EXTRA_PHRASES above — never both lists at once,
+ * since no phrase appears in both.
  */
 const FALSE_ANSWER_PHRASES = [
   'لا',
   'ابداً',
   'ما',
   'ما تواصلت',
+  'ماتواصلت',
+  'ما قد تواصلت',
   'ماقد تواصلت',
   'ما سبق',
   'ماني متواصل',
   'ما رفعت',
+  'ما رفعت لهم',
+  'مارفعت لهم',
   'ما كلمتهم',
+  'ماكلمتهم',
   'لا والله',
   'للحين لا',
   'ما قدمت',
+  'ماقدمت',
+  'ما تابعت',
+  'ماتابعت',
   'ما عندي رقم مرجعي',
+  'ماعندي رقم مرجعي',
+  'ما سبق وتواصلت',
+  'ماسبق وتواصلت',
 ].map(normalizeArabicInput)
 
 const TRUE_ANSWER_PHRASES = [
@@ -279,25 +291,65 @@ const TRUE_ANSWER_PHRASES = [
   'ايوه',
   'ايه',
   'تواصلت',
+  'تواصلت معهم',
   'كلمتهم',
   'رفعت لهم',
   'قدمت',
   'فتحت بلاغ',
   'عندي رقم مرجعي',
   'سبق وتواصلت',
+  'سبق رفعت لهم شكوى',
 ].map(normalizeArabicInput)
 
+/** Space-insensitive membership check — "ماتواصلت"/"ما تواصلت" must resolve
+ * identically regardless of which spacing the user (or an older stored row)
+ * happens to use (Phase 7.6, Part 1: "support Arabic variants with and
+ * without spaces"), without needing every spacing permutation spelled out in
+ * the phrase lists above. */
+function stripSpaces(value: string): string {
+  return value.replace(/\s+/g, '')
+}
+
+/** Exact match, ignoring spacing only — never fuzzy. Kept separate from
+ * fuzzy matching below: a short negation prefix ("ما"/"لا") is only 1-2
+ * characters, well within the bounded typo tolerance `isFuzzyPhraseMatch`
+ * allows, so an affirmative phrase and its own negated counterpart
+ * ("عندي رقم مرجعي" vs "ما عندي رقم مرجعي") can genuinely sit within fuzzy
+ * range of each other — confirmed live during Phase 7.6 verification,
+ * where "عندي رقم مرجعي" fuzzy-matched the *negative* "ماعندي رقم مرجعي"
+ * before its own exact, unambiguous membership in the positive list was
+ * ever checked. Checking every list's exact/compact match first, before
+ * either list's fuzzy match is attempted, guarantees a genuine exact hit
+ * can never be overridden by a coincidental fuzzy hit on the opposite list.
+ */
+function matchesExactOrCompact(normalized: string, phrases: string[]): boolean {
+  if (phrases.includes(normalized)) return true
+  const compact = stripSpaces(normalized)
+  return phrases.some((phrase) => stripSpaces(phrase) === compact)
+}
+
 /**
- * Deterministic yes/no classifier for a boolean-shaped complaint field answer.
- * Returns `null` (never a guess) when the message doesn't clearly match
- * either list — an ambiguous free-text answer is left to whatever fallback
- * the caller already has, never silently coerced to true or false here.
+ * Deterministic yes/no classifier for a boolean-shaped complaint field
+ * answer — the single canonical normalization path for `prior_provider_contact`
+ * (Phase 7.6, Part 1). Also recognizes the field's own already-canonicalized
+ * stored form ("true"/"false", case-insensitive — see wasal-chat.tsx, which
+ * persists exactly this string once a raw answer is classified here), so a
+ * previously normalized value round-trips through this same function on every
+ * later read (display, letter generation, legacy resume) without being
+ * re-guessed from scratch. Returns `null` (never a guess) when the message
+ * doesn't clearly match either list — an ambiguous free-text answer is left
+ * to whatever fallback the caller already has, never silently coerced to
+ * true or false here.
  */
 export function parseBooleanAnswer(message: string): boolean | null {
+  const trimmedRaw = message.trim().toLowerCase()
+  if (trimmedRaw === 'true') return true
+  if (trimmedRaw === 'false') return false
+
   const normalized = normalizeArabicInput(message)
   if (normalized === '') return null
-  if (FALSE_ANSWER_PHRASES.includes(normalized)) return false
-  if (TRUE_ANSWER_PHRASES.includes(normalized)) return true
+  if (matchesExactOrCompact(normalized, FALSE_ANSWER_PHRASES)) return false
+  if (matchesExactOrCompact(normalized, TRUE_ANSWER_PHRASES)) return true
   if (isFuzzyPhraseMatch(normalized, FALSE_ANSWER_PHRASES)) return false
   if (isFuzzyPhraseMatch(normalized, TRUE_ANSWER_PHRASES)) return true
   return null

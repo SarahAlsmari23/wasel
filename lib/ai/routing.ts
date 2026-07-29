@@ -66,6 +66,18 @@ function buildReason(docs: RetrievedDocument[]): string {
  * candidates, or the entityId lookup itself doesn't resolve cleanly — a
  * partial routing (e.g. a serviceId without a confirmed entityId) is never
  * returned.
+ *
+ * Phase 7.6, Part 5 — `entityName`, `complaintTypeId`, and `officialUrl` are
+ * all read from this single `government_services` row (joined to its own
+ * `government_entities`), never from the winning document's own denormalized
+ * copies of those same facts. A knowledge_documents row's `entity`/
+ * `complaint_type_id`/`official_url` columns are independent, hand-maintained
+ * data that could in principle drift from the service it's actually tagged
+ * to (`service_id`) — sourcing every routing field from that one service row
+ * instead structurally guarantees entityId/serviceId/complaintTypeId can
+ * never disagree with each other (e.g. an entity resolving to "الشركة
+ * الوطنية للمياه" while complaintTypeId still points at a telecom category),
+ * with no separate verification step needed.
  */
 export async function resolveRouting(
   supabase: SupabaseServerClient,
@@ -94,23 +106,25 @@ export async function resolveRouting(
 
   const { data, error } = await supabase
     .from('government_services')
-    .select('entity_id')
+    .select('entity_id, complaint_type_id, official_url, government_entities(name_ar)')
     .eq('id', winner.serviceId)
     .maybeSingle()
 
   if (error || !data?.entity_id) return null
 
+  const entityRow = data.government_entities as unknown as { name_ar: string } | null
+  const complaintTypeId = (data.complaint_type_id as string | null) ?? null
   const top = winner.docs[0]
 
   return {
     entityId: data.entity_id as string,
-    entityName: top.entityName ?? null,
+    entityName: entityRow?.name_ar ?? top.entityName ?? null,
     serviceId: winner.serviceId,
-    complaintTypeId: top.complaintTypeId,
+    complaintTypeId,
     confidence,
     reason: buildReason(winner.docs),
-    officialUrl: top.officialUrl ?? null,
-    complaintTypeLabel: await getComplaintTypeLabel(supabase, top.complaintTypeId),
+    officialUrl: (data.official_url as string | null) ?? top.officialUrl ?? null,
+    complaintTypeLabel: await getComplaintTypeLabel(supabase, complaintTypeId),
   }
 }
 

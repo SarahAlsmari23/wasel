@@ -1,3 +1,4 @@
+import { inferFieldAnswerShape, parseBooleanAnswer } from '@/lib/ai/intent-guards'
 import type { ChatComplaintContext } from '@/types/ai'
 import type { createClient } from '@/lib/supabase/server'
 
@@ -120,6 +121,33 @@ export function computeMissingFields(
 }
 
 /**
+ * Phase 7.6, Part 7 — a boolean-shaped field (`prior_provider_contact`) only
+ * counts as genuinely "known" when its stored value can still be
+ * confidently classified true/false via the single shared classifier
+ * (lib/ai/intent-guards.ts's parseBooleanAnswer). Guards against a legacy
+ * free-text row saved before Phase 7.6's canonical-boolean normalization
+ * (Part 1) — such a row is never treated as satisfying the field forever;
+ * it is re-asked instead (and thereby canonicalized on the next real
+ * answer), so the ready-state guard (Part 7) never depends on an ambiguous
+ * raw value. Every other field shape counts as known from mere presence,
+ * exactly as before.
+ */
+export function isFieldValueUsable(fieldKey: string, value: string): boolean {
+  if (inferFieldAnswerShape(fieldKey) !== 'boolean') return true
+  return parseBooleanAnswer(value) !== null
+}
+
+/** Adds every key of `fields` whose value is actually usable (see
+ * isFieldValueUsable) to `known` — shared by both callers below so a legacy
+ * ambiguous boolean value is filtered out identically everywhere a
+ * known-field set is assembled from a raw string map. */
+function addUsableFieldKeys(known: Set<string>, fields: Record<string, string>): void {
+  for (const [key, value] of Object.entries(fields)) {
+    if (isFieldValueUsable(key, value)) known.add(key)
+  }
+}
+
+/**
  * Maps ChatComplaintContext onto required_fields' key space. `description`→
  * `problem_description` and `city`→`city` are the two fixed top-level slots;
  * `collectedFields` (Phase 4D) carries every other required-field key
@@ -133,8 +161,17 @@ export function buildKnownFieldKeysFromComplaintContext(
   if (!complaintContext) return known
   if (complaintContext.description) known.add('problem_description')
   if (complaintContext.city) known.add('city')
-  for (const key of Object.keys(complaintContext.collectedFields ?? {})) {
-    known.add(key)
-  }
+  addUsableFieldKeys(known, complaintContext.collectedFields ?? {})
+  return known
+}
+
+/** Shared by app/api/ai/chat/route.ts and app/wasal/page.tsx to build a
+ * known-field-key set directly from a persisted `collected_information` map
+ * (field_key -> field_value), applying the same legacy-boolean filter. */
+export function buildKnownFieldKeysFromPersistedFields(
+  persistedFields: Record<string, string>,
+): Set<string> {
+  const known = new Set<string>()
+  addUsableFieldKeys(known, persistedFields)
   return known
 }
