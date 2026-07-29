@@ -25,7 +25,11 @@ import type { Sector } from '@/lib/complaints/sectors'
 
 const SECTOR_ISSUE_SIGNAL_PATTERNS: Partial<Record<Sector, RegExp>> = {
   telecom: /قطع|ضعف|ضعيف|بطء|بطيء|تغطي|اشاره|فاتوره|فواتير/,
-  commerce: /معيب|تالف|عيب|استرجاع|استرداد|ارجاع|استعاده|تسليم|تاخر|مبلغ|رفض/,
+  // Phase 7.7, Part 5 — extended with the additional targeted-question
+  // categories the spec itself lists (منتج/طلب/استبدال/خدمة/إعلان مضلل),
+  // alongside the categories already covered from Phase 7.6.
+  commerce:
+    /معيب|تالف|عيب|استرجاع|استرداد|ارجاع|استعاده|تسليم|تاخر|مبلغ|رفض|استبدال|منتج|طلب|خدمه|مضلل/,
 }
 
 /** Only defined for the sectors this phase's live-verified scenarios cover
@@ -44,5 +48,8 @@ export function hasSectorIssueSignal(sector: Sector, message: string): boolean {
 export const SUBTYPE_CLARIFICATION_QUESTIONS: Partial<Record<Sector, string>> = {
   telecom:
     'ما نوع المشكلة بالتحديد؟ هل تتعلق بانقطاع الخدمة، ضعف التغطية، الفاتورة، أو مشكلة أخرى؟',
-  commerce: 'ما المشكلة التي واجهتها مع المتجر بالتحديد؟',
+  // Phase 7.7, Part 5 — a targeted multi-choice question, same shape as
+  // telecom's, instead of the fully open-ended Phase 7.6 wording.
+  commerce:
+    'ما المشكلة التي واجهتها مع المتجر بالتحديد؟ هل تتعلق بمنتج، طلب، استرجاع، استبدال، خدمة، إعلان مضلل، أو تأخر في التسليم؟',
 }

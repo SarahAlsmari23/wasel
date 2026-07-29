@@ -167,25 +167,27 @@ function deriveOngoing(corpus: string, timelinePhrase: string | null): boolean {
   return timelinePhrase !== null
 }
 
-const CONTACT_ATTEMPT_PATTERN = /تواصلت|اتصلت|تقدمت ببلاغ|فتحت تذكرة|بلاغ سابق|تم التواصل/
 const PRIOR_CONTACT_PHRASE = 'كما سبق التواصل مع الجهة المعنية بشأن هذه المشكلة دون التوصل إلى حل.'
+const NO_PRIOR_CONTACT_PHRASE = 'لم يسبق لي التواصل مع مزود الخدمة بشأن هذه المشكلة.'
 
 /**
- * Phase 7.4, Part 1 — a genuine yes/no answer to `prior_provider_contact`
- * ("هل سبق أن تواصلت مع مزود الخدمة؟") always decides this deterministically
- * via the shared boolean-answer classifier. Only when the raw answer isn't a
- * recognizable yes/no phrase (a longer free-text answer) does it fall back to
- * scanning for a contact-attempt mention directly in that same answer, then —
- * only if still empty — in the wider corpus.
+ * Phase 7.7, Part 2/3 — `prior_provider_contact` decides this sentence
+ * *exclusively* through the shared canonical boolean classifier
+ * (parseBooleanAnswer). Never falls back to scanning the raw answer or the
+ * wider corpus for a contact-attempt keyword: that reconstruction-from-free-
+ * text path (removed here) is exactly what Part 3 forbids ("the complaint
+ * generator must never reconstruct boolean meaning from free text") — it
+ * could disagree with the canonical value already decided elsewhere (e.g.
+ * the summary card), producing a letter that contradicts what the user was
+ * shown. `true`/`false` each render their own fixed, exact sentence; an
+ * unresolvable value (only possible for pre-Phase-7.6 legacy free-text rows)
+ * omits the sentence entirely rather than guessing.
  */
-function derivePreviousContactSentence(priorContactRaw: string, corpus: string): string | null {
-  const cleanedRaw = normalizeWhitespace(priorContactRaw)
-  if (cleanedRaw !== '') {
-    const parsed = parseBooleanAnswer(cleanedRaw)
-    if (parsed !== null) return parsed ? PRIOR_CONTACT_PHRASE : null
-    return CONTACT_ATTEMPT_PATTERN.test(cleanedRaw) ? PRIOR_CONTACT_PHRASE : null
-  }
-  return CONTACT_ATTEMPT_PATTERN.test(corpus) ? PRIOR_CONTACT_PHRASE : null
+function derivePreviousContactSentence(priorContactRaw: string): string | null {
+  const parsed = parseBooleanAnswer(normalizeWhitespace(priorContactRaw))
+  if (parsed === true) return PRIOR_CONTACT_PHRASE
+  if (parsed === false) return NO_PRIOR_CONTACT_PHRASE
+  return null
 }
 
 type ResolutionRule = { pattern: RegExp; phrase: string }
@@ -259,7 +261,7 @@ export function renderComplaintBody(input: NarrativeInput): ComplaintBody {
     NO_OUTSTANDING_DUES_PATTERN.test(corpus)
   const timelinePhrase = deriveTimelinePhrase(corpus)
   const ongoing = deriveOngoing(corpus, timelinePhrase)
-  const previousContactSentence = derivePreviousContactSentence(input.priorContactRaw, corpus)
+  const previousContactSentence = derivePreviousContactSentence(input.priorContactRaw)
   const expectedResolution = deriveExpectedResolution(input.sector, corpus)
   const impactClause = deriveImpactClause(input.sector)
 

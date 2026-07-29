@@ -628,56 +628,75 @@ export function WasalChat({
     awaitingSignIn,
   ])
 
-  /** Offers the complaint flow, gating on auth only at this point. */
-  const requestComplaintCreation = useCallback(() => {
-    setIsAuthorityModalOpen(false)
+  /**
+   * Offers the complaint flow, gating on auth only at this point.
+   *
+   * Phase 7.7, Part 5 — `triggerMessage`, when provided, is the user message
+   * that just triggered this call (e.g. a `wantsToCreateComplaint` match in
+   * `handleSend`, such as the commerce starter "أريد تقديم شكوى ضد متجر").
+   * `messages` (React state) does not yet reflect that message at this point
+   * in the same tick — `setMessages` was only just queued, not committed —
+   * so reading `messages` alone here silently dropped the user's own
+   * just-sent text and fell back to the fully generic opening question
+   * ("ما هي الجهة أو الخدمة...") even when the message itself already named
+   * the sector. Appending `triggerMessage` explicitly closes that gap without
+   * ever duplicating the bubble (it's the exact same message object already
+   * queued into `messages`).
+   */
+  const requestComplaintCreation = useCallback(
+    (triggerMessage?: MockMessage) => {
+      setIsAuthorityModalOpen(false)
 
-    if (!isAuthenticated) {
-      setAwaitingSignIn(true)
-      // Persist immediately: the sign-in navigation unmounts this component.
-      // `pendingComplaint` is written as a literal `true` here rather than
-      // read back from `awaitingSignIn` — setState above is async, so the
-      // state variable itself wouldn't have updated yet on this same tick.
-      saveConversation({
-        conversationId: conversationIdRef.current,
-        messages,
-        mode,
-        complaintAnswers,
-        stepIndex,
-        analysis,
+      const currentMessages = triggerMessage ? [...messages, triggerMessage] : messages
+
+      if (!isAuthenticated) {
+        setAwaitingSignIn(true)
+        // Persist immediately: the sign-in navigation unmounts this component.
+        // `pendingComplaint` is written as a literal `true` here rather than
+        // read back from `awaitingSignIn` — setState above is async, so the
+        // state variable itself wouldn't have updated yet on this same tick.
+        saveConversation({
+          conversationId: conversationIdRef.current,
+          messages: currentMessages,
+          mode,
+          complaintAnswers,
+          stepIndex,
+          analysis,
+          collectedFields,
+          pendingFieldKey: pendingFieldKeyRef.current,
+          announcedEntities,
+          pendingComplaint: true,
+          dbConversationId: dbConversationIdRef.current ?? undefined,
+          dbComplaintConversationId: dbComplaintConversationIdRef.current ?? undefined,
+        })
+        setIsLoginModalOpen(true)
+        return
+      }
+
+      // Same shared rule as the guest-resume path (Phase 6.10): if the user
+      // already described their problem earlier in this same thread (general-
+      // assistant chat, or an already-in-progress complaint session), never
+      // show the fixed opening question again — continue straight from the
+      // real next missing field instead.
+      const genuineMessages = sanitizeGenuineMessages(currentMessages)
+      const { collectedFields: resumedFields, resumeTriggerContent } = deriveComplaintResumeState(
+        genuineMessages,
         collectedFields,
-        pendingFieldKey: pendingFieldKeyRef.current,
-        announcedEntities,
-        pendingComplaint: true,
-        dbConversationId: dbConversationIdRef.current ?? undefined,
-        dbComplaintConversationId: dbComplaintConversationIdRef.current ?? undefined,
-      })
-      setIsLoginModalOpen(true)
-      return
-    }
-
-    // Same shared rule as the guest-resume path (Phase 6.10): if the user
-    // already described their problem earlier in this same thread (general-
-    // assistant chat, or an already-in-progress complaint session), never
-    // show the fixed opening question again — continue straight from the
-    // real next missing field instead.
-    const genuineMessages = sanitizeGenuineMessages(messages)
-    const { collectedFields: resumedFields, resumeTriggerContent } = deriveComplaintResumeState(
-      genuineMessages,
+      )
+      startComplaintBuilder(genuineMessages, resumedFields, resumeTriggerContent)
+    },
+    [
+      isAuthenticated,
+      messages,
+      mode,
+      complaintAnswers,
+      stepIndex,
+      analysis,
       collectedFields,
-    )
-    startComplaintBuilder(genuineMessages, resumedFields, resumeTriggerContent)
-  }, [
-    isAuthenticated,
-    messages,
-    mode,
-    complaintAnswers,
-    stepIndex,
-    analysis,
-    collectedFields,
-    announcedEntities,
-    startComplaintBuilder,
-  ])
+      announcedEntities,
+      startComplaintBuilder,
+    ],
+  )
 
   /**
    * Surfaces the authority modal the first time a given entity is identified.
@@ -759,9 +778,17 @@ export function WasalChat({
 
       setMessages((previous) => [...previous, createMessage('assistant', result.answer)])
 
-      // Only genuine AI answers are persisted — a mocked local fallback must
-      // never be saved as if it were the real assistant's reply.
-      if (persistUserTurnPromise && !result.isMocked) {
+      // Phase 7.7, Part 6 — every reply actually shown to the user is
+      // persisted, whether it came from the real AI provider or the local
+      // mocked fallback (`result.isMocked`). Previously the mocked fallback's
+      // text was deliberately never saved, on the reasoning that it wasn't a
+      // "genuine AI answer" — but that left a silent gap in conversation
+      // history: the user's own next message would still be saved, so a
+      // later resume showed a question with no visible reply in between.
+      // From the conversation-history point of view, this text genuinely was
+      // the assistant's turn; omitting it, not the fact that it came from a
+      // fallback, was the actual bug.
+      if (persistUserTurnPromise) {
         void persistUserTurnPromise
           .then(() => {
             if (dbConversationIdRef.current) {
@@ -801,11 +828,17 @@ export function WasalChat({
    * Legacy, fully local/deterministic complaint engine. Kept only as a
    * temporary fallback for when the real API call fails (network error,
    * invalid response shape, etc. — see runComplaintTurn's `isMocked` check).
-   * Never invoked on the normal successful path. Its own output is never
-   * persisted as a genuine AI response — the caller already persisted the
-   * user's message before falling back here.
+   * Never invoked on the normal successful path. The caller already
+   * persisted the user's message before falling back here; Phase 7.7,
+   * Part 6 — this engine's own questions/summary are now persisted too
+   * (previously deliberately skipped as "not a genuine AI response," which
+   * left a silent gap in conversation history: the user's next message was
+   * still saved, so a later resume showed it with no visible reply before
+   * it — this is the actual reply that was shown, so it belongs in history
+   * regardless of which engine produced it).
    */
   async function runLegacyComplaintTurn(content: string, controller: AbortController) {
+    const conversationId = dbComplaintConversationIdRef.current
     const step = COMPLAINT_STEPS[stepIndex]
     const nextAnswers: ComplaintAnswers = { ...complaintAnswers, [step.key]: content }
     setComplaintAnswers(nextAnswers)
@@ -828,6 +861,9 @@ export function WasalChat({
           : nextStep.question
 
         setMessages((previous) => [...previous, createMessage('assistant', question)])
+        if (conversationId) {
+          void saveAssistantMessageAction(conversationId, question).catch(() => {})
+        }
         setStepIndex(nextIndex)
         return
       }
@@ -848,7 +884,6 @@ export function WasalChat({
       // instead of assuming it's always false (Phase 6.8, Part 3 — a
       // conversation that only ever reaches "ready" via this fallback must
       // never be stuck disabled forever).
-      const conversationId = dbComplaintConversationIdRef.current
       if (conversationId) {
         void checkSavedRoutingAction(conversationId)
           .then((persisted) => setIsRoutingPersisted(persisted))
@@ -864,6 +899,9 @@ export function WasalChat({
         ...previous,
         createMessage('assistant', summary, { kind: 'legacy_analysis' }),
       ])
+      if (conversationId) {
+        void saveAssistantMessageAction(conversationId, summary).catch(() => {})
+      }
     } catch (error) {
       if (error instanceof DOMException && error.name === 'AbortError') return
       setFailedMessage(content)
@@ -1147,14 +1185,18 @@ export function WasalChat({
           // A complaint already exists for this conversation — never let the
           // fallback replace its ComplaintResultCard, re-ask legacy
           // questions, or touch collected_information again.
+          const notice =
+            'تم إنشاء البلاغ بالفعل لهذه المحادثة — يمكنك نسخه أو تقديمه من البطاقة أعلاه.'
           setMessages((previous) => [
             ...previous,
-            createMessage(
-              'assistant',
-              'تم إنشاء البلاغ بالفعل لهذه المحادثة — يمكنك نسخه أو تقديمه من البطاقة أعلاه.',
-              { kind: 'system' },
-            ),
+            createMessage('assistant', notice, { kind: 'system' }),
           ])
+          // Phase 7.7, Part 6 — persisted like every other displayed reply,
+          // so a resume never shows the user's message with no visible
+          // response after it.
+          if (conversationId) {
+            void saveAssistantMessageAction(conversationId, notice).catch(() => {})
+          }
           return
         }
 
@@ -1261,10 +1303,8 @@ export function WasalChat({
     if (content === '' || status !== 'idle') return
 
     setFailedMessage(null)
-    setMessages((previous) => [
-      ...previous,
-      createMessage('user', content, { attachment: attachment ?? undefined }),
-    ])
+    const userMessage = createMessage('user', content, { attachment: attachment ?? undefined })
+    setMessages((previous) => [...previous, userMessage])
     setInputValue('')
     setAttachment(null)
 
@@ -1299,7 +1339,7 @@ export function WasalChat({
     // never restarting, never duplicating the opening question. Respects the
     // exact same authentication gating as the header button.
     if (wantsToCreateComplaint(content)) {
-      requestComplaintCreation()
+      requestComplaintCreation(userMessage)
       return
     }
 
@@ -1450,7 +1490,7 @@ export function WasalChat({
                   type="button"
                   variant="ghost"
                   size="sm"
-                  onClick={requestComplaintCreation}
+                  onClick={() => requestComplaintCreation()}
                   className="hidden sm:inline-flex"
                 >
                   <FileSignature className="h-3.5 w-3.5" aria-hidden="true" />
