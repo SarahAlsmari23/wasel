@@ -1,0 +1,32 @@
+[
+  {
+    "title": "نطاق شكاوى التوصيلات وطلباتها",
+    "content": "تختص الشركة الوطنية للمياه بمعالجة طلبات وشكاوى توصيل المياه والصرف الصحي للعقارات، ضمن نطاق خدماتها المباشرة للمشتركين في مناطق عملها.",
+    "entity": "الشركة الوطنية للمياه",
+    "sector": "water",
+    "documentType": "complaint_scope",
+    "sourceUrl": "https://www.nwc.com.sa/AR/ServiceCatalog/pages/service22.aspx",
+    "sourceLabel": "طلب توصيلة مياه وصرف صحي — الشركة الوطنية للمياه",
+    "reviewedAt": "2026-07-27"
+  },
+  {
+    "title": "الاعتراض على فواتير الصرف الصحي",
+    "content": "ترتبط شكاوى المشتركين على فواتير خدمة الصرف الصحي غالباً بفواتير استهلاك المياه، إذ تُحتسب قيمة الصرف الصحي شهرياً كنسبة من استهلاك المياه بالعقار.",
+    "entity": "الشركة الوطنية للمياه",
+    "sector": "water",
+    "documentType": "complaint_scope",
+    "sourceUrl": "https://www.nwc.com.sa/AR/Pages/Sewerservicerequest.aspx",
+    "sourceLabel": "الأسئلة الشائعة لطلب خدمة الصرف الصحي — الشركة الوطنية للمياه",
+    "reviewedAt": "2026-07-27"
+  },
+  {
+    "title": "القنوات الرقمية لخدمة المشتركين",
+    "content": "يتيح تطبيق المياه الوطنية للمشتركين تقديم طلباتهم وتحديث بيانات الفوترة وتقسيط الفواتير إلكترونياً، كقناة بديلة عن مراجعة الفروع لمتابعة شكاواهم.",
+    "entity": "الشركة الوطنية للمياه",
+    "sector": "water",
+    "documentType": "complaint_scope",
+    "sourceUrl": "https://www.nwc.com.sa/Arabic/OurCompany/Company-Branches/Pages/Digital.aspx",
+    "sourceLabel": "التحول الرقمي وتطبيق المياه الوطنية — الشركة الوطنية للمياه",
+    "reviewedAt": "2026-07-27"
+  }
+]

@@ -3,12 +3,16 @@ import type { ChatComplaintContext, ChatHistoryItem } from '@/types/ai'
 const MAX_MESSAGE_LENGTH = 2000
 const MAX_HISTORY_ITEMS = 10
 const MAX_DESCRIPTION_LENGTH = 4000
+const MAX_COLLECTED_FIELD_VALUE_LENGTH = 500
+const MAX_COLLECTED_FIELDS = 20
 
 // Matches "nationalid" too, as a second, defensive layer — the primary
 // defense is that nationalId is never part of the allow-list below.
 const SENSITIVE_KEY_PATTERN = /password|token|secret|cookie|authorization|api[_-]?key|nationalid/i
 
-const COMPLAINT_CONTEXT_ALLOWED_KEYS: (keyof ChatComplaintContext)[] = [
+// Excludes collectedFields deliberately — it's a nested map, not a flat
+// string, and is sanitized separately below.
+const COMPLAINT_CONTEXT_ALLOWED_KEYS: Exclude<keyof ChatComplaintContext, 'collectedFields'>[] = [
   'domainId',
   'entityId',
   'serviceId',
@@ -63,6 +67,31 @@ export function sanitizeComplaintContext(
     if (trimmed === '') continue
 
     sanitized[key] = key === 'description' ? trimmed.slice(0, MAX_DESCRIPTION_LENGTH) : trimmed
+  }
+
+  // collectedFields is a nested map, not a flat string — sanitized on its
+  // own: each nested key gets the same sensitive-key check as every
+  // top-level field, and each value is trimmed/length-capped the same way.
+  const rawCollectedFields = stripped.collectedFields
+  if (
+    typeof rawCollectedFields === 'object' &&
+    rawCollectedFields !== null &&
+    !Array.isArray(rawCollectedFields)
+  ) {
+    const cleanedFields: Record<string, string> = {}
+    for (const [fieldKey, fieldValue] of Object.entries(rawCollectedFields)) {
+      if (Object.keys(cleanedFields).length >= MAX_COLLECTED_FIELDS) break
+      if (SENSITIVE_KEY_PATTERN.test(fieldKey)) continue
+      if (typeof fieldValue !== 'string') continue
+
+      const trimmedValue = fieldValue.trim()
+      if (trimmedValue === '') continue
+
+      cleanedFields[fieldKey] = trimmedValue.slice(0, MAX_COLLECTED_FIELD_VALUE_LENGTH)
+    }
+    if (Object.keys(cleanedFields).length > 0) {
+      sanitized.collectedFields = cleanedFields
+    }
   }
 
   return sanitized

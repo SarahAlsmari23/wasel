@@ -1,4 +1,9 @@
 import type { AiGenerateInput, AiGenerateOutput, AiProvider } from '@/lib/ai/provider'
+import {
+  AiProviderError,
+  isValidGenerateOutput,
+  RESPONSE_JSON_SCHEMA,
+} from '@/lib/ai/generation-shared'
 
 // @cf/zai-org/glm-4.7-flash was tried first, per the original migration
 // request, but empirically failed: it's a reasoning model whose internal
@@ -19,65 +24,6 @@ const RETRY_DELAY_MS = 500
 // 401/403/429 are never retried — retrying auth failures does nothing, and
 // retrying rate limits would only compound pressure on the free allocation.
 const RETRYABLE_HTTP_STATUSES = new Set([500, 502, 503, 504])
-
-/**
- * Wraps every Cloudflare Workers AI failure mode (missing credentials,
- * network, HTTP/auth error, timeout, malformed structured output). The
- * original error is never attached — only this generic, internal-only
- * message travels with it.
- */
-export class AiProviderError extends Error {
-  constructor(message: string) {
-    super(message)
-    this.name = 'AiProviderError'
-  }
-}
-
-// Standard (lowercase) JSON Schema types, per Cloudflare's documented
-// response_format/json_schema shape — distinct from Gemini's uppercase
-// Schema.Type enum this project used previously.
-const RESPONSE_JSON_SCHEMA = {
-  type: 'object',
-  properties: {
-    answer: { type: 'string' },
-    intent: {
-      type: 'string',
-      enum: [
-        'general_question',
-        'entity_identification',
-        'missing_information',
-        'complaint_guidance',
-        'draft_assistance',
-      ],
-    },
-    confidence: { type: 'string', enum: ['high', 'medium', 'low'] },
-    grounded: { type: 'boolean' },
-    missingFields: { type: 'array', items: { type: 'string' } },
-    suggestedQuestions: { type: 'array', items: { type: 'string' } },
-    suggestedEntity: {
-      type: 'object',
-      properties: {
-        name: { type: 'string' },
-        reason: { type: 'string' },
-      },
-    },
-    safetyNotice: { type: 'string' },
-  },
-  required: ['answer', 'intent', 'confidence', 'grounded', 'missingFields', 'suggestedQuestions'],
-}
-
-function isValidGenerateOutput(value: unknown): value is AiGenerateOutput {
-  if (typeof value !== 'object' || value === null) return false
-  const candidate = value as Record<string, unknown>
-  return (
-    typeof candidate.answer === 'string' &&
-    typeof candidate.intent === 'string' &&
-    typeof candidate.confidence === 'string' &&
-    typeof candidate.grounded === 'boolean' &&
-    Array.isArray(candidate.missingFields) &&
-    Array.isArray(candidate.suggestedQuestions)
-  )
-}
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms))

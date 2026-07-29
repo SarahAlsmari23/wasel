@@ -1,50 +1,34 @@
-export type ComplaintStatus = 'draft' | 'ready' | 'completed'
+import type { GovernmentIconKey } from '@/lib/mock/government-entities'
 
-export type PreferredContactMethod = 'phone' | 'email'
+export type ComplaintStatus = 'draft' | 'ready' | 'submitted' | 'completed'
+
+export type ComplaintTimelineEntry = {
+  label: string
+  at: string
+}
 
 export type MockComplaint = {
   id: string
   title: string
+  entityId: string
   entityName: string
+  entityIconKey: GovernmentIconKey
   categoryName: string
   status: ComplaintStatus
+  createdAt: string
   updatedAt: string
   referenceNumber: string
+  /** Raw problem description as the user described it to Wasal. */
   description: string
+  /** One-line AI summary shown on cards and in the recommendation panel. */
+  summary: string
   city: string
   issueDate: string
   contactFullName: string
+  /** The professional complaint letter Wasal generated. */
   draftText: string
-  timeline: { label: string; at: string }[]
+  requiredDocuments: string[]
+  timeline: ComplaintTimelineEntry[]
+  /** Set when the complaint originated from a saved chat conversation. */
+  conversationId?: string
 }
-
-export type ComplaintTypeStepValues = {
-  domainId: string
-  entityId: string
-  serviceId: string
-  complaintTypeId: string
-}
-
-export type ProblemDetailsStepValues = {
-  title: string
-  description: string
-  issueDate: string
-  city: string
-  referenceNumber: string
-}
-
-export type ContactDetailsStepValues = {
-  fullName: string
-  nationalId: string
-  phone: string
-  email: string
-  preferredContactMethod: PreferredContactMethod
-}
-
-export type ComplaintDraftFormValues = {
-  type: ComplaintTypeStepValues
-  problem: ProblemDetailsStepValues
-  contact: ContactDetailsStepValues
-}
-
-export type ValidationErrors = Record<string, string>

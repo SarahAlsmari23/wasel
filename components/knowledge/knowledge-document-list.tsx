@@ -3,7 +3,7 @@
 import { BookOpen } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { KnowledgeDocumentListItem } from '@/components/knowledge/knowledge-document-list-item'
-import { EmptyState } from '@/components/empty-state'
+import { EmptyState } from '@/components/ui/empty-state'
 import { SearchInput } from '@/components/ui/search-input'
 import { Tabs } from '@/components/ui/tabs'
 import type { KnowledgeDocumentStatus, MockKnowledgeDocument } from '@/types/knowledge'

@@ -17,9 +17,24 @@ export async function createClient() {
             cookiesToSet.forEach(({ name, value, options }) =>
               cookieStore.set(name, value, options),
             )
-          } catch {
-            // Called from a Server Component — safe to ignore because
-            // middleware handles refreshing the user session.
+          } catch (error) {
+            // Next.js throws here when called from a Server Component, where
+            // cookies are read-only. That case is expected and harmless —
+            // middleware refreshes the session on the next request.
+            //
+            // Any *other* failure means auth cookies were silently dropped in
+            // a Route Handler or Server Action, which would log the user
+            // straight back out with no visible cause, so it is logged rather
+            // than swallowed.
+            const isReadOnlyStoreError =
+              error instanceof Error && /Server Component|readonly|read-only/i.test(error.message)
+
+            if (!isReadOnlyStoreError) {
+              console.error(
+                '[supabase] failed to persist auth cookies:',
+                error instanceof Error ? error.message : error,
+              )
+            }
           }
         },
       },

@@ -1,15 +1,39 @@
 import { createClient } from '@supabase/supabase-js'
 import { createHash } from 'node:crypto'
+import { readdirSync, readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { cloudflareProvider } from '../lib/ai/cloudflare'
 
 const EMBEDDING_MODEL = '@cf/google/embeddinggemma-300m'
 const EMBEDDING_DIMENSION = 768
+// Resolved from the current working directory rather than __dirname/
+// import.meta.url, since this script is always invoked via `npm run
+// ingest:knowledge` from the project root (same place .env.local lives) —
+// avoids any CJS/ESM ambiguity around module-relative paths.
+const DATA_DIR = join(process.cwd(), 'data', 'knowledge')
+// A single hand-authored, single-topic entry should never need to be this
+// long — if it is, it's almost certainly an unsummarized paste that should
+// be split into separate entries instead (see data/knowledge/README.md).
+const MAX_CONTENT_LENGTH = 800
 
-// Reviewed starter dataset — see plan file. High-level entity
-// responsibilities, general complaint categories, and official entity URLs
-// only. No invented procedures, eligibility rules, response times,
-// escalation paths, or complaint channels.
-const REVIEWED_AT = '2026-07-24'
+// One government entity + one complaint type per sector today (matches the
+// 5 seeded government_entities/complaint_types rows exactly). Resolved
+// against live DB rows at startup rather than hardcoding UUIDs, so this
+// stays correct if reference data is ever re-seeded with different ids.
+const SECTOR_TO_ENTITY_CODE: Record<string, string> = {
+  commerce: 'mc',
+  telecom: 'cst',
+  municipality: 'balady',
+  water: 'nwc',
+  electricity: 'sec',
+}
+const SECTOR_TO_COMPLAINT_TYPE_CODE: Record<string, string> = {
+  commerce: 'commerce_general',
+  telecom: 'telecom_general',
+  municipality: 'municipality_general',
+  water: 'water_general',
+  electricity: 'electricity_general',
+}
 
 type KnowledgeEntry = {
   title: string
@@ -22,120 +46,72 @@ type KnowledgeEntry = {
   reviewedAt: string
 }
 
-const ENTRIES: KnowledgeEntry[] = [
-  {
-    title: 'دور وزارة التجارة في حماية المستهلك',
-    content:
-      'تختص وزارة التجارة بالإشراف على الأسواق التجارية وحماية حقوق المستهلك، ومتابعة الالتزام بالأنظمة التجارية في المملكة العربية السعودية.',
-    entity: 'وزارة التجارة',
-    sector: 'commerce',
-    documentType: 'general_info',
-    sourceUrl: 'https://mc.gov.sa',
-    sourceLabel: 'الموقع الرسمي لوزارة التجارة',
-    reviewedAt: REVIEWED_AT,
-  },
-  {
-    title: 'اختصاص وزارة التجارة بالتجارة الإلكترونية',
-    content:
-      'تتابع وزارة التجارة أنشطة التجارة الإلكترونية داخل المملكة، وترتبط بالشكاوى المتعلقة بالمتاجر الإلكترونية والمنتجات المعروضة عبر الإنترنت.',
-    entity: 'وزارة التجارة',
-    sector: 'commerce',
-    documentType: 'general_info',
-    sourceUrl: 'https://mc.gov.sa',
-    sourceLabel: 'الموقع الرسمي لوزارة التجارة',
-    reviewedAt: REVIEWED_AT,
-  },
-  {
-    title: 'دور هيئة الاتصالات والفضاء والتقنية',
-    content:
-      'تتولى هيئة الاتصالات والفضاء والتقنية تنظيم قطاع الاتصالات وخدمات الإنترنت في المملكة، وتشرف على جودة الخدمات المقدمة من مشغلي الاتصالات.',
-    entity: 'هيئة الاتصالات والفضاء والتقنية',
-    sector: 'telecom',
-    documentType: 'general_info',
-    sourceUrl: 'https://www.cst.gov.sa',
-    sourceLabel: 'الموقع الرسمي لهيئة الاتصالات والفضاء والتقنية',
-    reviewedAt: REVIEWED_AT,
-  },
-  {
-    title: 'ارتباط الهيئة بشكاوى التغطية والفواتير',
-    content:
-      'ترتبط هيئة الاتصالات والفضاء والتقنية بالشكاوى المتعلقة بضعف تغطية شبكات الاتصال، وكذلك الاعتراضات على فواتير خدمات الاتصالات.',
-    entity: 'هيئة الاتصالات والفضاء والتقنية',
-    sector: 'telecom',
-    documentType: 'general_info',
-    sourceUrl: 'https://www.cst.gov.sa',
-    sourceLabel: 'الموقع الرسمي لهيئة الاتصالات والفضاء والتقنية',
-    reviewedAt: REVIEWED_AT,
-  },
-  {
-    title: 'اختصاص وزارة البلديات والإسكان بالخدمات البلدية',
-    content:
-      'تشرف وزارة البلديات والإسكان على تقديم الخدمات البلدية المتعلقة بالطرق والإنارة والنظافة والمرافق العامة في مختلف المناطق.',
-    entity: 'وزارة البلديات والإسكان',
-    sector: 'municipality',
-    documentType: 'general_info',
-    sourceUrl: 'https://balady.gov.sa',
-    sourceLabel: 'الموقع الرسمي لوزارة البلديات والإسكان',
-    reviewedAt: REVIEWED_AT,
-  },
-  {
-    title: 'ارتباط الوزارة بشكاوى الطرق والإنارة',
-    content:
-      'ترتبط وزارة البلديات والإسكان بالشكاوى المتعلقة بأعطال إنارة الشوارع وأضرار الطرق والمرافق العامة.',
-    entity: 'وزارة البلديات والإسكان',
-    sector: 'municipality',
-    documentType: 'general_info',
-    sourceUrl: 'https://balady.gov.sa',
-    sourceLabel: 'الموقع الرسمي لوزارة البلديات والإسكان',
-    reviewedAt: REVIEWED_AT,
-  },
-  {
-    title: 'دور الشركة الوطنية للمياه',
-    content:
-      'تختص الشركة الوطنية للمياه بتقديم خدمات المياه والصرف الصحي للمشتركين في مناطق عملها داخل المملكة العربية السعودية.',
-    entity: 'الشركة الوطنية للمياه',
-    sector: 'water',
-    documentType: 'general_info',
-    sourceUrl: 'https://www.nwc.com.sa',
-    sourceLabel: 'الموقع الرسمي للشركة الوطنية للمياه',
-    reviewedAt: REVIEWED_AT,
-  },
-  {
-    title: 'ارتباط الشركة باعتراضات فواتير المياه',
-    content: 'ترتبط الشركة الوطنية للمياه باعتراضات المشتركين المتعلقة بفواتير استهلاك المياه.',
-    entity: 'الشركة الوطنية للمياه',
-    sector: 'water',
-    documentType: 'general_info',
-    sourceUrl: 'https://www.nwc.com.sa',
-    sourceLabel: 'الموقع الرسمي للشركة الوطنية للمياه',
-    reviewedAt: REVIEWED_AT,
-  },
-  {
-    title: 'دور الشركة السعودية للكهرباء',
-    content:
-      'تتولى الشركة السعودية للكهرباء توليد ونقل وتوزيع الطاقة الكهربائية لمشتركيها في مناطق عملها بالمملكة العربية السعودية.',
-    entity: 'الشركة السعودية للكهرباء',
-    sector: 'electricity',
-    documentType: 'general_info',
-    sourceUrl: 'https://www.se.com.sa',
-    sourceLabel: 'الموقع الرسمي للشركة السعودية للكهرباء',
-    reviewedAt: REVIEWED_AT,
-  },
-  {
-    title: 'ارتباط الشركة بشكاوى الانقطاع والعدادات',
-    content:
-      'ترتبط الشركة السعودية للكهرباء بالشكاوى المتعلقة بانقطاع التيار الكهربائي وأعطال العدادات.',
-    entity: 'الشركة السعودية للكهرباء',
-    sector: 'electricity',
-    documentType: 'general_info',
-    sourceUrl: 'https://www.se.com.sa',
-    sourceLabel: 'الموقع الرسمي للشركة السعودية للكهرباء',
-    reviewedAt: REVIEWED_AT,
-  },
+/** Our own, self-authored validation failures — safe to log `.message` for
+ * (fixed strings + public entry content, never a raw Postgres/Cloudflare
+ * error body). Distinguished from other thrown errors in the catch block
+ * below, which stay name/type-only. */
+class IngestValidationError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = 'IngestValidationError'
+  }
+}
+
+const REQUIRED_ENTRY_FIELDS: (keyof KnowledgeEntry)[] = [
+  'title',
+  'content',
+  'entity',
+  'sector',
+  'documentType',
+  'sourceUrl',
+  'sourceLabel',
+  'reviewedAt',
 ]
 
+function isValidEntry(value: unknown): value is KnowledgeEntry {
+  if (typeof value !== 'object' || value === null) return false
+  const candidate = value as Record<string, unknown>
+  return REQUIRED_ENTRY_FIELDS.every(
+    (field) => typeof candidate[field] === 'string' && candidate[field] !== '',
+  )
+}
+
+type LoadedEntry = {
+  entry: KnowledgeEntry
+  sourceFile: string
+}
+
+/** Reads and flattens every data/knowledge/*.json file. Throws on any file
+ * that isn't valid JSON or doesn't contain an array of well-formed entries —
+ * a malformed data file should stop the run, not silently skip content. */
+function loadEntries(): LoadedEntry[] {
+  const files = readdirSync(DATA_DIR).filter((file) => file.endsWith('.json'))
+  const loaded: LoadedEntry[] = []
+
+  for (const file of files) {
+    const raw = readFileSync(join(DATA_DIR, file), 'utf-8')
+    let parsed: unknown
+    try {
+      parsed = JSON.parse(raw)
+    } catch {
+      throw new Error(`${file}: not valid JSON`)
+    }
+    if (!Array.isArray(parsed)) {
+      throw new Error(`${file}: expected a JSON array of entries`)
+    }
+    parsed.forEach((candidate, index) => {
+      if (!isValidEntry(candidate)) {
+        throw new Error(`${file}: entry ${index} is missing a required field`)
+      }
+      loaded.push({ entry: candidate, sourceFile: file })
+    })
+  }
+
+  return loaded
+}
+
 function formatDocumentForEmbedding(title: string, content: string): string {
-  // Google's documented document-embedding format for gemini-embedding-2 —
+  // Google's documented document-embedding format for embeddinggemma-300m —
   // kept in the same representation space as retrieve.ts's query format.
   return `title: ${title} | text: ${content}`
 }
@@ -159,15 +135,70 @@ function getServiceRoleClient() {
   })
 }
 
+/** Fetches the reference data needed to resolve each entry's service_id and
+ * complaint_type_id from its sector — three small read-only selects, once. */
+async function buildReferenceMaps(supabase: ReturnType<typeof getServiceRoleClient>) {
+  const [entitiesResult, servicesResult, complaintTypesResult] = await Promise.all([
+    supabase.from('government_entities').select('id, code'),
+    supabase.from('government_services').select('id, entity_id'),
+    supabase.from('complaint_types').select('id, code'),
+  ])
+
+  if (entitiesResult.error) throw entitiesResult.error
+  if (servicesResult.error) throw servicesResult.error
+  if (complaintTypesResult.error) throw complaintTypesResult.error
+
+  const entityIdByCode = new Map<string, string>(
+    (entitiesResult.data ?? []).map((row) => [row.code as string, row.id as string]),
+  )
+  const serviceIdByEntityId = new Map<string, string>(
+    (servicesResult.data ?? []).map((row) => [row.entity_id as string, row.id as string]),
+  )
+  const complaintTypeIdByCode = new Map<string, string>(
+    (complaintTypesResult.data ?? []).map((row) => [row.code as string, row.id as string]),
+  )
+
+  const serviceIdByEntityCode = new Map<string, string>()
+  for (const [code, entityId] of entityIdByCode) {
+    const serviceId = serviceIdByEntityId.get(entityId)
+    if (serviceId) serviceIdByEntityCode.set(code, serviceId)
+  }
+
+  return { serviceIdByEntityCode, complaintTypeIdByCode }
+}
+
 async function main() {
   const supabase = getServiceRoleClient()
+  const { serviceIdByEntityCode, complaintTypeIdByCode } = await buildReferenceMaps(supabase)
+
+  const loadedEntries = loadEntries()
+
   let inserted = 0
   let skipped = 0
   let failed = 0
 
-  for (const [index, entry] of ENTRIES.entries()) {
-    const progress = `[${index + 1}/${ENTRIES.length}]`
+  for (const [index, { entry, sourceFile }] of loadedEntries.entries()) {
+    const progress = `[${index + 1}/${loadedEntries.length}]`
     try {
+      if (entry.content.length > MAX_CONTENT_LENGTH) {
+        throw new IngestValidationError(
+          `content exceeds ${MAX_CONTENT_LENGTH} characters — looks unchunked, split it into separate entries`,
+        )
+      }
+
+      const entityCode = SECTOR_TO_ENTITY_CODE[entry.sector]
+      const complaintTypeCode = SECTOR_TO_COMPLAINT_TYPE_CODE[entry.sector]
+      const serviceId = entityCode ? serviceIdByEntityCode.get(entityCode) : undefined
+      const complaintTypeId = complaintTypeCode
+        ? complaintTypeIdByCode.get(complaintTypeCode)
+        : undefined
+
+      if (!serviceId || !complaintTypeId) {
+        throw new IngestValidationError(
+          `unable to resolve service/complaint type for sector "${entry.sector}"`,
+        )
+      }
+
       const contentHash = hashContent(entry.content)
 
       const { data: existing, error: existingError } = await supabase
@@ -196,6 +227,9 @@ async function main() {
         entity: entry.entity,
         sector: entry.sector,
         document_type: entry.documentType,
+        service_id: serviceId,
+        complaint_type_id: complaintTypeId,
+        source_file: sourceFile,
         metadata: {
           source_url: entry.sourceUrl,
           source_label: entry.sourceLabel,
@@ -212,17 +246,36 @@ async function main() {
       inserted++
     } catch (error) {
       // Structural only — never the embedding vector, never a key, never a
-      // raw Postgres/Gemini error body. Just which entry, and the failure's
-      // generic type/name.
-      const kind = error instanceof Error ? error.name : typeof error
-      console.error(`${progress} failed: ${entry.title} (${kind})`)
+      // raw Postgres/Cloudflare error body. IngestValidationError messages
+      // are our own, hand-authored, and safe to log in full; anything else
+      // (Postgrest errors, AiProviderError, etc.) only ever logs its name.
+      const detail =
+        error instanceof IngestValidationError
+          ? error.message
+          : error instanceof Error
+            ? error.name
+            : typeof error
+      console.error(`${progress} failed: ${entry.title} (${detail})`)
       failed++
     }
   }
 
   console.log(
-    `Done. inserted=${inserted} skipped=${skipped} failed=${failed} total=${ENTRIES.length}`,
+    `Done. inserted=${inserted} skipped=${skipped} failed=${failed} total=${loadedEntries.length}`,
   )
 }
 
-main()
+main().catch((error: unknown) => {
+  // Structural only — a Postgrest error's .message describes a query/schema
+  // problem against these known public reference tables, not user data or a
+  // secret, so it's safe to surface here (unlike the per-entry catch above,
+  // which stays name-only for errors that could originate from row content).
+  const detail =
+    error instanceof IngestValidationError || error instanceof Error
+      ? error.message
+      : typeof error === 'object' && error !== null && 'message' in error
+        ? String((error as { message: unknown }).message)
+        : typeof error
+  console.error(`Ingestion aborted before completion: ${detail}`)
+  process.exitCode = 1
+})

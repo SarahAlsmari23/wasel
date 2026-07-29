@@ -1,15 +1,22 @@
 import { Search } from 'lucide-react'
 import type { InputHTMLAttributes } from 'react'
+import { cn } from '@/lib/utils/cn'
 
 type SearchInputProps = InputHTMLAttributes<HTMLInputElement>
 
 export function SearchInput({ className = '', ...props }: SearchInputProps) {
   return (
     <div className="relative">
-      <Search className="pointer-events-none absolute top-1/2 right-3 h-4 w-4 -translate-y-1/2 text-gray-400" />
+      <Search
+        className="text-muted-foreground pointer-events-none absolute top-1/2 right-3.5 h-4 w-4 -translate-y-1/2"
+        aria-hidden="true"
+      />
       <input
         type="search"
-        className={`bg-surface focus:border-primary focus:ring-primary w-full rounded-lg border border-gray-200 py-2 pr-9 pl-3 text-sm placeholder:text-gray-400 focus:ring-1 focus:outline-none ${className}`}
+        className={cn(
+          'border-border bg-surface text-foreground placeholder:text-muted-foreground/70 focus:border-primary w-full rounded-xl border py-2.5 pr-10 pl-3.5 text-sm transition-colors focus:outline-none',
+          className,
+        )}
         {...props}
       />
     </div>

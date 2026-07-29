@@ -39,9 +39,9 @@ export const MOCK_KNOWLEDGE_DOCUMENTS: MockKnowledgeDocument[] = [
   },
   {
     id: 'k5',
-    title: 'دور الشركة السعودية للكهرباء',
+    title: 'دور السعودية للطاقة',
     excerpt: 'تتولى الشركة توليد ونقل وتوزيع الطاقة الكهربائية لمشتركيها.',
-    entity: 'الشركة السعودية للكهرباء',
+    entity: 'السعودية للطاقة',
     sector: 'الكهرباء',
     status: 'active',
     updatedAt: '2026-07-20T16:00:00.000Z',

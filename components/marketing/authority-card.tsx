@@ -1,34 +1,49 @@
-import { Landmark } from 'lucide-react'
+import { ExternalLink } from 'lucide-react'
+import { GovernmentLogo } from '@/components/government/government-logo'
 import { Card } from '@/components/ui/card'
-import type { MarketingEntity } from '@/lib/mock/marketing-entities'
+import type { GovernmentEntity, GovernmentIconKey } from '@/lib/mock/government-entities'
 
-type AuthorityCardProps = {
-  entity: MarketingEntity
-  actionLabel: string
-  actionHref: string
+// Phase 8.2 — real, meaningful alt text only for the three logos actually
+// replaced with official artwork; nwc/cst keep the default decorative
+// (empty alt) behavior, completely untouched.
+const LOGO_ALT_TEXT: Partial<Record<GovernmentIconKey, string>> = {
+  municipality: 'شعار وزارة البلديات والإسكان',
+  electricity: 'شعار السعودية للطاقة',
+  commerce: 'شعار وزارة التجارة',
 }
 
-export function AuthorityCard({ entity, actionLabel, actionHref }: AuthorityCardProps) {
-  const isExternal = actionHref.startsWith('http')
+type AuthorityCardProps = {
+  entity: GovernmentEntity
+  /** Renders the official-site link when true. */
+  showLink?: boolean
+}
 
+export function AuthorityCard({ entity, showLink = false }: AuthorityCardProps) {
   return (
-    <Card className="flex flex-col gap-4">
-      {/* Generic placeholder icon — no real official logo assets available. */}
-      <span className="bg-secondary/15 text-secondary flex h-12 w-12 items-center justify-center rounded-full">
-        <Landmark className="h-6 w-6" aria-hidden="true" />
-      </span>
-      <div>
-        <p className="text-foreground text-sm font-semibold">{entity.name}</p>
-        <p className="mt-1 text-sm text-gray-600">{entity.description}</p>
+    <Card interactive className="flex h-full flex-col gap-4">
+      <div className="flex items-start justify-between gap-3">
+        <GovernmentLogo iconKey={entity.iconKey} alt={LOGO_ALT_TEXT[entity.iconKey]} />
+        <span className="bg-secondary/12 text-secondary rounded-full px-2.5 py-1 text-xs font-medium">
+          {entity.sector}
+        </span>
       </div>
-      <a
-        href={actionHref}
-        target={isExternal ? '_blank' : undefined}
-        rel={isExternal ? 'noopener noreferrer' : undefined}
-        className="text-foreground mt-auto self-start rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium transition-colors hover:bg-gray-50"
-      >
-        {actionLabel}
-      </a>
+
+      <div>
+        <h3 className="text-heading text-base font-semibold">{entity.name}</h3>
+        <p className="text-muted-foreground mt-1.5 text-sm leading-relaxed">{entity.description}</p>
+      </div>
+
+      {showLink ? (
+        <a
+          href={entity.officialUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-primary hover:text-primary/75 mt-auto inline-flex items-center gap-1.5 text-sm font-medium transition-colors"
+        >
+          <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
+          الموقع الرسمي
+        </a>
+      ) : null}
     </Card>
   )
 }
