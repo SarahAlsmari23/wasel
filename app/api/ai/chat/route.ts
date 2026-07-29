@@ -4,6 +4,7 @@ import { AiProviderError } from '@/lib/ai/generation-shared'
 import { getGenerationProvider } from '@/lib/ai/provider'
 import {
   buildKnownFieldKeysFromComplaintContext,
+  buildKnownFieldKeysFromPersistedFields,
   computeMissingFields,
   findClarificationHint,
   parseClarificationRules,
@@ -18,6 +19,11 @@ import { sanitizeComplaintContext, sanitizeHistory, sanitizeMessage } from '@/li
 import { retrieveRelevantDocuments, RetrievalError } from '@/lib/rag/retrieve'
 import type { RetrievedDocument } from '@/lib/rag/types'
 import { createClient } from '@/lib/supabase/server'
+import { ENTITY_NAME_TO_SECTOR } from '@/lib/complaints/sectors'
+import {
+  hasSectorIssueSignal,
+  SUBTYPE_CLARIFICATION_QUESTIONS,
+} from '@/lib/complaints/issue-signal'
 import { isExplicitRoutingChange, wantsToCreateComplaint } from '@/lib/wasal/complaint-intent'
 import {
   appendPendingQuestion,
@@ -360,7 +366,9 @@ export async function POST(request: Request) {
       if (complaintTypeRow) {
         const requiredFields = parseRequiredFields(complaintTypeRow.required_fields)
         const knownFieldKeys = buildKnownFieldKeysFromComplaintContext(sanitizedComplaintContext)
-        for (const key of Object.keys(persistedFields)) knownFieldKeys.add(key)
+        for (const key of buildKnownFieldKeysFromPersistedFields(persistedFields)) {
+          knownFieldKeys.add(key)
+        }
         missingFieldsResult = computeMissingFields(requiredFields, knownFieldKeys)
 
         // Final consistency check (Phase 6.10B, Part 5) — unreachable in
@@ -505,6 +513,48 @@ export async function POST(request: Request) {
       },
       { status: 200 },
     )
+  }
+
+  // Phase 7.6, Part 4 — a message that only names a broad sector/entity
+  // ("لدي مشكلة مع شركة اتصالات") must never be treated as if it already
+  // described a specific issue: `nextField.key === 'problem_description'`
+  // means nothing has been collected for this complaint yet (it's always
+  // the first required field), so if the *current* message itself carries
+  // no sector-specific issue signal, the fixed clarifying question is asked
+  // instead of letting the model narrate a specific, unconfirmed diagnosis
+  // from whatever it happened to retrieve via RAG. Deterministic, no model
+  // call — same treatment as the interruption branches above. Never fires
+  // for a side question (that already has its own, narrower handling
+  // above) or for a sector this phase's live-verified scenarios don't cover
+  // (hasSectorIssueSignal returns true for anything without a pattern,
+  // i.e. never blocks those sectors).
+  const genericStarterSector =
+    complaintInterruption !== 'complaint_side_question' &&
+    nextField?.key === 'problem_description' &&
+    routing?.entityName
+      ? (ENTITY_NAME_TO_SECTOR[routing.entityName] ?? null)
+      : null
+  if (genericStarterSector && !hasSectorIssueSignal(genericStarterSector, sanitizedMessage)) {
+    const clarification = SUBTYPE_CLARIFICATION_QUESTIONS[genericStarterSector]
+    if (clarification) {
+      return NextResponse.json<ChatSuccessResponse>(
+        {
+          answer: clarification,
+          intent: 'complaint_guidance',
+          confidence: 'high',
+          grounded: false,
+          missingFields: missingFieldsResult ? missingFieldsResult.missingFields : [],
+          suggestedQuestions: [],
+          sources: [],
+          routing,
+          nextQuestion: clarification,
+          nextFieldKey: nextField?.key ?? null,
+          readyToGenerateComplaint: false,
+          routingPersisted,
+        },
+        { status: 200 },
+      )
+    }
   }
 
   const collectedFieldsHintLines: string[] = []

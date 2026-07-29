@@ -29,10 +29,12 @@ import { buildComplaintAnalysisFromRouting } from '@/lib/complaints/analysis'
 import { deriveComplaintTitleFromFields } from '@/lib/complaints/formal-letter'
 import { normalizeArabicInput } from '@/lib/ai/arabic-normalize'
 import {
+  inferFieldAnswerShape,
   isGreetingOnly,
   isIdentityQuestion,
   isLikelySideQuestion,
   isObviousOutOfScope,
+  parseBooleanAnswer,
 } from '@/lib/ai/intent-guards'
 import { getGovernmentEntityByName, type GovernmentEntity } from '@/lib/mock/government-entities'
 import { requestAssistantAnswer } from '@/lib/wasal/chat-client'
@@ -981,14 +983,51 @@ export function WasalChat({
       !isInterruption &&
       isComplaintContinuationFiller(content)
 
+    // Phase 7.6, Part 1 — `prior_provider_contact` is the one boolean-shaped
+    // complaint field: whatever the user actually typed ("ماتواصلت", "عندي
+    // رقم مرجعي", …) is never stored verbatim. It is normalized once, here,
+    // to the canonical stored value (`'true'`/`'false'`, via the single
+    // shared classifier — lib/ai/intent-guards.ts's parseBooleanAnswer) before
+    // it ever reaches `collectedFields`/`collected_information` — every later
+    // reader (summary, formal letter, resume) only ever sees that canonical
+    // form. When the answer can't be confidently classified, it is not
+    // guessed: the field is left unmerged (as if this turn contributed no
+    // new information for it), so the server's own missing-field computation
+    // simply asks the same question again on the next turn, exactly like an
+    // interruption/stale-field turn already does — never silently stored as
+    // ambiguous raw text.
+    function canonicalizeFieldValue(key: string, rawValue: string): string | null {
+      if (inferFieldAnswerShape(key) !== 'boolean') return rawValue
+      const parsed = parseBooleanAnswer(rawValue)
+      return parsed === null ? null : String(parsed)
+    }
+
+    const correctionCanonical = correction
+      ? canonicalizeFieldValue(correction.key, correction.value)
+      : null
+    const wouldMergeAnswer =
+      !complaintAlreadyGenerated &&
+      !correction &&
+      !isInterruption &&
+      !pendingFieldStale &&
+      !isContinuationFiller
+    const answerCanonical = wouldMergeAnswer ? canonicalizeFieldValue(pendingKey, content) : null
+    // True only when this turn would otherwise have merged a genuine answer
+    // into a boolean-shaped field but couldn't confidently classify it —
+    // distinct from every other "don't merge" reason above, so the field is
+    // correctly left pending rather than silently corrupted.
+    const rejectedBooleanAnswer = wouldMergeAnswer && answerCanonical === null
+
     const answeredKey = correction ? correction.key : pendingKey
     const updatedFields = complaintAlreadyGenerated
       ? collectedFields
       : correction
-        ? { ...collectedFields, [correction.key]: correction.value }
-        : isInterruption || pendingFieldStale || isContinuationFiller
-          ? collectedFields
-          : { ...collectedFields, [pendingKey]: content }
+        ? correctionCanonical !== null
+          ? { ...collectedFields, [correction.key]: correctionCanonical }
+          : collectedFields
+        : wouldMergeAnswer && !rejectedBooleanAnswer
+          ? { ...collectedFields, [pendingKey]: answerCanonical ?? content }
+          : collectedFields
     if (!complaintAlreadyGenerated) {
       setCollectedFields(updatedFields)
     }
@@ -1027,30 +1066,45 @@ export function WasalChat({
     // complaint field — the message itself still reaches messages/history
     // below (saveUserMessageAction), but collected_information is left
     // completely untouched, exactly like a stale-pending-field turn.
+    //
+    // Phase 7.6, Part 3 — awaited, not fire-and-forget: a just-answered
+    // field (e.g. city) must be durably committed to `collected_information`
+    // before this turn is considered done, since that table is the single
+    // source of truth a refresh/resume reads from (app/wasal/page.tsx). Firing
+    // this without awaiting it left a real race — a refresh landing before
+    // the upsert committed would find the field still missing and ask it
+    // again. Both writes are still best-effort (a failure here must never
+    // block the visible turn) — only their *ordering* relative to the
+    // request below changed, not their fault-tolerance.
     if (conversationId && !complaintAlreadyGenerated) {
-      // Persist the user message first, then whichever structured field this
-      // turn actually answered (using the message's own id as its source) —
-      // both best-effort and non-blocking, same as every other persistence
-      // call in this flow. Never destructive: collected_information is
-      // upserted per (conversation_id, field_key), so a correction updates
-      // the existing row in place (never a duplicate) and a stale-pending
-      // turn writes nothing at all, preserving every other field.
-      void saveUserMessageAction(conversationId, content)
-        .then((userMessageId) => {
-          if (correction) {
-            return saveCollectedFieldAction(
+      try {
+        const userMessageId = await saveUserMessageAction(conversationId, content)
+        if (correction) {
+          if (correctionCanonical !== null) {
+            await saveCollectedFieldAction(
               conversationId,
               correction.key,
-              correction.value,
+              correctionCanonical,
               userMessageId,
             )
           }
-          if (isInterruption || pendingFieldStale) return undefined
-          return saveCollectedFieldAction(conversationId, pendingKey, content, userMessageId)
-        })
-        .catch(() => {})
+        } else if (!isInterruption && !pendingFieldStale && !rejectedBooleanAnswer) {
+          await saveCollectedFieldAction(
+            conversationId,
+            pendingKey,
+            answerCanonical ?? content,
+            userMessageId,
+          )
+        }
+      } catch {
+        // Best-effort — see doc comment above.
+      }
     } else if (conversationId) {
-      void saveUserMessageAction(conversationId, content).catch(() => {})
+      try {
+        await saveUserMessageAction(conversationId, content)
+      } catch {
+        // Best-effort — see doc comment above.
+      }
     }
 
     setStatus('thinking')

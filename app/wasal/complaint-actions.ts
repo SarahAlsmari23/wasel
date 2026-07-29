@@ -3,6 +3,7 @@
 import { buildFormalComplaintLetter } from '@/lib/complaints/formal-letter'
 import { sanitizeCollectedFields } from '@/lib/complaints/collected-fields'
 import { isMeaningfulTitle } from '@/lib/complaints/display'
+import { getRequiredFieldsForComplaintType } from '@/lib/ai/missing-fields'
 import {
   ComplaintAlreadyExistsError,
   createComplaintRecord,
@@ -100,6 +101,14 @@ export async function createComplaintAction(
     const hydratedRoutingPromise = savedRoutingPromise.then((savedRouting) =>
       savedRouting ? hydrateSavedRouting(supabase, savedRouting) : null,
     )
+    // Phase 7.6, Part 5 — the current complaint type's own required_fields
+    // keys, used below to drop any stale field collected under a *different*
+    // complaint type (e.g. an earlier routing, before an explicit
+    // correction) from the letter entirely, rather than let it leak through
+    // as an incompatible reference line.
+    const requiredFieldsPromise = savedRoutingPromise.then((savedRouting) =>
+      savedRouting ? getRequiredFieldsForComplaintType(supabase, savedRouting.complaintTypeId) : [],
+    )
     const [title, savedRouting, fullName, userMessages] = await Promise.all([
       getOwnedConversationTitle(supabase, dbConversationId, user.id),
       savedRoutingPromise,
@@ -122,7 +131,9 @@ export async function createComplaintAction(
       return { success: false, error: ERROR_ROUTING_INCOMPLETE }
     }
 
-    const sanitizedFields = sanitizeCollectedFields(collectedFields)
+    const requiredFields = await requiredFieldsPromise
+    const relevantFieldKeys = new Set(requiredFields.map((field) => field.key))
+    const sanitizedFields = sanitizeCollectedFields(collectedFields, relevantFieldKeys)
 
     const { subject, complaintText, generatedFromData } = buildFormalComplaintLetter({
       entityName: hydratedRouting.entityName,

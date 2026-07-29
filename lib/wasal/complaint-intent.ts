@@ -154,10 +154,20 @@ export function isComplaintContinuationFiller(rawMessage: string): boolean {
 const CORRECTION_SUBJECT_PATTERN = /الجهه|الموضوع|المشكله/
 const CORRECTION_CONTRAST_PATTERN = /وليس|ليست|ليس(\s|$)|(^|\s)(مو|مب|مش)(\s|$)/
 const MEANING_CORRECTION_PATTERN = /اقصد/
+// Phase 7.6, Part 5 — a message that *opens* with a standalone "لا" (formal
+// "no", as opposed to the colloquial "مو"/"مش" contrast already covered
+// above) immediately followed by naming the subject again ("لا، المشكلة عن
+// فاتورة المياه") is just as unambiguous a rejection-and-restatement as the
+// existing contrast shapes — normalizeArabicInput already strips the comma,
+// so this matches on whitespace alone. Anchored to the very start of the
+// message (never mid-sentence) so an ordinary answer that merely contains
+// "لا" elsewhere is never mistaken for this.
+const LEADING_NEGATION_PATTERN = /^لا(\s|$)/
 
 function isExplicitCorrection(normalized: string): boolean {
   if (MEANING_CORRECTION_PATTERN.test(normalized)) return true
-  return CORRECTION_SUBJECT_PATTERN.test(normalized) && CORRECTION_CONTRAST_PATTERN.test(normalized)
+  if (!CORRECTION_SUBJECT_PATTERN.test(normalized)) return false
+  return CORRECTION_CONTRAST_PATTERN.test(normalized) || LEADING_NEGATION_PATTERN.test(normalized)
 }
 
 const NEW_COMPLAINT_NOUN_PATTERN = /بلاغ|شكوي/

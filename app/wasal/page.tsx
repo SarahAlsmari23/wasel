@@ -2,7 +2,11 @@ import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { WasalChat } from '@/components/wasal/wasal-chat'
 import type { ComplaintResult } from '@/components/wasal/complaint-result-card'
-import { computeMissingFields, getRequiredFieldsForComplaintType } from '@/lib/ai/missing-fields'
+import {
+  buildKnownFieldKeysFromPersistedFields,
+  computeMissingFields,
+  getRequiredFieldsForComplaintType,
+} from '@/lib/ai/missing-fields'
 import { hydrateSavedRouting } from '@/lib/ai/routing'
 import { buildComplaintAnalysisFromRouting } from '@/lib/complaints/analysis'
 import { getCollectedInformationForConversation } from '@/lib/db/collected-information'
@@ -81,7 +85,10 @@ async function resolveInProgressComplaintState(
     supabase,
     savedRouting.complaintTypeId,
   )
-  const missing = computeMissingFields(requiredFields, new Set(Object.keys(collectedFields)))
+  const missing = computeMissingFields(
+    requiredFields,
+    buildKnownFieldKeysFromPersistedFields(collectedFields),
+  )
 
   if (!missing.readyToGenerateComplaint) {
     return {
