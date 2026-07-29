@@ -1,0 +1,42 @@
+[
+  {
+    "title": "شكاوى طلبات التوصيل الكهربائي المؤقت",
+    "content": "تندرج شكاوى تأخر أو تعثر طلبات التوصيل الكهربائي المؤقت، المستخدمة لأغراض كأعمال البناء والفعاليات، ضمن نطاق اختصاص الشركة السعودية للكهرباء.",
+    "entity": "الشركة السعودية للكهرباء",
+    "sector": "electricity",
+    "documentType": "complaint_scope",
+    "sourceUrl": "https://www.se.com.sa/ar-SA/Ourservices/ColumnA/Electrical-Service-Connection-Requests/TemporaryServiceConnection/",
+    "sourceLabel": "إيصال خدمة مؤقت — الشركة السعودية للكهرباء",
+    "reviewedAt": "2026-07-27"
+  },
+  {
+    "title": "الإبلاغ عن انقطاع التيار الكهربائي",
+    "content": "توفر الشركة السعودية للكهرباء خدمة إلكترونية لتسجيل بلاغ انقطاع التيار الكهربائي فور حدوثه، دون الحاجة للتواصل الهاتفي مع خدمة العملاء.",
+    "entity": "الشركة السعودية للكهرباء",
+    "sector": "electricity",
+    "documentType": "complaint_scope",
+    "sourceUrl": "https://www.se.com.sa/ar-SA/GuestReportOutage/",
+    "sourceLabel": "الإبلاغ عن انقطاع — الشركة السعودية للكهرباء",
+    "reviewedAt": "2026-07-27"
+  },
+  {
+    "title": "الاعتراض على فواتير الاستهلاك الكهربائي",
+    "content": "تتيح الشركة السعودية للكهرباء للمشترك عرض تفاصيل فاتورة استهلاكه الكهربائي إلكترونياً، وهو الأساس الذي تُبنى عليه اعتراضات المشتركين على فواتيرهم.",
+    "entity": "الشركة السعودية للكهرباء",
+    "sector": "electricity",
+    "documentType": "complaint_scope",
+    "sourceUrl": "https://www.se.com.sa/ar-SA/GuestViewBill/",
+    "sourceLabel": "عرض ودفع الفواتير — الشركة السعودية للكهرباء",
+    "reviewedAt": "2026-07-27"
+  },
+  {
+    "title": "انقطاع الكهرباء بشكل متكرر",
+    "content": "يعد انقطاع الكهرباء بشكل متكرر أو ضعف استقرار الخدمة الكهربائية وتذبذب الخدمة من الحالات التي يمكن للمشترك الإبلاغ عنها إلكترونياً لدى الشركة السعودية للكهرباء دون الحاجة للتواصل الهاتفي.",
+    "entity": "الشركة السعودية للكهرباء",
+    "sector": "electricity",
+    "documentType": "complaint_scope",
+    "sourceUrl": "https://www.se.com.sa/ar-SA/GuestReportOutage/",
+    "sourceLabel": "الإبلاغ عن انقطاع الكهرباء المتكرر — الشركة السعودية للكهرباء",
+    "reviewedAt": "2026-07-27"
+  }
+]

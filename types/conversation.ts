@@ -21,6 +21,20 @@ export type MessageAttachment = {
  */
 export type MessageCta = 'create_complaint'
 
+/**
+ * Local-only classification of *why* a message exists — never sent to the
+ * database (the `messages` table only ever stores role='user'|'assistant',
+ * see supabase/migrations/0001) and never required: absent on any message
+ * written before Phase 6.9, in which case it's inferred from content at
+ * classification time (see lib/wasal/message-classification.ts). Set at
+ * creation time everywhere a message is built, so restoring a guest's
+ * pre-sign-in sessionStorage thread can keep genuine conversation
+ * ('user'/'assistant') while dropping UI-only content that was never meant to
+ * be replayed as a chat bubble.
+ */
+export type MessageKind =
+  'user' | 'assistant' | 'complaint_opening' | 'authority_summary' | 'legacy_analysis' | 'system'
+
 export type MockMessage = {
   id: string
   role: MessageRole
@@ -30,6 +44,7 @@ export type MockMessage = {
   suggestedEntity?: ChatSuggestedEntity
   sources?: ChatSource[]
   cta?: MessageCta
+  kind?: MessageKind
 }
 
 export type MockConversation = {

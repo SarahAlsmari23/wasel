@@ -4,7 +4,7 @@ import { motion } from 'motion/react'
 import { WaselLogo } from '@/components/brand/wasel-logo'
 import { SuggestionChips } from '@/components/wasal/suggestion-chips'
 
-export const CHAT_GREETING = 'مرحباً، كيف يمكنني مساعدتك اليوم؟'
+export const CHAT_GREETING = 'مرحبًا، كيف يمكنني مساعدتك اليوم؟'
 
 type ChatEmptyStateProps = {
   onSelectSuggestion: (suggestion: string) => void
@@ -30,7 +30,7 @@ export function ChatEmptyState({ onSelectSuggestion }: ChatEmptyStateProps) {
           {CHAT_GREETING}
         </h1>
         <p className="text-muted-foreground mx-auto max-w-md text-sm leading-relaxed text-pretty">
-          اشرح مشكلتك بلغتك الطبيعية، وسأساعدك في تحديد الجهة الحكومية المختصة وخطوات التقديم.
+          اشرح مشكلتك بلغتك الطبيعية، وسيساعدك واصل في تحديد الجهة الحكومية المختصة وخطوات التقديم.
         </p>
       </div>
 

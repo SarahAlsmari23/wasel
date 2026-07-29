@@ -1,93 +1,87 @@
 'use client'
 
-import { FileText, SlidersHorizontal } from 'lucide-react'
+import { FileText } from 'lucide-react'
 import Link from 'next/link'
 import { useMemo, useState } from 'react'
-import { ComplaintCard } from '@/components/dashboard/complaint-card'
-import { Button, buttonClasses } from '@/components/ui/button'
+import { GovernmentLogo } from '@/components/government/government-logo'
+import { Badge } from '@/components/ui/badge'
+import { buttonClasses } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
 import { EmptyState } from '@/components/ui/empty-state'
 import { Select } from '@/components/ui/field'
-import { Modal } from '@/components/ui/modal'
 import { SearchInput } from '@/components/ui/search-input'
-import { COMPLAINT_STATUS_LABELS } from '@/components/ui/status-badge'
-import { useToast } from '@/components/ui/toast'
-import type { ComplaintStatus, MockComplaint } from '@/types/complaint'
+import { getDisplayTitle, getComplaintStatusPresentation } from '@/lib/complaints/display'
+import type { ComplaintRecord } from '@/lib/db/complaints'
+import { getGovernmentEntityByName } from '@/lib/mock/government-entities'
+import { formatDate } from '@/lib/utils/format'
 
 type SortOrder = 'newest' | 'oldest'
-type DateRange = 'all' | 'week' | 'month' | 'quarter'
+type StatusFilter = 'all' | 'draft' | 'generated' | 'submitted' | 'completed'
 
-const DATE_RANGE_DAYS: Record<Exclude<DateRange, 'all'>, number> = {
-  week: 7,
-  month: 30,
-  quarter: 90,
+const STATUS_FILTER_LABELS: Record<StatusFilter, string> = {
+  all: 'كل الحالات',
+  draft: 'مسودة',
+  generated: 'تم الإنشاء',
+  submitted: 'تم التقديم',
+  completed: 'مكتمل',
 }
 
-const DATE_RANGE_LABELS: Record<DateRange, string> = {
-  all: 'كل التواريخ',
-  week: 'آخر أسبوع',
-  month: 'آخر شهر',
-  quarter: 'آخر ثلاثة أشهر',
+function statusFilterKey(complaint: ComplaintRecord): Exclude<StatusFilter, 'all'> {
+  if (complaint.status === 'completed') return 'completed'
+  if (complaint.status === 'generated') return complaint.submittedAt ? 'submitted' : 'generated'
+  return 'draft'
 }
 
 type ComplaintsBrowserProps = {
-  complaints: MockComplaint[]
+  complaints: ComplaintRecord[]
 }
 
+/**
+ * Real, database-backed complaints only (Phase 6.5) — no mock data, no
+ * delete action (no secure delete helper exists yet), no category filter
+ * (real complaints have no category display name yet).
+ */
 export function ComplaintsBrowser({ complaints }: ComplaintsBrowserProps) {
-  const { showToast } = useToast()
-
-  // Deletions are local to the session — this phase has no persistence.
-  const [items, setItems] = useState(complaints)
   const [query, setQuery] = useState('')
-  const [status, setStatus] = useState<ComplaintStatus | 'all'>('all')
-  const [category, setCategory] = useState('all')
-  const [dateRange, setDateRange] = useState<DateRange>('all')
+  const [status, setStatus] = useState<StatusFilter>('all')
   const [sortOrder, setSortOrder] = useState<SortOrder>('newest')
-  const [areFiltersOpen, setAreFiltersOpen] = useState(false)
-  const [pendingDelete, setPendingDelete] = useState<MockComplaint | null>(null)
-
-  const categories = useMemo(
-    () => Array.from(new Set(complaints.map((complaint) => complaint.categoryName))).sort(),
-    [complaints],
-  )
 
   const visible = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase()
-    const cutoff =
-      dateRange === 'all' ? null : Date.now() - DATE_RANGE_DAYS[dateRange] * 24 * 60 * 60 * 1000
 
-    return items
+    return complaints
       .filter((complaint) => {
-        if (status !== 'all' && complaint.status !== status) return false
-        if (category !== 'all' && complaint.categoryName !== category) return false
-        if (cutoff !== null && new Date(complaint.updatedAt).getTime() < cutoff) return false
+        if (status !== 'all' && statusFilterKey(complaint) !== status) return false
         if (normalizedQuery === '') return true
 
-        // Search covers complaint name and government entity (Phase 3).
+        const displayTitle = getDisplayTitle({
+          title: complaint.title,
+          complaintSubject: complaint.subject,
+        })
         return (
-          complaint.title.toLowerCase().includes(normalizedQuery) ||
-          complaint.entityName.toLowerCase().includes(normalizedQuery)
+          displayTitle.toLowerCase().includes(normalizedQuery) ||
+          (complaint.entityName?.toLowerCase().includes(normalizedQuery) ?? false)
         )
       })
       .sort((a, b) => {
         const diff = new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
         return sortOrder === 'newest' ? diff : -diff
       })
-  }, [items, query, status, category, dateRange, sortOrder])
+  }, [complaints, query, status, sortOrder])
 
-  const hasActiveFilters = status !== 'all' || category !== 'all' || dateRange !== 'all'
-
-  function handleConfirmDelete() {
-    if (!pendingDelete) return
-    setItems((current) => current.filter((complaint) => complaint.id !== pendingDelete.id))
-    setPendingDelete(null)
-    showToast('تم حذف البلاغ.')
-  }
-
-  function handleResetFilters() {
-    setStatus('all')
-    setCategory('all')
-    setDateRange('all')
+  if (complaints.length === 0) {
+    return (
+      <EmptyState
+        icon={FileText}
+        title="لا توجد لديك بلاغات محفوظة حتى الآن."
+        description="ابدأ بلاغاً جديداً وسيساعدك واصل في تحديد الجهة المختصة وصياغة البلاغ."
+        action={
+          <Link href="/wasal?mode=complaint" className={buttonClasses('primary', 'md')}>
+            ابدأ بلاغاً جديداً
+          </Link>
+        }
+      />
+    )
   }
 
   return (
@@ -103,16 +97,18 @@ export function ComplaintsBrowser({ complaints }: ComplaintsBrowserProps) {
         </div>
 
         <div className="flex items-center gap-2">
-          <Button
-            type="button"
-            variant={hasActiveFilters ? 'subtle' : 'outline'}
-            onClick={() => setAreFiltersOpen((open) => !open)}
-            aria-expanded={areFiltersOpen}
-            className="shrink-0"
+          <Select
+            value={status}
+            onChange={(event) => setStatus(event.target.value as StatusFilter)}
+            aria-label="تصفية حسب الحالة"
+            className="w-auto shrink-0"
           >
-            <SlidersHorizontal className="h-4 w-4" aria-hidden="true" />
-            تصفية
-          </Button>
+            {(Object.keys(STATUS_FILTER_LABELS) as StatusFilter[]).map((value) => (
+              <option key={value} value={value}>
+                {STATUS_FILTER_LABELS[value]}
+              </option>
+            ))}
+          </Select>
 
           <Select
             value={sortOrder}
@@ -126,120 +122,66 @@ export function ComplaintsBrowser({ complaints }: ComplaintsBrowserProps) {
         </div>
       </div>
 
-      {areFiltersOpen ? (
-        <div className="bg-surface border-border animate-scale-in grid gap-4 rounded-2xl border p-4 sm:grid-cols-3">
-          <label className="flex flex-col gap-1.5">
-            <span className="text-foreground text-xs font-medium">الحالة</span>
-            <Select
-              value={status}
-              onChange={(event) => setStatus(event.target.value as ComplaintStatus | 'all')}
-            >
-              <option value="all">كل الحالات</option>
-              {(Object.keys(COMPLAINT_STATUS_LABELS) as ComplaintStatus[]).map((value) => (
-                <option key={value} value={value}>
-                  {COMPLAINT_STATUS_LABELS[value]}
-                </option>
-              ))}
-            </Select>
-          </label>
-
-          <label className="flex flex-col gap-1.5">
-            <span className="text-foreground text-xs font-medium">التصنيف</span>
-            <Select value={category} onChange={(event) => setCategory(event.target.value)}>
-              <option value="all">كل التصنيفات</option>
-              {categories.map((value) => (
-                <option key={value} value={value}>
-                  {value}
-                </option>
-              ))}
-            </Select>
-          </label>
-
-          <label className="flex flex-col gap-1.5">
-            <span className="text-foreground text-xs font-medium">التاريخ</span>
-            <Select
-              value={dateRange}
-              onChange={(event) => setDateRange(event.target.value as DateRange)}
-            >
-              {(Object.keys(DATE_RANGE_LABELS) as DateRange[]).map((value) => (
-                <option key={value} value={value}>
-                  {DATE_RANGE_LABELS[value]}
-                </option>
-              ))}
-            </Select>
-          </label>
-
-          {hasActiveFilters ? (
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={handleResetFilters}
-              className="justify-self-start sm:col-span-3"
-            >
-              إعادة تعيين التصفية
-            </Button>
-          ) : null}
-        </div>
-      ) : null}
-
       {visible.length === 0 ? (
-        items.length === 0 ? (
-          <EmptyState
-            icon={FileText}
-            title="ليس لديك أي بلاغات حتى الآن."
-            description="ابدأ بلاغاً جديداً وسيساعدك واصل في تحديد الجهة المختصة وصياغة البلاغ."
-            action={
-              <Link href="/wasal?mode=complaint" className={buttonClasses('primary', 'md')}>
-                ابدأ بلاغاً جديداً
-              </Link>
-            }
-          />
-        ) : (
-          <EmptyState
-            icon={FileText}
-            title="لا توجد نتائج مطابقة."
-            description="جرّب تعديل كلمات البحث أو إعادة تعيين خيارات التصفية."
-          />
-        )
+        <EmptyState
+          icon={FileText}
+          title="لا توجد نتائج مطابقة."
+          description="جرّب تعديل كلمات البحث أو تغيير التصفية."
+        />
       ) : (
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {visible.map((complaint) => (
-            <ComplaintCard key={complaint.id} complaint={complaint} onDelete={setPendingDelete} />
-          ))}
+          {visible.map((complaint) => {
+            const displayTitle = getDisplayTitle({
+              title: complaint.title,
+              complaintSubject: complaint.subject,
+            })
+            const presentation = getComplaintStatusPresentation(
+              complaint.status,
+              complaint.submittedAt,
+            )
+            const entity = complaint.entityName
+              ? getGovernmentEntityByName(complaint.entityName)
+              : undefined
+
+            return (
+              <Card key={complaint.id} interactive className="flex h-full flex-col gap-4 p-5">
+                <div className="flex items-start gap-3">
+                  <GovernmentLogo iconKey={entity?.iconKey} size="sm" />
+                  <div className="min-w-0 flex-1">
+                    <h3 className="text-heading text-sm leading-snug font-semibold text-balance">
+                      {displayTitle}
+                    </h3>
+                    <p className="text-muted-foreground mt-1 truncate text-xs">
+                      {complaint.entityName ?? ''}
+                    </p>
+                  </div>
+                  <Badge variant={presentation.badgeVariant}>
+                    <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-current" />
+                    {presentation.label}
+                  </Badge>
+                </div>
+
+                <div className="text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+                  <span className="bg-secondary/10 text-secondary rounded-full px-2 py-0.5 font-medium">
+                    {complaint.referenceNumber}
+                  </span>
+                  <span>أُنشئ: {formatDate(complaint.createdAt)}</span>
+                  <span>آخر تحديث: {formatDate(complaint.updatedAt)}</span>
+                </div>
+
+                <div className="border-border mt-auto flex items-center gap-1 border-t pt-3">
+                  <Link
+                    href={`/dashboard/complaints/${complaint.id}`}
+                    className="text-foreground hover:bg-primary/6 inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium transition-colors"
+                  >
+                    فتح
+                  </Link>
+                </div>
+              </Card>
+            )
+          })}
         </div>
       )}
-
-      <Modal
-        isOpen={pendingDelete !== null}
-        onClose={() => setPendingDelete(null)}
-        title="حذف البلاغ"
-        description={
-          pendingDelete
-            ? `سيتم حذف «${pendingDelete.title}» نهائياً. لا يمكن التراجع عن هذا الإجراء.`
-            : undefined
-        }
-        footer={
-          <>
-            <Button
-              type="button"
-              variant="danger"
-              onClick={handleConfirmDelete}
-              className="w-full sm:flex-1"
-            >
-              حذف
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setPendingDelete(null)}
-              className="w-full sm:flex-1"
-            >
-              إلغاء
-            </Button>
-          </>
-        }
-      />
     </div>
   )
 }

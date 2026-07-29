@@ -26,7 +26,7 @@ export type GovernmentIconKey = 'municipality' | 'water' | 'electricity' | 'tele
 export const GOVERNMENT_LOGOS: Record<GovernmentIconKey, string> = {
   municipality: '/logos/balady.png', // وزارة البلديات والإسكان
   water: '/logos/nwc.png', // الشركة الوطنية للمياه
-  electricity: '/logos/sec.png', // الشركة السعودية للكهرباء
+  electricity: '/logos/sec.png', // السعودية للطاقة
   telecom: '/logos/cst.png', // هيئة الاتصالات والفضاء والتقنية
   commerce: '/logos/mc.png', // وزارة التجارة
 }
@@ -87,7 +87,7 @@ export const GOVERNMENT_ENTITIES: GovernmentEntity[] = [
   },
   {
     id: 'sec',
-    name: 'الشركة السعودية للكهرباء',
+    name: 'السعودية للطاقة',
     sector: 'الكهرباء',
     description: 'الجهة المسؤولة عن توليد ونقل وتوزيع الطاقة الكهربائية.',
     officialUrl: 'https://www.se.com.sa',
@@ -99,7 +99,7 @@ export const GOVERNMENT_ENTITIES: GovernmentEntity[] = [
       'وصف موقع العطل',
     ],
     submissionSteps: [
-      'الدخول إلى الخدمات الإلكترونية للشركة السعودية للكهرباء.',
+      'الدخول إلى الخدمات الإلكترونية لشركة السعودية للطاقة.',
       'اختيار «الشكاوى والبلاغات».',
       'تعبئة تفاصيل البلاغ وإرفاق المستندات.',
       'حفظ الرقم المرجعي لمتابعة البلاغ.',

@@ -9,7 +9,7 @@ const PURPOSES = [
     icon: MessageSquareText,
     title: 'مساعد ذكي للأسئلة',
     description:
-      'اسأل عن أي شيء يخص البلاغات الحكومية: الجهة المختصة، الإجراءات، المستندات المطلوبة، ومدة المعالجة — دون الحاجة إلى حساب.',
+      'اسأل عن أي شيء يخص البلاغات الحكومية: الجهة المختصة، الإجراءات، المستندات المطلوبة، ومدة المعالجة.',
   },
   {
     icon: FileSignature,
@@ -19,14 +19,28 @@ const PURPOSES = [
   },
 ]
 
-export function AboutSection() {
+type AboutSectionProps = {
+  // /about already has its own "عن واصل" heading + description right above
+  // where this section is rendered — showing this section's own heading
+  // there too would just repeat it verbatim. The homepage has no such
+  // heading before this section, so it keeps showing this one (default).
+  showHeading?: boolean
+  // /about (Phase 8.3) reorders its sections so a different section sits
+  // between the purpose cards and "كيف يعمل واصل؟" — it renders that part
+  // itself, separately, further down the page. The homepage keeps both
+  // bundled together in one section, exactly as before (default).
+  showHowItWorks?: boolean
+}
+
+export function AboutSection({ showHeading = true, showHowItWorks = true }: AboutSectionProps = {}) {
   return (
     <section id="how-it-works" className="mx-auto w-full max-w-6xl px-5 md:px-6">
-      <SectionHeading
-        eyebrow="عن واصل"
-        title="ما هي واصل؟"
-        description="واصل منصة ذكية تقف بين المستفيد والجهة الحكومية، لتحوّل شكوى مكتوبة بلغة عادية إلى بلاغ واضح موجّه إلى الجهة الصحيحة."
-      />
+      {showHeading ? (
+        <SectionHeading
+          title="عن واصل"
+          description="واصل منصة ذكية تقف بين المستفيد والجهة الحكومية، لتحوّل شكوى مكتوبة بلغة عادية إلى بلاغ واضح موجّه إلى الجهة الصحيحة."
+        />
+      ) : null}
 
       <div className="mt-10 grid gap-5 md:grid-cols-2">
         {PURPOSES.map((purpose, index) => {
@@ -47,13 +61,17 @@ export function AboutSection() {
         })}
       </div>
 
-      <h3 className="text-heading mt-16 text-center text-xl font-semibold sm:text-2xl">
-        كيف يعمل واصل؟
-      </h3>
+      {showHowItWorks ? (
+        <>
+          <h3 className="text-heading mt-16 text-center text-xl font-semibold sm:text-2xl">
+            كيف يعمل واصل؟
+          </h3>
 
-      <Reveal className="mt-8">
-        <HowItWorks />
-      </Reveal>
+          <Reveal className="mt-8">
+            <HowItWorks />
+          </Reveal>
+        </>
+      ) : null}
     </section>
   )
 }

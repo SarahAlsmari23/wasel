@@ -3,6 +3,7 @@
 import { ArrowLeft, MessagesSquare, Trash2 } from 'lucide-react'
 import Link from 'next/link'
 import { useMemo, useState } from 'react'
+import { deleteConversationAction } from '@/app/wasal/conversation-actions'
 import { Button, buttonClasses } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { EmptyState } from '@/components/ui/empty-state'
@@ -19,10 +20,10 @@ type ConversationsBrowserProps = {
 
 export function ConversationsBrowser({ conversations }: ConversationsBrowserProps) {
   const { showToast } = useToast()
-  // Deletions are local to the session — this phase has no persistence.
   const [items, setItems] = useState(conversations)
   const [query, setQuery] = useState('')
   const [pendingDelete, setPendingDelete] = useState<MockConversation | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
 
   const visible = useMemo(() => {
     const normalized = query.trim().toLowerCase()
@@ -38,11 +39,28 @@ export function ConversationsBrowser({ conversations }: ConversationsBrowserProp
       .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
   }, [items, query])
 
-  function handleConfirmDelete() {
-    if (!pendingDelete) return
-    setItems((current) => current.filter((item) => item.id !== pendingDelete.id))
-    setPendingDelete(null)
-    showToast('تم حذف المحادثة.')
+  async function handleConfirmDelete() {
+    if (!pendingDelete || isDeleting) return
+    const target = pendingDelete
+    setIsDeleting(true)
+    try {
+      const result = await deleteConversationAction(target.id)
+      if (result.success) {
+        // Only removed from the list once the deletion is actually confirmed
+        // server-side — never optimistically.
+        setItems((current) => current.filter((item) => item.id !== target.id))
+        setPendingDelete(null)
+        showToast('تم حذف المحادثة')
+      } else {
+        setPendingDelete(null)
+        showToast(result.error, 'error')
+      }
+    } catch {
+      setPendingDelete(null)
+      showToast('حدث خطأ غير متوقع أثناء الحذف. حاول مرة أخرى.', 'error')
+    } finally {
+      setIsDeleting(false)
+    }
   }
 
   if (items.length === 0) {
@@ -125,7 +143,9 @@ export function ConversationsBrowser({ conversations }: ConversationsBrowserProp
 
       <Modal
         isOpen={pendingDelete !== null}
-        onClose={() => setPendingDelete(null)}
+        onClose={() => {
+          if (!isDeleting) setPendingDelete(null)
+        }}
         title="حذف المحادثة"
         description={
           pendingDelete
@@ -137,7 +157,8 @@ export function ConversationsBrowser({ conversations }: ConversationsBrowserProp
             <Button
               type="button"
               variant="danger"
-              onClick={handleConfirmDelete}
+              onClick={() => void handleConfirmDelete()}
+              isLoading={isDeleting}
               className="w-full sm:flex-1"
             >
               حذف
@@ -146,6 +167,7 @@ export function ConversationsBrowser({ conversations }: ConversationsBrowserProp
               type="button"
               variant="outline"
               onClick={() => setPendingDelete(null)}
+              disabled={isDeleting}
               className="w-full sm:flex-1"
             >
               إلغاء

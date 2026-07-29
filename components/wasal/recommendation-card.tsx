@@ -17,11 +17,17 @@ import type { ComplaintAnalysis } from '@/types/wasal'
 
 type RecommendationCardProps = {
   analysis: ComplaintAnalysis
-  /** The full complaint letter, used by "نسخ ملخص البلاغ". */
-  letter: string
+  /** The deterministic pre-generation summary text (lib/complaints/summary.ts),
+   * used by "نسخ الملخص". Omitted entirely (no copy button rendered) if ever
+   * unavailable — never falls back to mock content. */
+  letter?: string
   onSave: () => void
   isSaved?: boolean
   isSaving?: boolean
+  /** When present, the save button is disabled and this notice is shown
+   * instead of the normal label — used while routing persistence to the DB
+   * is still being confirmed (Phase 6.6F). */
+  saveDisabledNotice?: string
 }
 
 export function RecommendationCard({
@@ -30,15 +36,17 @@ export function RecommendationCard({
   onSave,
   isSaved = false,
   isSaving = false,
+  saveDisabledNotice,
 }: RecommendationCardProps) {
   const { showToast } = useToast()
   const [justCopied, setJustCopied] = useState(false)
 
   async function handleCopy() {
+    if (!letter) return
     try {
       await navigator.clipboard.writeText(letter)
       setJustCopied(true)
-      showToast('تم نسخ ملخص البلاغ.')
+      showToast('تم نسخ الملخص')
       window.setTimeout(() => setJustCopied(false), 2000)
     } catch {
       showToast('تعذر نسخ الملخص. حاول مرة أخرى.', 'error')
@@ -72,35 +80,41 @@ export function RecommendationCard({
       </Section>
 
       <Section title="ملخص البلاغ">
-        <p className="text-muted-foreground text-sm leading-relaxed">{analysis.summary}</p>
+        <p className="text-muted-foreground text-sm leading-relaxed whitespace-pre-line">
+          {analysis.summary}
+        </p>
       </Section>
 
-      <Section title="المستندات المطلوبة">
-        <ul className="flex flex-col gap-1.5">
-          {analysis.requiredDocuments.map((document) => (
-            <li key={document} className="text-muted-foreground flex gap-2 text-sm">
-              <span
-                className="bg-secondary mt-1.5 h-1 w-1 shrink-0 rounded-full"
-                aria-hidden="true"
-              />
-              {document}
-            </li>
-          ))}
-        </ul>
-      </Section>
+      {analysis.requiredDocuments.length > 0 ? (
+        <Section title="المستندات المطلوبة">
+          <ul className="flex flex-col gap-1.5">
+            {analysis.requiredDocuments.map((document) => (
+              <li key={document} className="text-muted-foreground flex gap-2 text-sm">
+                <span
+                  className="bg-secondary mt-1.5 h-1 w-1 shrink-0 rounded-full"
+                  aria-hidden="true"
+                />
+                {document}
+              </li>
+            ))}
+          </ul>
+        </Section>
+      ) : null}
 
-      <Section title="خطوات التقديم">
-        <ol className="flex flex-col gap-2">
-          {analysis.submissionSteps.map((step, index) => (
-            <li key={step} className="text-muted-foreground flex gap-2.5 text-sm">
-              <span className="bg-primary/8 text-primary flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold">
-                {index + 1}
-              </span>
-              <span className="leading-relaxed">{step}</span>
-            </li>
-          ))}
-        </ol>
-      </Section>
+      {analysis.submissionSteps.length > 0 ? (
+        <Section title="خطوات التقديم">
+          <ol className="flex flex-col gap-2">
+            {analysis.submissionSteps.map((step, index) => (
+              <li key={step} className="text-muted-foreground flex gap-2.5 text-sm">
+                <span className="bg-primary/8 text-primary flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold">
+                  {index + 1}
+                </span>
+                <span className="leading-relaxed">{step}</span>
+              </li>
+            ))}
+          </ol>
+        </Section>
+      ) : null}
 
       <div className="border-border flex flex-col gap-2 border-t pt-4">
         <a
@@ -113,15 +127,21 @@ export function RecommendationCard({
           الانتقال إلى الموقع الرسمي
         </a>
 
+        {saveDisabledNotice ? (
+          <p className="text-muted-foreground text-center text-xs">{saveDisabledNotice}</p>
+        ) : null}
+
         <Button
           type="button"
           variant="outline"
           onClick={onSave}
           isLoading={isSaving}
-          disabled={isSaved}
-          className="w-full"
+          disabled={isSaved || Boolean(saveDisabledNotice)}
+          className="self-center"
         >
-          {isSaved ? (
+          {isSaving ? (
+            'جارٍ إنشاء البلاغ...'
+          ) : isSaved ? (
             <>
               <Check className="h-4 w-4" aria-hidden="true" />
               تم حفظ البلاغ
@@ -129,19 +149,21 @@ export function RecommendationCard({
           ) : (
             <>
               <Save className="h-4 w-4" aria-hidden="true" />
-              حفظ البلاغ
+              إنشاء البلاغ
             </>
           )}
         </Button>
 
-        <Button type="button" variant="ghost" onClick={handleCopy} className="w-full">
-          {justCopied ? (
-            <Check className="h-4 w-4" aria-hidden="true" />
-          ) : (
-            <Copy className="h-4 w-4" aria-hidden="true" />
-          )}
-          {justCopied ? 'تم النسخ' : 'نسخ ملخص البلاغ'}
-        </Button>
+        {letter ? (
+          <Button type="button" variant="ghost" onClick={handleCopy} className="w-full">
+            {justCopied ? (
+              <Check className="h-4 w-4" aria-hidden="true" />
+            ) : (
+              <Copy className="h-4 w-4" aria-hidden="true" />
+            )}
+            {justCopied ? 'تم نسخ الملخص' : 'نسخ الملخص'}
+          </Button>
+        ) : null}
       </div>
     </motion.div>
   )

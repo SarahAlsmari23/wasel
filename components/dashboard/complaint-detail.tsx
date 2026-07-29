@@ -1,40 +1,74 @@
 'use client'
 
-import { ArrowRight, Check, Copy, ExternalLink, MessagesSquare } from 'lucide-react'
+import { ArrowRight, Check, Copy, ExternalLink, FileCheck, MessagesSquare } from 'lucide-react'
 import Link from 'next/link'
 import { useState } from 'react'
+import { markComplaintSubmittedAction } from '@/app/wasal/complaint-actions'
 import { GovernmentLogo } from '@/components/government/government-logo'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import { ComplaintStatusBadge } from '@/components/ui/status-badge'
 import { useToast } from '@/components/ui/toast'
+import { getDisplayTitle, getComplaintStatusPresentation } from '@/lib/complaints/display'
+import type { ComplaintRecord } from '@/lib/db/complaints'
+import { getGovernmentEntityByName } from '@/lib/mock/government-entities'
 import { formatDate } from '@/lib/utils/format'
-import { getGovernmentEntityById } from '@/lib/mock/government-entities'
-import type { MockComplaint } from '@/types/complaint'
+
+const REFERENCE_NOTICE = 'رقم مرجعي داخلي في منصة واصل، وليس رقم البلاغ لدى الجهة الحكومية.'
 
 type ComplaintDetailProps = {
-  complaint: MockComplaint
+  complaint: ComplaintRecord
 }
 
-export function ComplaintDetail({ complaint }: ComplaintDetailProps) {
+/**
+ * Real, database-backed complaint detail (Phase 6.5) — replaces the mock
+ * MockComplaint-shaped detail view. Fields with no real backing data yet
+ * (category, city, issue date, required documents, timeline) are simply not
+ * shown, rather than being fabricated.
+ */
+export function ComplaintDetail({ complaint: initialComplaint }: ComplaintDetailProps) {
   const { showToast } = useToast()
+  const [complaint, setComplaint] = useState(initialComplaint)
   const [justCopied, setJustCopied] = useState(false)
-  const entity = getGovernmentEntityById(complaint.entityId)
+  const [isMarkingSubmitted, setIsMarkingSubmitted] = useState(false)
 
-  // Records saved by an older version of the app (or a future API) may omit
-  // these collections entirely; defaulting here keeps the page rendering
-  // instead of throwing on `.map` of undefined.
-  const timeline = complaint.timeline ?? []
-  const requiredDocuments = complaint.requiredDocuments ?? []
+  const entity = complaint.entityName ? getGovernmentEntityByName(complaint.entityName) : undefined
+  const displayTitle = getDisplayTitle({
+    title: complaint.title,
+    complaintSubject: complaint.subject,
+  })
+  const presentation = getComplaintStatusPresentation(complaint.status, complaint.submittedAt)
 
   async function handleCopy() {
     try {
-      await navigator.clipboard.writeText(complaint.draftText)
+      await navigator.clipboard.writeText(complaint.complaintText)
       setJustCopied(true)
-      showToast('تم نسخ ملخص البلاغ.')
+      showToast('تم نسخ البلاغ.')
       window.setTimeout(() => setJustCopied(false), 2000)
     } catch {
-      showToast('تعذر نسخ الملخص. حاول مرة أخرى.', 'error')
+      showToast('تعذر نسخ البلاغ. حاول مرة أخرى.', 'error')
+    }
+  }
+
+  async function handleMarkSubmitted() {
+    if (isMarkingSubmitted || complaint.submittedAt) return
+    setIsMarkingSubmitted(true)
+    try {
+      const result = await markComplaintSubmittedAction(complaint.id)
+      if (result.success) {
+        setComplaint((current) => ({
+          ...current,
+          submittedAt: result.submittedAt,
+          updatedAt: result.updatedAt,
+        }))
+        showToast('تم تحديث حالة البلاغ.')
+      } else {
+        showToast(result.error, 'error')
+      }
+    } catch {
+      showToast('حدث خطأ غير متوقع. حاول مرة أخرى.', 'error')
+    } finally {
+      setIsMarkingSubmitted(false)
     }
   }
 
@@ -50,15 +84,16 @@ export function ComplaintDetail({ complaint }: ComplaintDetailProps) {
 
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="flex items-start gap-4">
-          <GovernmentLogo iconKey={complaint.entityIconKey} />
+          <GovernmentLogo iconKey={entity?.iconKey} />
           <div>
-            <h1 className="text-heading text-2xl font-semibold text-balance">{complaint.title}</h1>
-            <p className="text-muted-foreground mt-1 text-sm">
-              {complaint.entityName} · {complaint.categoryName}
-            </p>
+            <h1 className="text-heading text-2xl font-semibold text-balance">{displayTitle}</h1>
+            <p className="text-muted-foreground mt-1 text-sm">{complaint.entityName ?? ''}</p>
           </div>
         </div>
-        <ComplaintStatusBadge status={complaint.status} />
+        <Badge variant={presentation.badgeVariant}>
+          <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-current" />
+          {presentation.label}
+        </Badge>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[1.6fr_1fr]">
@@ -76,63 +111,29 @@ export function ComplaintDetail({ complaint }: ComplaintDetailProps) {
               </Button>
             </div>
             <pre className="bg-surface-muted text-foreground overflow-x-auto rounded-xl p-4 font-sans text-sm leading-relaxed whitespace-pre-wrap">
-              {complaint.draftText}
+              {complaint.complaintText}
             </pre>
-          </Card>
-
-          <Card className="flex flex-col gap-4">
-            <h2 className="text-heading text-sm font-semibold">سجل البلاغ</h2>
-            <ol className="flex flex-col">
-              {timeline.map((entry, index) => {
-                const isLast = index === timeline.length - 1
-                return (
-                  <li key={`${entry.label}-${entry.at}`} className="flex gap-3">
-                    <div className="flex flex-col items-center">
-                      <span className="bg-status-completed mt-1.5 h-2 w-2 shrink-0 rounded-full" />
-                      {isLast ? null : <span className="bg-border w-px flex-1" />}
-                    </div>
-                    <div className={isLast ? 'pb-0' : 'pb-5'}>
-                      <p className="text-foreground text-sm">{entry.label}</p>
-                      <p className="text-muted-foreground text-xs">{formatDate(entry.at)}</p>
-                    </div>
-                  </li>
-                )
-              })}
-            </ol>
           </Card>
         </div>
 
         <div className="flex flex-col gap-6">
           <Card className="flex flex-col gap-4">
             <h2 className="text-heading text-sm font-semibold">تفاصيل</h2>
-            <DetailRow label="المدينة" value={complaint.city} />
-            <DetailRow label="تاريخ حدوث المشكلة" value={formatDate(complaint.issueDate)} />
-            <DetailRow label="الرقم المرجعي" value={complaint.referenceNumber || 'غير متوفر'} />
+            <DetailRow label="المرجع الداخلي" value={complaint.referenceNumber} />
+            <p className="text-muted-foreground -mt-2 text-[11px] leading-relaxed">
+              {REFERENCE_NOTICE}
+            </p>
             <DetailRow label="تاريخ الإنشاء" value={formatDate(complaint.createdAt)} />
             <DetailRow label="آخر تعديل" value={formatDate(complaint.updatedAt)} />
+            {complaint.submittedAt ? (
+              <DetailRow label="تاريخ التقديم" value={formatDate(complaint.submittedAt)} />
+            ) : null}
           </Card>
 
-          {requiredDocuments.length > 0 ? (
-            <Card className="flex flex-col gap-3">
-              <h2 className="text-heading text-sm font-semibold">المستندات المطلوبة</h2>
-              <ul className="flex flex-col gap-2">
-                {requiredDocuments.map((document) => (
-                  <li key={document} className="text-muted-foreground flex gap-2 text-sm">
-                    <span
-                      className="bg-secondary mt-1.5 h-1 w-1 shrink-0 rounded-full"
-                      aria-hidden="true"
-                    />
-                    {document}
-                  </li>
-                ))}
-              </ul>
-            </Card>
-          ) : null}
-
           <div className="flex flex-col gap-2">
-            {entity ? (
+            {complaint.officialUrl ? (
               <a
-                href={entity.officialUrl}
+                href={complaint.officialUrl}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="bg-primary text-primary-foreground hover:bg-primary/90 inline-flex h-11 items-center justify-center gap-2 rounded-xl px-4 text-sm font-medium transition-colors"
@@ -141,6 +142,18 @@ export function ComplaintDetail({ complaint }: ComplaintDetailProps) {
                 الانتقال إلى الموقع الرسمي
               </a>
             ) : null}
+
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleMarkSubmitted}
+              isLoading={isMarkingSubmitted}
+              disabled={Boolean(complaint.submittedAt)}
+              className="w-full"
+            >
+              <FileCheck className="h-4 w-4" aria-hidden="true" />
+              {complaint.submittedAt ? 'تم تقديم البلاغ' : 'تحديد كمُقدَّم'}
+            </Button>
 
             {complaint.conversationId ? (
               <Link

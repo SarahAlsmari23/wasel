@@ -1,3 +1,4 @@
+import { buildComplaintSummary } from '@/lib/complaints/summary'
 import { GOVERNMENT_ENTITIES } from '@/lib/mock/government-entities'
 import { matchCategory, matchEntity } from '@/lib/wasal/entity-matching'
 import type { ComplaintAnalysis, ConfidenceLevel } from '@/types/wasal'
@@ -20,7 +21,7 @@ const GENERAL_ANSWERS: { pattern: RegExp; answer: string }[] = [
 
 - **مشكلة في الشارع أو النظافة أو المرافق العامة** → وزارة البلديات والإسكان.
 - **مشكلة في المياه أو الصرف الصحي أو فاتورة المياه** → الشركة الوطنية للمياه.
-- **انقطاع كهرباء أو اعتراض على فاتورة كهرباء** → الشركة السعودية للكهرباء.
+- **انقطاع كهرباء أو اعتراض على فاتورة كهرباء** → السعودية للطاقة.
 - **ضعف تغطية أو خلاف مع مزود اتصالات** → هيئة الاتصالات والفضاء والتقنية.
 - **خلاف مع متجر أو مشكلة كمستهلك** → وزارة التجارة.
 
@@ -85,19 +86,14 @@ export function buildAssistantAnswer(message: string): AssistantAnswer {
   const { entity } = match
   const category = matchCategory(entity, message)
 
-  const answer = `بحسب وصفك، الجهة المختصة بهذه المشكلة هي **${entity.name}**.
+  // Short and conversational by design (Phase 6.9, Part 5) — the entity's
+  // full description, plus any required-documents/submission-steps detail,
+  // belongs only to AuthorityModal (triggered via suggestedEntityName below),
+  // never duplicated here as chat-bubble prose. Keeps this reply safe to
+  // treat as a genuine conversational turn if it's ever restored later.
+  const answer = `بحسب وصفك، الجهة المختصة بهذه المشكلة هي **${entity.name}**، ضمن تصنيف **${category}**.
 
-${entity.description}
-
-**تصنيف الشكوى المرجّح:** ${category}
-
-**المستندات التي يُفضّل تجهيزها:**
-${entity.requiredDocuments.map((document) => `- ${document}`).join('\n')}
-
-**خطوات التقديم:**
-${entity.submissionSteps.map((step, index) => `${index + 1}. ${step}`).join('\n')}
-
-يمكنك [زيارة الموقع الرسمي](${entity.officialUrl}) لتقديم البلاغ مباشرة، أو أن تبدأ **إنشاء بلاغ** هنا لأصيغه لك باحترافية أولاً.`
+يمكنك مطالعة التفاصيل في نافذة الجهة المختصة، أو البدء في **إنشاء بلاغ** متى أردت.`
 
   return {
     answer,
@@ -176,17 +172,22 @@ export function buildComplaintAnalysis(answers: ComplaintAnswers): ComplaintAnal
     : { level: 'low' as ConfidenceLevel, score: 52 }
 
   const details = answers.details?.trim() ?? ''
-  const city = answers.city?.trim()
-  const attempts = answers.attempts?.trim()
-  const hasPriorContact = Boolean(attempts) && !/^(لا|لأ|no)$/i.test(attempts ?? '')
+  const city = answers.city?.trim() ?? ''
+  const attempts = answers.attempts?.trim() ?? ''
 
-  const summary = details.length > 140 ? `${details.slice(0, 137).trimEnd()}...` : details
-
-  const detailLines = [
-    details,
-    city ? `**المدينة:** ${city}` : null,
-    hasPriorContact ? `**تواصل سابق مع الجهة:** ${attempts}` : '**تواصل سابق مع الجهة:** لا يوجد.',
-  ].filter(Boolean)
+  // Built from the complete set of collected answers (problem description,
+  // city, prior contact) via the same deterministic, structured summary
+  // builder the real database-backed flow uses — never just the last
+  // answer alone (Phase 6.7, Part 5).
+  const { summaryText } = buildComplaintSummary({
+    entityName: entity.name,
+    complaintTypeLabel: category,
+    collectedFields: {
+      problem_description: details,
+      city,
+      prior_provider_contact: attempts,
+    },
+  })
 
   return {
     entityId: entity.id,
@@ -195,47 +196,14 @@ export function buildComplaintAnalysis(answers: ComplaintAnswers): ComplaintAnal
     entityDescription: entity.description,
     officialUrl: entity.officialUrl,
     category,
-    summary: summary || 'بلاغ بحاجة إلى مراجعة الجهة المختصة.',
-    details: detailLines.join('\n\n'),
-    requiredDocuments: entity.requiredDocuments,
-    submissionSteps: entity.submissionSteps,
+    summary: summaryText || 'بلاغ بحاجة إلى مراجعة الجهة المختصة.',
+    details: summaryText,
+    // Never mock content in the real, user-facing card — no database-backed
+    // source for these exists yet (same as the real path's
+    // buildAnalysisFromRouting in wasal-chat.tsx).
+    requiredDocuments: [],
+    submissionSteps: [],
     confidence: confidence.level,
     confidenceScore: confidence.score,
   }
-}
-
-/** The professional complaint letter the user can copy or save. */
-export function buildComplaintLetter(
-  answers: ComplaintAnswers,
-  analysis: ComplaintAnalysis,
-): string {
-  const fullName = answers.fullName?.trim() || 'مقدّم البلاغ'
-  const attempts = answers.attempts?.trim()
-  const hasPriorContact = Boolean(attempts) && !/^(لا|لأ|no)$/i.test(attempts ?? '')
-
-  const contextLines = [
-    answers.city?.trim() ? `المدينة: ${answers.city.trim()}` : null,
-    hasPriorContact ? `تواصل سابق مع الجهة: ${attempts}` : null,
-  ].filter(Boolean)
-
-  return `إلى: ${analysis.entityName}
-الموضوع: ${analysis.category}
-
-السلام عليكم ورحمة الله وبركاته،
-
-أتقدم أنا الموقع أدناه، ${fullName}، بصفتي أحد المستفيدين من خدمات ${analysis.entityName}، بشكوى بخصوص ${analysis.category}.
-
-تفاصيل المشكلة:
-${answers.details?.trim() ?? ''}
-${contextLines.length > 0 ? `\n${contextLines.join('\n')}` : ''}
-
-آمل التكرم بالنظر في هذه الشكوى واتخاذ الإجراء اللازم لحل المشكلة في أقرب وقت ممكن.
-
-وتفضلوا بقبول فائق الاحترام والتقدير،
-${fullName}`
-}
-
-/** Title used for the saved complaint and its conversation. */
-export function buildComplaintTitle(analysis: ComplaintAnalysis): string {
-  return `${analysis.category} — ${analysis.entityName}`
 }

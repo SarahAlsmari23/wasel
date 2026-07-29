@@ -20,8 +20,8 @@ export function SiteFooter() {
         <div className="flex flex-col gap-3">
           <WaselLogo variant="horizontal" size="sm" />
           <p className="text-muted-foreground max-w-xs text-sm leading-relaxed">
-            منصة ذكية تساعدك على فهم شكواك، وتحديد الجهة الحكومية المناسبة، وصياغة البلاغ باحترافية
-            قبل إرساله.
+            صُمِّم واصل لمساعدتك على فهم الاستفسارات الحكومية، وتحديد الجهة المختصة، وصياغة الشكاوى
+            والبلاغات بصيغة رسمية وواضحة قبل تقديمها.
           </p>
         </div>
 

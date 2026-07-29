@@ -8,9 +8,13 @@ import { Modal } from '@/components/ui/modal'
 /**
  * Returning to /wasal with `mode=complaint` resumes the complaint builder on
  * top of the conversation, which is restored from sessionStorage — so signing
- * in never costs the user their chat.
+ * in never costs the user their chat. `resumePending=true` is an explicit,
+ * self-documenting marker for this exact round trip (Phase 6.8, Part 4) — the
+ * actual gate on the client is still the real `pendingComplaint` flag saved
+ * to sessionStorage at the moment of the request (see requestComplaintCreation),
+ * which is authoritative regardless of this marker.
  */
-const NEXT_PATH = '/wasal?mode=complaint'
+const NEXT_PATH = '/wasal?mode=complaint&resumePending=true'
 
 type LoginRequiredModalProps = {
   isOpen: boolean

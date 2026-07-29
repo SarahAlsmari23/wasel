@@ -1,19 +1,34 @@
 import { isValidChatSuccessResponse } from '@/lib/ai/contracts'
 import { buildAssistantAnswer, type AssistantAnswer } from '@/lib/wasal/mock-engine'
-import type { ChatHistoryItem } from '@/types/ai'
+import type { ChatComplaintContext, ChatHistoryItem, ChatIntent, ChatRouting } from '@/types/ai'
 
 const REQUEST_TIMEOUT_MS = 20_000
 
 export type AssistantRequest = {
   conversationId: string
+  /** Real server-created conversation id, when the caller has one — see
+   * ChatRequest.dbConversationId in types/ai.ts. */
+  dbConversationId?: string
   message: string
   history: ChatHistoryItem[]
+  intent?: ChatIntent
+  complaintContext?: ChatComplaintContext
   signal?: AbortSignal
 }
 
 export type AssistantResult = AssistantAnswer & {
   /** True when the answer came from the mocked engine, not the AI provider. */
   isMocked: boolean
+  /** Present only for real (non-mocked) responses — see types/ai.ts. */
+  routing?: ChatRouting | null
+  missingFields?: string[]
+  nextQuestion?: string | null
+  nextFieldKey?: string | null
+  readyToGenerateComplaint?: boolean
+  routingPersisted?: boolean
+  /** Server-authoritative final classification (Phase 7.1) — never the
+   * client's own guess. Absent only for a mocked fallback response. */
+  intent?: ChatIntent
 }
 
 /**
@@ -27,8 +42,11 @@ export type AssistantResult = AssistantAnswer & {
  */
 export async function requestAssistantAnswer({
   conversationId,
+  dbConversationId,
   message,
   history,
+  intent,
+  complaintContext,
   signal,
 }: AssistantRequest): Promise<AssistantResult> {
   const timeoutController = new AbortController()
@@ -43,9 +61,11 @@ export async function requestAssistantAnswer({
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         conversationId,
+        dbConversationId,
         message,
         history,
-        intent: 'general_question',
+        intent,
+        complaintContext,
       }),
       signal: combinedSignal,
     })
@@ -57,6 +77,13 @@ export async function requestAssistantAnswer({
         answer: payload.answer,
         suggestedEntityName: payload.suggestedEntity?.name,
         suggestedEntityReason: payload.suggestedEntity?.reason,
+        routing: payload.routing,
+        missingFields: payload.missingFields,
+        nextQuestion: payload.nextQuestion,
+        nextFieldKey: payload.nextFieldKey,
+        readyToGenerateComplaint: payload.readyToGenerateComplaint,
+        routingPersisted: payload.routingPersisted,
+        intent: payload.intent,
         isMocked: false,
       }
     }

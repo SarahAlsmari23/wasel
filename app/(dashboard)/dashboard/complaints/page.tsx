@@ -4,13 +4,17 @@ import Link from 'next/link'
 import { ComplaintsBrowser } from '@/components/dashboard/complaints-browser'
 import { PageHeader } from '@/components/dashboard/page-header'
 import { buttonClasses } from '@/components/ui/button'
-import { MOCK_COMPLAINTS } from '@/lib/mock/complaints'
+import { getUserComplaints } from '@/lib/db/complaints'
+import { createClient } from '@/lib/supabase/server'
 
 export const metadata: Metadata = {
   title: 'البلاغات السابقة',
 }
 
-export default function ComplaintsPage() {
+export default async function ComplaintsPage() {
+  const supabase = await createClient()
+  const complaints = await getUserComplaints(supabase)
+
   return (
     <div className="animate-fade-in mx-auto flex w-full max-w-6xl flex-col gap-8">
       <PageHeader
@@ -24,7 +28,7 @@ export default function ComplaintsPage() {
         }
       />
 
-      <ComplaintsBrowser complaints={MOCK_COMPLAINTS} />
+      <ComplaintsBrowser complaints={complaints} />
     </div>
   )
 }

@@ -5,8 +5,8 @@ import { QuickActions } from '@/components/dashboard/quick-actions'
 import { RecentActivity } from '@/components/dashboard/recent-activity'
 import { StatCard } from '@/components/dashboard/stat-card'
 import { getUserProfile } from '@/lib/auth/user-profile'
-import { getMockComplaintsByRecency, getMockDrafts, MOCK_COMPLAINTS } from '@/lib/mock/complaints'
-import { MOCK_CONVERSATIONS } from '@/lib/mock/conversations'
+import { getUserComplaints } from '@/lib/db/complaints'
+import { getUserConversations, getUserDrafts } from '@/lib/db/conversations'
 import { createClient } from '@/lib/supabase/server'
 
 export const metadata: Metadata = {
@@ -25,17 +25,24 @@ export default async function DashboardPage() {
   const profile = user ? getUserProfile(user) : null
   const greetingName = profile?.firstName ?? 'بك'
 
-  const drafts = getMockDrafts()
+  // Three independent, RLS-scoped reads — no service role, no fabricated
+  // content (Phase 6.8, Part 2).
+  const [conversations, complaints, drafts] = user
+    ? await Promise.all([
+        getUserConversations(supabase),
+        getUserComplaints(supabase),
+        getUserDrafts(supabase),
+      ])
+    : [[], [], []]
+
   const latestDraft = drafts.at(0)
 
-  const completedCount = MOCK_COMPLAINTS.filter(
-    (complaint) => complaint.status === 'completed',
-  ).length
+  const completedCount = complaints.filter((complaint) => complaint.status === 'completed').length
   const recommendedEntityCount = new Set(
-    MOCK_COMPLAINTS.map((complaint) => complaint.entityId).filter(Boolean),
+    complaints.map((complaint) => complaint.entityId).filter(Boolean),
   ).size
 
-  const recentComplaints = getMockComplaintsByRecency().slice(0, 4)
+  const recentComplaints = complaints.slice(0, 4)
 
   return (
     <div className="animate-fade-in mx-auto flex w-full max-w-6xl flex-col gap-10">
@@ -47,7 +54,7 @@ export default async function DashboardPage() {
       </div>
 
       {latestDraft ? (
-        <ContinueCard complaint={latestDraft} showViewAllDrafts={drafts.length > 1} />
+        <ContinueCard draft={latestDraft} showViewAllDrafts={drafts.length > 1} />
       ) : null}
 
       <section className="flex flex-col gap-3">
@@ -67,7 +74,7 @@ export default async function DashboardPage() {
           />
           <StatCard
             label="محادثات سابقة"
-            value={MOCK_CONVERSATIONS.length}
+            value={conversations.length}
             icon={MessagesSquare}
             href="/dashboard/conversations"
           />
@@ -81,7 +88,7 @@ export default async function DashboardPage() {
       </section>
 
       <QuickActions
-        continueDraftHref={latestDraft ? `/dashboard/complaints/${latestDraft.id}` : undefined}
+        continueDraftHref={latestDraft ? `/wasal?conversationId=${latestDraft.id}` : undefined}
       />
 
       <RecentActivity complaints={recentComplaints} />

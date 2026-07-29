@@ -1,12 +1,53 @@
 import { NextResponse } from 'next/server'
 import { validateChatRequest } from '@/lib/ai/contracts'
-import { AiProviderError, cloudflareProvider } from '@/lib/ai/cloudflare'
+import { AiProviderError } from '@/lib/ai/generation-shared'
+import { getGenerationProvider } from '@/lib/ai/provider'
+import {
+  buildKnownFieldKeysFromComplaintContext,
+  computeMissingFields,
+  findClarificationHint,
+  parseClarificationRules,
+  parseRequiredFields,
+  type MissingFieldsResult,
+} from '@/lib/ai/missing-fields'
 import { buildPrompt } from '@/lib/ai/prompts'
+import { getCollectedInformationForConversation } from '@/lib/db/collected-information'
+import { getSavedRouting, updateConversationRouting } from '@/lib/db/conversations'
+import { hydrateSavedRouting, mergeRouting, resolveRouting } from '@/lib/ai/routing'
 import { sanitizeComplaintContext, sanitizeHistory, sanitizeMessage } from '@/lib/ai/sanitize'
 import { retrieveRelevantDocuments, RetrievalError } from '@/lib/rag/retrieve'
 import type { RetrievedDocument } from '@/lib/rag/types'
 import { createClient } from '@/lib/supabase/server'
-import type { ChatErrorResponse, ChatSource, ChatSuccessResponse } from '@/types/ai'
+import { isExplicitRoutingChange, wantsToCreateComplaint } from '@/lib/wasal/complaint-intent'
+import {
+  appendPendingQuestion,
+  coerceModelIntent,
+  GREETING_RESPONSE,
+  hasGrievanceSignal,
+  IDENTITY_RESPONSE,
+  isComplaintIntent,
+  isGreetingOnly,
+  isIdentityQuestion,
+  isInformationalIntent,
+  isLikelySideQuestion,
+  isObviousOutOfScope,
+  NO_VERIFIED_INFO_RESPONSE,
+  OUT_OF_SCOPE_RESPONSE,
+} from '@/lib/ai/intent-guards'
+import type {
+  ChatComplaintContext,
+  ChatErrorResponse,
+  ChatIntent,
+  ChatRouting,
+  ChatSource,
+  ChatSuccessResponse,
+} from '@/types/ai'
+
+// Deterministic, server-authored — never model-generated. Used whenever
+// computeMissingFields determines every required field has been collected,
+// so the client never displays a model-invented follow-up question once the
+// server has authoritatively decided the complaint-collection flow is done.
+const COMPLETION_MESSAGE = 'اكتملت المعلومات اللازمة، وسأقوم الآن بإعداد البلاغ الرسمي.'
 
 const RATE_LIMIT_WINDOW_MS = 60_000
 // Guests get a tighter budget than signed-in users: the assistant is open to
@@ -55,6 +96,29 @@ function errorResponse(error: string, status: number) {
   return NextResponse.json<ChatErrorResponse>({ error }, { status })
 }
 
+/**
+ * A fully deterministic, server-authored response — used for identity and
+ * out-of-scope classifications (Phase 7.1, Parts 5/6). Never carries RAG
+ * sources, routing, or complaint-collection state: none of those concepts
+ * apply once the message has been classified this way.
+ */
+function fixedIntentResponse(intent: ChatIntent, answer: string): ChatSuccessResponse {
+  return {
+    answer,
+    intent,
+    confidence: 'high',
+    grounded: intent === 'identity_question',
+    missingFields: [],
+    suggestedQuestions: [],
+    sources: [],
+    routing: null,
+    nextQuestion: null,
+    nextFieldKey: null,
+    readyToGenerateComplaint: false,
+    routingPersisted: false,
+  }
+}
+
 // TEMPORARY DIAGNOSTICS — structural only. Never logs secrets, prompts,
 // embeddings, document content, raw provider/database errors, or stack
 // traces. RetrievalError/AiProviderError messages are already generic,
@@ -68,6 +132,14 @@ function categorizeRetrievalFailure(error: unknown): string {
 
 function categorizeGenerationFailure(error: unknown): string {
   if (error instanceof AiProviderError) return error.message
+  return error instanceof Error ? error.name : typeof error
+}
+
+function categorizeRoutingFailure(error: unknown): string {
+  return error instanceof Error ? error.name : typeof error
+}
+
+function categorizeMissingFieldsFailure(error: unknown): string {
   return error instanceof Error ? error.name : typeof error
 }
 
@@ -99,8 +171,60 @@ export async function POST(request: Request) {
     return errorResponse(validation.error, 400)
   }
 
-  const { message, history, intent, complaintContext } = validation.value
+  const { message, history, intent, complaintContext, dbConversationId } = validation.value
   const sanitizedMessage = sanitizeMessage(message)
+
+  // Phase 7.1/7.2 — deterministic, server-authoritative intent guards.
+  //
+  // `hasActiveComplaintContext` is the one signal that changes everything
+  // below: it's true exactly when the client is inside its complaint-builder
+  // flow (runComplaintTurn always sends a `complaintContext`, even an empty
+  // one, general-assistant turns never do). Phase 7.1 treated any message
+  // arriving with intent='complaint_guidance' as automatically
+  // complaint_guidance, full stop — which is exactly what let a side
+  // question ("كم مدة الرد على الشكوى؟") or an out-of-scope aside get
+  // silently swallowed as an answer to the pending field (Phase 7.2's
+  // verified issues #4/#5). Now: a message with active complaint context is
+  // never short-circuited here (no RAG-free early return) — it always
+  // proceeds to RAG/routing/missing-fields first, so the *real* pending
+  // field is known, and only then is it classified as a genuine answer, an
+  // explicit create-complaint trigger, or an interruption (identity /
+  // out-of-scope / complaint_side_question) that must answer briefly and
+  // resume the exact same pending question afterward (see
+  // `complaintInterruption` below). Only a message with NO active complaint
+  // context at all can still take the cheap, RAG-free identity/out-of-scope
+  // shortcut — that part of Phase 7.1's behavior is unchanged.
+  const hasActiveComplaintContext = complaintContext !== undefined
+  const explicitCreateComplaint = wantsToCreateComplaint(sanitizedMessage)
+  const grievanceSignal = hasGrievanceSignal(sanitizedMessage)
+  const likelyComplaint =
+    hasActiveComplaintContext ||
+    intent === 'complaint_guidance' ||
+    intent === 'create_complaint' ||
+    intent === 'complaint_side_question' ||
+    explicitCreateComplaint ||
+    grievanceSignal
+
+  if (!hasActiveComplaintContext && !likelyComplaint) {
+    if (isGreetingOnly(sanitizedMessage)) {
+      return NextResponse.json<ChatSuccessResponse>(
+        fixedIntentResponse('greeting', GREETING_RESPONSE),
+        { status: 200 },
+      )
+    }
+    if (isIdentityQuestion(sanitizedMessage)) {
+      return NextResponse.json<ChatSuccessResponse>(
+        fixedIntentResponse('identity_question', IDENTITY_RESPONSE),
+        { status: 200 },
+      )
+    }
+    if (isObviousOutOfScope(sanitizedMessage)) {
+      return NextResponse.json<ChatSuccessResponse>(
+        fixedIntentResponse('out_of_scope', OUT_OF_SCOPE_RESPONSE),
+        { status: 200 },
+      )
+    }
+  }
 
   console.log(
     `[chat] SUPABASE_SERVICE_ROLE_KEY exists: ${Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY)}`,
@@ -124,11 +248,324 @@ export async function POST(request: Request) {
     )
   }
 
+  // Routing is resolved purely from retrievedDocuments (real, DB-backed
+  // ids only — no model call happens here) and is non-fatal, same as
+  // retrieval itself: a failure here must never block the chat response.
+  console.log('[chat] routing-start')
+  const routingStart = Date.now()
+  let routing: ChatRouting | null = null
+  try {
+    routing = await resolveRouting(supabase, retrievedDocuments)
+    console.log(
+      `[chat] routing-${routing ? 'resolved' : 'null'} elapsedMs=${Date.now() - routingStart}`,
+    )
+  } catch (error) {
+    routing = null
+    console.log(
+      `[chat] routing-fallback category=${categorizeRoutingFailure(error)} elapsedMs=${Date.now() - routingStart}`,
+    )
+  }
+
+  // Phase 4D.1 — persist and reuse routing across turns. Only ever keyed by
+  // dbConversationId (the real, server-created conversations.id row) — never
+  // the client-only conversationId UUID, which has no corresponding row and
+  // must never be treated as one. Absent dbConversationId (guest, or the
+  // authenticated opening-save hasn't succeeded yet), this entire block is
+  // skipped and routing stays exactly the fresh, per-turn value above —
+  // identical to today's behavior. Non-fatal: any failure here falls back to
+  // the fresh routing, same as retrieval/routing itself.
+  // routingPersisted (Phase 6.6F) is a purely honest, additive UI signal —
+  // true only once routing is *confirmed* persisted on the owned DB
+  // conversation (either just-written successfully this turn, or already
+  // saved and reloaded). createComplaintAction still independently re-reads
+  // saved routing as the real security authority regardless of this flag.
+  let routingPersisted = false
+  if (user && dbConversationId) {
+    try {
+      const freshRouting = routing
+      const savedIds = await getSavedRouting(supabase, dbConversationId, user.id)
+      const hydratedSaved = savedIds ? await hydrateSavedRouting(supabase, savedIds) : null
+      // Phase 7.4B, Part 1 — a saved routing is only ever displaced by a
+      // fresh one when this turn's own message is an explicit correction or
+      // an explicit request for a new/separate complaint
+      // (isExplicitRoutingChange). `grievanceSignal` (a bare mention of
+      // "شكوى"/"بلاغ"/"مشكلة") was tried in Phase 7.4 and found too broad:
+      // ordinary continuation phrases ("خل نكمل على الشكوى", "نرجع للبلاغ")
+      // mention those same words without expressing any new information,
+      // which let a filler word silently re-open routing mid-complaint.
+      routing = mergeRouting(freshRouting, hydratedSaved, isExplicitRoutingChange(sanitizedMessage))
+
+      const freshIsTrustworthy = Boolean(
+        freshRouting && freshRouting.confidence !== 'low' && freshRouting.entityId,
+      )
+      if (routing === freshRouting && freshIsTrustworthy && freshRouting) {
+        await updateConversationRouting(supabase, dbConversationId, user.id, {
+          entityId: freshRouting.entityId,
+          serviceId: freshRouting.serviceId,
+          complaintTypeId: freshRouting.complaintTypeId,
+        })
+        // Only reached once the write (with its own bounded retry) actually
+        // succeeded — a thrown error skips this line and routingPersisted
+        // stays false.
+        routingPersisted = true
+      } else if (routing === hydratedSaved && hydratedSaved) {
+        // Reusing an already-saved routing decision — its very presence here
+        // proves it was persisted successfully on an earlier turn.
+        routingPersisted = true
+      }
+    } catch (error) {
+      console.log(`[chat] saved-routing-fallback category=${categorizeRoutingFailure(error)}`)
+    }
+  }
+
+  const sanitizedComplaintContext = sanitizeComplaintContext(complaintContext)
+
+  // Missing-field detection only activates once routing has resolved a real
+  // complaintTypeId — required_fields is looked up from complaint_types
+  // itself (public-read, same client, no service-role) and drives the
+  // result deterministically; the model never sees the full required_fields
+  // list and never decides what's missing — only the single selected
+  // field's label/hint is ever exposed to it (below). Non-fatal, same as
+  // retrieval and routing above.
+  console.log('[chat] missing-fields-start')
+  const missingFieldsStart = Date.now()
+  let missingFieldsResult: MissingFieldsResult | null = null
+  let nextFieldHint: string | null = null
+  // Phase 7.1: never runs at all for a message that isn't at least plausibly
+  // complaint-related (Part 2 — an informational question must never surface
+  // missingFields/nextFieldKey, and must never spend a query building state
+  // for a collection flow it was never part of).
+  if (likelyComplaint && routing?.complaintTypeId) {
+    try {
+      // The client-sent collectedFields and the durably persisted
+      // collected_information for this conversation are fetched together —
+      // neither depends on the other's result (Phase 6.10B, Part 5: the
+      // persisted table is the real single source of truth, so a field
+      // already saved on an earlier turn can never be re-asked here even if
+      // the client's own in-memory state omitted it this turn).
+      const [complaintTypeResult, persistedFields] = await Promise.all([
+        supabase
+          .from('complaint_types')
+          .select('required_fields, clarification_rules')
+          .eq('id', routing.complaintTypeId)
+          .maybeSingle(),
+        user && dbConversationId
+          ? getCollectedInformationForConversation(supabase, dbConversationId)
+          : Promise.resolve<Record<string, string>>({}),
+      ])
+      const { data: complaintTypeRow, error: complaintTypeError } = complaintTypeResult
+
+      if (complaintTypeError) throw complaintTypeError
+
+      if (complaintTypeRow) {
+        const requiredFields = parseRequiredFields(complaintTypeRow.required_fields)
+        const knownFieldKeys = buildKnownFieldKeysFromComplaintContext(sanitizedComplaintContext)
+        for (const key of Object.keys(persistedFields)) knownFieldKeys.add(key)
+        missingFieldsResult = computeMissingFields(requiredFields, knownFieldKeys)
+
+        // Final consistency check (Phase 6.10B, Part 5) — unreachable in
+        // practice, since computeMissingFields already excludes every known
+        // key by construction, but kept as an explicit assertion rather than
+        // trusting that invariant silently: nextField must never be a field
+        // that's already known.
+        if (
+          missingFieldsResult.nextField &&
+          knownFieldKeys.has(missingFieldsResult.nextField.key)
+        ) {
+          missingFieldsResult = computeMissingFields(
+            requiredFields.filter((field) => field.key !== missingFieldsResult!.nextField!.key),
+            knownFieldKeys,
+          )
+        }
+
+        if (missingFieldsResult.nextField) {
+          const clarificationRules = parseClarificationRules(complaintTypeRow.clarification_rules)
+          nextFieldHint = findClarificationHint(
+            clarificationRules,
+            missingFieldsResult.nextField.key,
+          )
+        }
+
+        console.log(
+          `[chat] missing-fields-resolved missingCount=${missingFieldsResult.missingFields.length} ready=${missingFieldsResult.readyToGenerateComplaint} elapsedMs=${Date.now() - missingFieldsStart}`,
+        )
+      }
+    } catch (error) {
+      missingFieldsResult = null
+      console.log(
+        `[chat] missing-fields-fallback category=${categorizeMissingFieldsFailure(error)} elapsedMs=${Date.now() - missingFieldsStart}`,
+      )
+    }
+  } else {
+    console.log(
+      `[chat] missing-fields-skipped reason=${likelyComplaint ? 'no-complaint-type-id' : 'non-complaint-intent'}`,
+    )
+  }
+
+  // Deterministic state-block guard (Phase 6.10, Part 6): the model gets
+  // conversational awareness of every field already answered — with an
+  // explicit instruction never to ask for them again — plus exactly one
+  // field to ask about next. Never the full required_fields list, and the
+  // field *selection* itself stays 100% server-side (computeMissingFields
+  // above); this only ever affects the model's phrasing of the one question
+  // the server already decided on. Folded into the existing `description`
+  // slot (as plain text) so lib/ai/prompts.ts needs no changes; the raw
+  // collectedFields object itself never reaches buildPrompt.
+  const nextField = missingFieldsResult?.nextField ?? null
+  // The exact, already-deterministic pending-question text (Phase 4C) — the
+  // one and only text ever used to resume a pending complaint field after an
+  // interruption (Phase 7.2, Parts 4/6/8). Never re-derived or re-phrased.
+  const pendingQuestionText = nextField ? (missingFieldsResult?.nextQuestion ?? null) : null
+
+  // Phase 7.2, Part 4/5/7 — is this message actually an interruption (an
+  // identity question, an obvious out-of-scope aside, or a relevant side
+  // question) rather than a genuine answer to the pending field? The client
+  // already runs this same exact check (lib/ai/intent-guards.ts) before ever
+  // deciding whether to merge the message into collectedFields; when a real
+  // pending field is known here too (routing resolved, whether freshly or
+  // via saved-routing hydration), the server independently re-derives the
+  // same answer against the *real* resolved field — server remains
+  // authoritative, never a blind trust of the client's own label (Phase
+  // 6.10B/7.1 precedent). Priority mirrors Part 7: identity's exact-fixed-
+  // text requirement is absolute, so it's checked first; out-of-scope's
+  // blocklist is next; the broad side-question net (any question shape) is
+  // the catch-all.
+  //
+  // Guest sessions never persist routing across turns (Phase 4D.1 only
+  // hydrates saved routing for an authenticated dbConversationId) — an
+  // interruption message that doesn't itself semantically match the
+  // complaint's topic (e.g. "عطني وصفة كيك" mid-municipal-complaint) then
+  // resolves no fresh routing either, so `nextField` can be unknown even
+  // though a complaint is genuinely active. In that narrow case the client's
+  // own determination (made against its correctly-persisted pendingFieldKey)
+  // is trusted rather than silently falling through to the model — an
+  // accepted, documented limitation: the interruption itself is still
+  // handled correctly, only the deterministic "resume" question text is
+  // unavailable (pendingQuestionText stays null below), so the reply
+  // answers the interruption without a resume line rather than fabricating
+  // one.
+  const complaintInterruption:
+    'identity_question' | 'out_of_scope' | 'greeting' | 'complaint_side_question' | null =
+    !hasActiveComplaintContext
+      ? null
+      : nextField
+        ? isGreetingOnly(sanitizedMessage)
+          ? 'greeting'
+          : isIdentityQuestion(sanitizedMessage)
+            ? 'identity_question'
+            : isObviousOutOfScope(sanitizedMessage)
+              ? 'out_of_scope'
+              : intent === 'complaint_side_question' ||
+                  isLikelySideQuestion(sanitizedMessage, nextField.key)
+                ? 'complaint_side_question'
+                : null
+        : intent === 'identity_question' ||
+            intent === 'out_of_scope' ||
+            intent === 'greeting' ||
+            intent === 'complaint_side_question'
+          ? intent
+          : null
+
+  // Identity/out-of-scope/greeting during an active complaint never need a
+  // model call at all — same fixed text as the general-mode case, just with
+  // the exact pending question deterministically appended so nothing is
+  // ever lost (Parts 1/7/8).
+  if (
+    complaintInterruption === 'identity_question' ||
+    complaintInterruption === 'out_of_scope' ||
+    complaintInterruption === 'greeting'
+  ) {
+    const baseAnswer =
+      complaintInterruption === 'identity_question'
+        ? IDENTITY_RESPONSE
+        : complaintInterruption === 'greeting'
+          ? GREETING_RESPONSE
+          : OUT_OF_SCOPE_RESPONSE
+    return NextResponse.json<ChatSuccessResponse>(
+      {
+        answer: pendingQuestionText
+          ? appendPendingQuestion(baseAnswer, pendingQuestionText)
+          : baseAnswer,
+        intent: complaintInterruption,
+        confidence: 'high',
+        grounded: complaintInterruption === 'identity_question',
+        missingFields: missingFieldsResult ? missingFieldsResult.missingFields : [],
+        suggestedQuestions: [],
+        sources: [],
+        routing,
+        // Deliberately null, even though a pending field exists: `answer`
+        // above already carries the full composed text (fixed response +
+        // resumed question) — the client prefers `nextQuestion` over
+        // `answer` for display when present, which would otherwise drop the
+        // fixed-response half entirely and show only the bare question.
+        nextQuestion: null,
+        nextFieldKey: nextField?.key ?? null,
+        readyToGenerateComplaint: false,
+        routingPersisted,
+      },
+      { status: 200 },
+    )
+  }
+
+  const collectedFieldsHintLines: string[] = []
+  // Phase 7.1: never built for a message that isn't at least plausibly
+  // complaint-related — an informational question must never be told about
+  // "already collected" complaint fields or nudged toward a "next question"
+  // framing, even if stale collectedFields happen to be present on the
+  // request.
+  const collectedFields = likelyComplaint ? sanitizedComplaintContext?.collectedFields : undefined
+  if (collectedFields && Object.keys(collectedFields).length > 0) {
+    const collectedText = Object.entries(collectedFields)
+      .map(([key, value]) => `- ${key} = ${value}`)
+      .join('\n')
+    collectedFieldsHintLines.push(
+      `المعلومات المعروفة بالفعل عن المستخدم (لا تطلبها مرة أخرى مهما كان الحال):\n${collectedText}`,
+    )
+  }
+  // Phase 7.2, Part 4/9: a side question gets a narrow, self-contained
+  // instruction instead of the usual "ask about the next field" framing —
+  // the model must answer only the side question; the pending question is
+  // appended deterministically afterward (never phrased by the model).
+  if (complaintInterruption === 'complaint_side_question') {
+    collectedFieldsHintLines.push(
+      'المستخدم يجمع بلاغاً حالياً، لكنه طرح سؤالاً جانبياً منفصلاً عن تفاصيل البلاغ في رسالته الحالية. أجب فقط على هذا السؤال الجانبي بإيجاز شديد (جملة أو جملتين) بالاعتماد على المعلومات المسترجعة إن وجدت؛ وإن لم تكن متوفرة وموثوقة فصرّح بذلك بوضوح. لا تذكر حقول البلاغ إطلاقاً، ولا تطرح أي سؤال متابعة خاص بالبلاغ في ردك — سيُلحق سؤال المتابعة تلقائياً بعد إجابتك.',
+    )
+  } else if (nextField) {
+    collectedFieldsHintLines.push(
+      `المطلوب الآن هو سؤال المستخدم عن الحقل التالي فقط: ${nextField.label_ar}.${nextFieldHint ? ` توجيه: ${nextFieldHint}` : ''} لا تطلب أي معلومة أخرى غير هذه في هذا الرد، ولا تكرر أي سؤال عن المعلومات المذكورة أعلاه.`,
+    )
+  }
+  const complaintContextHint = collectedFieldsHintLines.join('\n\n') || undefined
+
+  // Everything except collectedFields — the raw map never reaches buildPrompt
+  // directly, only the flattened, single-field hint text folded into
+  // `description` above.
+  const promptComplaintContextBase: ChatComplaintContext = {
+    domainId: sanitizedComplaintContext?.domainId,
+    entityId: sanitizedComplaintContext?.entityId,
+    serviceId: sanitizedComplaintContext?.serviceId,
+    complaintTypeId: sanitizedComplaintContext?.complaintTypeId,
+    title: sanitizedComplaintContext?.title,
+    description: sanitizedComplaintContext?.description,
+    city: sanitizedComplaintContext?.city,
+    issueDate: sanitizedComplaintContext?.issueDate,
+  }
+  const promptComplaintContext =
+    complaintContextHint || Object.keys(promptComplaintContextBase).length > 0
+      ? {
+          ...promptComplaintContextBase,
+          description:
+            [promptComplaintContextBase.description, complaintContextHint]
+              .filter(Boolean)
+              .join('\n\n') || undefined,
+        }
+      : undefined
+
   const prompt = buildPrompt({
     sanitizedMessage,
     sanitizedHistory: sanitizeHistory(history),
     intent,
-    complaintContext: sanitizeComplaintContext(complaintContext),
+    complaintContext: promptComplaintContext,
     retrievedDocuments,
   })
   console.log(
@@ -138,8 +575,56 @@ export async function POST(request: Request) {
   console.log('[chat] generation-start')
   const generationStart = Date.now()
   try {
-    const result = await cloudflareProvider.generate({ prompt })
+    const result = await getGenerationProvider().generate({ prompt })
     console.log(`[chat] generation-success elapsedMs=${Date.now() - generationStart}`)
+
+    // Phase 7.1/7.2 — server-authoritative final intent. Deterministic
+    // priority always wins when it applies (Part 7): a detected side
+    // question is never second-guessed once resolved above; an already-
+    // active complaint flow or an explicit create-complaint trigger is
+    // never second-guessed by the model either. Otherwise the model's own
+    // classification is used (coerced to a known value — never trusted
+    // blindly), with one safety net: a real, confident routing match can
+    // never be dismissed as out_of_scope (Part 6 — a government question is
+    // never out-of-scope just because the model misjudged it, provided RAG
+    // actually found solid evidence).
+    let finalIntent: ChatIntent
+    if (complaintInterruption === 'complaint_side_question') {
+      finalIntent = 'complaint_side_question'
+    } else if (
+      intent === 'complaint_guidance' ||
+      intent === 'create_complaint' ||
+      explicitCreateComplaint
+    ) {
+      finalIntent = explicitCreateComplaint ? 'create_complaint' : 'complaint_guidance'
+    } else {
+      const modelIntent = coerceModelIntent(result.intent)
+      finalIntent =
+        modelIntent === 'out_of_scope' && routing && routing.confidence !== 'low'
+          ? grievanceSignal
+            ? 'complaint_guidance'
+            : 'government_service_question'
+          : modelIntent
+    }
+
+    // Safety net only — the pre-guards above already catch the vast majority
+    // of these; this covers a message that reached here some other way (e.g.
+    // a direct API call) but the model still correctly recognized as one of
+    // these two fixed-response categories.
+    if (finalIntent === 'identity_question') {
+      return NextResponse.json<ChatSuccessResponse>(
+        fixedIntentResponse('identity_question', IDENTITY_RESPONSE),
+        { status: 200 },
+      )
+    }
+    if (finalIntent === 'out_of_scope') {
+      return NextResponse.json<ChatSuccessResponse>(
+        fixedIntentResponse('out_of_scope', OUT_OF_SCOPE_RESPONSE),
+        { status: 200 },
+      )
+    }
+
+    const isComplaint = isComplaintIntent(finalIntent)
     const sources: ChatSource[] = retrievedDocuments.slice(0, 5).map((doc) => ({
       id: doc.id,
       title: doc.title,
@@ -147,7 +632,75 @@ export async function POST(request: Request) {
       officialUrl: doc.officialUrl,
       similarity: doc.similarity,
     }))
-    const response: ChatSuccessResponse = { ...result, sources }
+    // missingFields/readyToGenerateComplaint are server-authoritative whenever
+    // missing-fields detection actually ran — the model's own output for
+    // those two is never trusted, only used as a fallback when routing never
+    // resolved a complaintTypeId at all. nextQuestion prefers the model's own
+    // phrasing (it was given the one selected field + a hint, see above) but
+    // only when a field was actually selected server-side; if the model
+    // omitted one, the deterministic label-based template fills in. If no
+    // field was selected (ready, or no complaint type resolved), any
+    // model-produced nextQuestion is discarded — the model can never
+    // introduce a question the server didn't ask for. None of this ever
+    // applies to a non-complaint intent (Part 2): missingFields stays empty,
+    // nextFieldKey/nextQuestion stay null, readyToGenerateComplaint stays
+    // false, regardless of what missingFieldsResult (or the model) produced.
+    const isServerReady = isComplaint && missingFieldsResult?.readyToGenerateComplaint === true
+
+    // An informational answer must never invent a fact (Part 2) — if nothing
+    // relevant was actually retrieved, the fixed "not verified" answer is
+    // used instead of trusting whatever the model produced, with the real
+    // official link appended only when routing actually verified one.
+    const informationalFallback =
+      isInformationalIntent(finalIntent) && retrievedDocuments.length === 0
+        ? routing?.officialUrl
+          ? `${NO_VERIFIED_INFO_RESPONSE}\n\n${routing.officialUrl}`
+          : NO_VERIFIED_INFO_RESPONSE
+        : null
+
+    // Phase 7.2, Part 6 — a side-question turn's displayed answer is always
+    // the model's brief side-question answer with the exact, unchanged
+    // pending question deterministically appended — never the model's own
+    // attempt at a transition or follow-up (the prompt hint above explicitly
+    // told it not to produce one).
+    const sideQuestionAnswer =
+      finalIntent === 'complaint_side_question' && pendingQuestionText
+        ? appendPendingQuestion(result.answer, pendingQuestionText)
+        : null
+
+    const response: ChatSuccessResponse = {
+      ...result,
+      intent: finalIntent,
+      // Once the server has authoritatively determined every required field
+      // is collected, the displayed message is this fixed string — never the
+      // model's own free-text answer, which is otherwise unconstrained and
+      // can invent an extra question outside complaint_types.required_fields.
+      answer: isServerReady
+        ? COMPLETION_MESSAGE
+        : (sideQuestionAnswer ?? informationalFallback ?? result.answer),
+      sources,
+      routing,
+      missingFields: isComplaint
+        ? missingFieldsResult
+          ? missingFieldsResult.missingFields
+          : result.missingFields
+        : [],
+      // Deliberately null for a side-question turn even though nextField is
+      // set — `answer` above already carries the full composed text (brief
+      // side answer + resumed question); see the identical note on the
+      // complaint-interruption early return above.
+      nextQuestion:
+        isComplaint && nextField && finalIntent !== 'complaint_side_question'
+          ? result.nextQuestion?.trim() || (missingFieldsResult?.nextQuestion ?? null)
+          : null,
+      nextFieldKey: isComplaint ? (nextField?.key ?? null) : null,
+      readyToGenerateComplaint: isComplaint
+        ? missingFieldsResult
+          ? missingFieldsResult.readyToGenerateComplaint
+          : (result.readyToGenerateComplaint ?? false)
+        : false,
+      routingPersisted: isComplaint ? routingPersisted : false,
+    }
     return NextResponse.json<ChatSuccessResponse>(response, { status: 200 })
   } catch (error) {
     console.log(

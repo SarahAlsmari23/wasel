@@ -4,13 +4,17 @@ import Link from 'next/link'
 import { ConversationsBrowser } from '@/components/dashboard/conversations-browser'
 import { PageHeader } from '@/components/dashboard/page-header'
 import { buttonClasses } from '@/components/ui/button'
-import { MOCK_CONVERSATIONS } from '@/lib/mock/conversations'
+import { getUserConversations } from '@/lib/db/conversations'
+import { createClient } from '@/lib/supabase/server'
 
 export const metadata: Metadata = {
   title: 'المحادثات',
 }
 
-export default function ConversationsPage() {
+export default async function ConversationsPage() {
+  const supabase = await createClient()
+  const conversations = await getUserConversations(supabase)
+
   return (
     <div className="animate-fade-in mx-auto flex w-full max-w-6xl flex-col gap-8">
       <PageHeader
@@ -24,7 +28,7 @@ export default function ConversationsPage() {
         }
       />
 
-      <ConversationsBrowser conversations={MOCK_CONVERSATIONS} />
+      <ConversationsBrowser conversations={conversations} />
     </div>
   )
 }

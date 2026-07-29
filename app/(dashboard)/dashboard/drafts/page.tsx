@@ -4,13 +4,17 @@ import Link from 'next/link'
 import { DraftsList } from '@/components/dashboard/drafts-list'
 import { PageHeader } from '@/components/dashboard/page-header'
 import { buttonClasses } from '@/components/ui/button'
-import { getMockDrafts } from '@/lib/mock/complaints'
+import { getUserDrafts } from '@/lib/db/conversations'
+import { createClient } from '@/lib/supabase/server'
 
 export const metadata: Metadata = {
   title: 'المسودات',
 }
 
-export default function DraftsPage() {
+export default async function DraftsPage() {
+  const supabase = await createClient()
+  const drafts = await getUserDrafts(supabase)
+
   return (
     <div className="animate-fade-in mx-auto flex w-full max-w-4xl flex-col gap-8">
       <PageHeader
@@ -24,7 +28,7 @@ export default function DraftsPage() {
         }
       />
 
-      <DraftsList drafts={getMockDrafts()} />
+      <DraftsList drafts={drafts} />
     </div>
   )
 }

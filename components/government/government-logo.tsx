@@ -30,6 +30,15 @@ type GovernmentLogoProps = {
   iconKey?: GovernmentIconKey
   size?: keyof typeof SIZE_CLASSES
   className?: string
+  /**
+   * Meaningful Arabic alt text (e.g. "شعار وزارة التجارة"). When omitted
+   * (the default), the logo is treated as purely decorative — every call
+   * site already shows the entity's name as real text right next to it, so
+   * an empty alt + aria-hidden avoids double-announcing the same name to
+   * screen readers. Pass this only where the logo itself needs an
+   * accessible name of its own.
+   */
+  alt?: string
 }
 
 /**
@@ -41,8 +50,9 @@ type GovernmentLogoProps = {
  * is white in both themes deliberately — several of these logos use dark navy
  * lettering that would disappear against the dark-mode surface.
  */
-export function GovernmentLogo({ iconKey, size = 'md', className = '' }: GovernmentLogoProps) {
+export function GovernmentLogo({ iconKey, size = 'md', className = '', alt }: GovernmentLogoProps) {
   const src = getGovernmentLogo(iconKey)
+  const isDecorative = !alt
 
   const container = cn(
     'border-border relative flex shrink-0 items-center justify-center overflow-hidden border bg-white',
@@ -54,17 +64,20 @@ export function GovernmentLogo({ iconKey, size = 'md', className = '' }: Governm
   // slot — fall back to the neutral mark rather than a broken image.
   if (!src) {
     return (
-      <span aria-hidden="true" className={cn(container, 'text-primary bg-primary/8')}>
+      <span
+        aria-hidden={isDecorative || undefined}
+        className={cn(container, 'text-primary bg-primary/8')}
+      >
         <Landmark className={FALLBACK_ICON_CLASSES[size]} />
       </span>
     )
   }
 
   return (
-    <span aria-hidden="true" className={container}>
+    <span aria-hidden={isDecorative || undefined} className={container}>
       <Image
         src={src}
-        alt=""
+        alt={alt ?? ''}
         fill
         sizes="64px"
         className={cn('object-contain', PADDING_CLASSES[size])}

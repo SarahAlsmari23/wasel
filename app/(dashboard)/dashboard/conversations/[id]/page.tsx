@@ -3,10 +3,12 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { ChatMessage } from '@/components/wasal/chat-message'
+import { ConversationDeleteButton } from '@/components/dashboard/conversation-delete-button'
 import { buttonClasses } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { ConversationStatusBadge } from '@/components/ui/status-badge'
-import { getMockConversationById } from '@/lib/mock/conversations'
+import { getConversationWithMessages } from '@/lib/db/conversations'
+import { createClient } from '@/lib/supabase/server'
 import { formatDate } from '@/lib/utils/format'
 
 type PageProps = {
@@ -15,19 +17,20 @@ type PageProps = {
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { id } = await params
-  const conversation = getMockConversationById(id)
+  const supabase = await createClient()
+  const conversation = await getConversationWithMessages(supabase, id)
   return { title: conversation?.title ?? 'المحادثة' }
 }
 
 export default async function ConversationDetailPage({ params }: PageProps) {
   const { id } = await params
-  const conversation = getMockConversationById(id)
+  const supabase = await createClient()
+  const conversation = await getConversationWithMessages(supabase, id)
 
   if (!conversation) {
     notFound()
   }
 
-  const resumeMode = conversation.mode === 'complaint' ? 'complaint' : 'assistant'
   const messages = conversation.messages ?? []
 
   return (
@@ -63,7 +66,7 @@ export default async function ConversationDetailPage({ params }: PageProps) {
 
       <div className="flex flex-wrap gap-2">
         <Link
-          href={`/wasal?mode=${resumeMode}`}
+          href={`/wasal?conversationId=${conversation.id}`}
           className={buttonClasses('primary', 'md', 'w-full sm:w-auto')}
         >
           <MessageSquareText className="h-4 w-4" aria-hidden="true" />
@@ -77,11 +80,8 @@ export default async function ConversationDetailPage({ params }: PageProps) {
             عرض البلاغ المرتبط
           </Link>
         ) : null}
+        <ConversationDeleteButton conversationId={conversation.id} title={conversation.title} />
       </div>
-
-      <p className="text-muted-foreground text-xs">
-        متابعة المحادثة تبدأ جلسة جديدة مع واصل — لا يتم حفظ الرسائل في هذه المرحلة.
-      </p>
     </div>
   )
 }

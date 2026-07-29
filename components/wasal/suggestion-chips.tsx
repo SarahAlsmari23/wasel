@@ -4,10 +4,10 @@ import { motion } from 'motion/react'
 import { cn } from '@/lib/utils/cn'
 
 export const ASSISTANT_SUGGESTIONS = [
-  'لدي مشكلة مع شركة اتصالات.',
-  'أريد تقديم شكوى ضد متجر.',
-  'لدي مشكلة في خدمة حكومية.',
+  'لدي مشكلة مع شركة اتصالات',
+  'أريد تقديم شكوى ضد متجر',
   'كيف أعرف الجهة المختصة؟',
+  'لدي مشكلة في خدمة حكومية',
 ]
 
 type SuggestionChipsProps = {
