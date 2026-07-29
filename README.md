@@ -14,7 +14,7 @@ npm install
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000).
+Open https://wisal-peach.vercel.app.
 
 Copy `.env.example` to `.env.local` and fill in the Supabase and AI provider values.
 
