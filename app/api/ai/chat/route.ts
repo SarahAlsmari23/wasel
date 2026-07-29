@@ -14,7 +14,13 @@ import {
 import { buildPrompt } from '@/lib/ai/prompts'
 import { getCollectedInformationForConversation } from '@/lib/db/collected-information'
 import { getSavedRouting, updateConversationRouting } from '@/lib/db/conversations'
-import { hydrateSavedRouting, mergeRouting, resolveRouting } from '@/lib/ai/routing'
+import {
+  hydrateSavedRouting,
+  mergeRouting,
+  resolveRouting,
+  resolveRoutingByEntityName,
+} from '@/lib/ai/routing'
+import { detectSectorByKeyword, getEntityNameForSector } from '@/lib/ai/entity-detection'
 import { sanitizeComplaintContext, sanitizeHistory, sanitizeMessage } from '@/lib/ai/sanitize'
 import { retrieveRelevantDocuments, RetrievalError } from '@/lib/rag/retrieve'
 import type { RetrievedDocument } from '@/lib/rag/types'
@@ -203,13 +209,20 @@ export async function POST(request: Request) {
   const hasActiveComplaintContext = complaintContext !== undefined
   const explicitCreateComplaint = wantsToCreateComplaint(sanitizedMessage)
   const grievanceSignal = hasGrievanceSignal(sanitizedMessage)
+  // Phase 7.7, Part 4 — a message naming one of the fixed, unambiguous
+  // sector keywords ("الموية"/"المياه", "متجر", …) is complaint-relevant
+  // regardless of whether the separate grievance-tone wordlist above happens
+  // to also match — an obvious entity mention is its own sufficient signal,
+  // never dependent on also guessing every possible grievance verb form.
+  const keywordSector = detectSectorByKeyword(sanitizedMessage)
   const likelyComplaint =
     hasActiveComplaintContext ||
     intent === 'complaint_guidance' ||
     intent === 'create_complaint' ||
     intent === 'complaint_side_question' ||
     explicitCreateComplaint ||
-    grievanceSignal
+    grievanceSignal ||
+    keywordSector !== null
 
   if (!hasActiveComplaintContext && !likelyComplaint) {
     if (isGreetingOnly(sanitizedMessage)) {
@@ -270,6 +283,30 @@ export async function POST(request: Request) {
     console.log(
       `[chat] routing-fallback category=${categorizeRoutingFailure(error)} elapsedMs=${Date.now() - routingStart}`,
     )
+  }
+
+  // Phase 7.7, Part 4 — a message can name its sector completely
+  // unambiguously ("انقطعت عني الموية وأنا دافع الفاتورة") while still not
+  // retrieving a strongly-similar knowledge document (RAG similarity is not
+  // the same thing as topic certainty) — this deterministic keyword fallback
+  // only ever engages when RAG itself didn't produce a usable match
+  // (`routing` is null or 'low' confidence), and never overrides a
+  // trustworthy RAG result. Non-fatal, same as retrieval/routing above.
+  if ((!routing || routing.confidence === 'low') && keywordSector) {
+    try {
+      const keywordRouting = await resolveRoutingByEntityName(
+        supabase,
+        getEntityNameForSector(keywordSector),
+      )
+      if (keywordRouting) {
+        routing = keywordRouting
+        console.log('[chat] routing-resolved-by-keyword')
+      }
+    } catch (error) {
+      console.log(
+        `[chat] routing-keyword-fallback-failed category=${categorizeRoutingFailure(error)}`,
+      )
+    }
   }
 
   // Phase 4D.1 — persist and reuse routing across turns. Only ever keyed by
@@ -515,26 +552,35 @@ export async function POST(request: Request) {
     )
   }
 
-  // Phase 7.6, Part 4 — a message that only names a broad sector/entity
-  // ("لدي مشكلة مع شركة اتصالات") must never be treated as if it already
-  // described a specific issue: `nextField.key === 'problem_description'`
-  // means nothing has been collected for this complaint yet (it's always
-  // the first required field), so if the *current* message itself carries
-  // no sector-specific issue signal, the fixed clarifying question is asked
-  // instead of letting the model narrate a specific, unconfirmed diagnosis
-  // from whatever it happened to retrieve via RAG. Deterministic, no model
-  // call — same treatment as the interruption branches above. Never fires
-  // for a side question (that already has its own, narrower handling
-  // above) or for a sector this phase's live-verified scenarios don't cover
-  // (hasSectorIssueSignal returns true for anything without a pattern,
-  // i.e. never blocks those sectors).
-  const genericStarterSector =
-    complaintInterruption !== 'complaint_side_question' &&
-    nextField?.key === 'problem_description' &&
-    routing?.entityName
-      ? (ENTITY_NAME_TO_SECTOR[routing.entityName] ?? null)
-      : null
-  if (genericStarterSector && !hasSectorIssueSignal(genericStarterSector, sanitizedMessage)) {
+  // Phase 7.6, Part 4 (broadened in Phase 7.7, Part 5) — a message that only
+  // names a broad sector/entity ("لدي مشكلة مع شركة اتصالات", "أريد تقديم
+  // شكوى ضد متجر") must never be treated as if it already described a
+  // specific issue. Checked against whatever text is actually recorded as
+  // `problem_description` so far (falling back to this turn's own message
+  // when nothing is recorded yet) — not merely against whether `nextField`
+  // still equals `problem_description`. That narrower, Phase 7.6 version
+  // missed a real case: a generic starter chip's own text gets merged into
+  // `problem_description` by the client the moment the complaint builder
+  // starts (see wasal-chat.tsx's deriveComplaintResumeState), so by the time
+  // this request arrives, `problem_description` already looks "known" and
+  // `nextField` has already moved on to the next required field (e.g.
+  // `merchant_name`) — even though the description itself is still just the
+  // generic starter text, never a real answer. Never fires once the
+  // complaint is already ready (nothing left to clarify), and never for a
+  // side question (handled separately above).
+  const genericStarterSector = (() => {
+    if (complaintInterruption === 'complaint_side_question') return null
+    if (missingFieldsResult?.readyToGenerateComplaint) return null
+    if (!routing?.entityName) return null
+    const sector = ENTITY_NAME_TO_SECTOR[routing.entityName]
+    if (!sector) return null
+    const problemDescriptionText =
+      sanitizedComplaintContext?.collectedFields?.problem_description ||
+      sanitizedComplaintContext?.description ||
+      sanitizedMessage
+    return hasSectorIssueSignal(sector, problemDescriptionText) ? null : sector
+  })()
+  if (genericStarterSector) {
     const clarification = SUBTYPE_CLARIFICATION_QUESTIONS[genericStarterSector]
     if (clarification) {
       return NextResponse.json<ChatSuccessResponse>(
@@ -548,7 +594,11 @@ export async function POST(request: Request) {
           sources: [],
           routing,
           nextQuestion: clarification,
-          nextFieldKey: nextField?.key ?? null,
+          // Always `problem_description`, regardless of what `nextField`
+          // itself currently is — the next answer must refine the still-
+          // generic description, never be attributed to whatever field
+          // `nextField` had already advanced to (see the comment above).
+          nextFieldKey: 'problem_description',
           readyToGenerateComplaint: false,
           routingPersisted,
         },

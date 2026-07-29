@@ -128,6 +128,61 @@ export async function resolveRouting(
   }
 }
 
+// Server-authored, fixed string — used whenever routing was resolved via the
+// deterministic keyword fallback (Phase 7.7, Part 4) rather than RAG.
+const KEYWORD_ROUTING_REASON = 'استناداً إلى كلمات دالة واضحة وردت في رسالتك.'
+
+/**
+ * Phase 7.7, Part 4 — resolves a full ChatRouting directly from an entity's
+ * Arabic name, bypassing RAG/similarity entirely. Used only as a fallback
+ * (see lib/ai/entity-detection.ts's detectSectorByKeyword + the caller in
+ * app/api/ai/chat/route.ts) when retrieval either found nothing or resolved
+ * only a 'low'-confidence match, so a message with an unambiguous sector
+ * keyword ("انقطعت عني الموية...") still resolves the entity deterministically
+ * instead of falling through to "لم أتمكن من تحديد الجهة المختصة". Same
+ * single-authoritative-row sourcing as resolveRouting's own Part 5 fix
+ * (entity_id/complaint_type_id/official_url all read from one
+ * `government_services` row) — this can never disagree with what RAG-based
+ * resolution would produce for the same entity. Confidence is fixed at
+ * 'medium': trustworthy enough to act on (missing-fields activation, saved-
+ * routing persistence, card population all already treat 'medium' as
+ * sufficient), never overclaimed as 'high' since no retrieval evidence
+ * corroborates it.
+ */
+export async function resolveRoutingByEntityName(
+  supabase: SupabaseServerClient,
+  entityName: string,
+): Promise<ChatRouting | null> {
+  const { data: entityData, error: entityError } = await supabase
+    .from('government_entities')
+    .select('id')
+    .eq('name_ar', entityName)
+    .maybeSingle()
+
+  if (entityError || !entityData?.id) return null
+
+  const { data, error } = await supabase
+    .from('government_services')
+    .select('id, complaint_type_id, official_url')
+    .eq('entity_id', entityData.id)
+    .maybeSingle()
+
+  if (error || !data?.id) return null
+
+  const complaintTypeId = (data.complaint_type_id as string | null) ?? null
+
+  return {
+    entityId: entityData.id as string,
+    entityName,
+    serviceId: data.id as string,
+    complaintTypeId,
+    confidence: 'medium',
+    reason: KEYWORD_ROUTING_REASON,
+    officialUrl: (data.official_url as string | null) ?? null,
+    complaintTypeLabel: await getComplaintTypeLabel(supabase, complaintTypeId),
+  }
+}
+
 /** Public-read lookup, purely for display (see ChatRouting.complaintTypeLabel)
  * — never influences which service/entity/confidence was already decided
  * above. Returns null rather than throwing so a lookup failure never blocks

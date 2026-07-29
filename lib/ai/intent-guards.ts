@@ -169,8 +169,14 @@ export function isGreetingOnly(message: string): boolean {
  * safety net, for anything not already covered by the deterministic guards
  * above.
  */
+// Phase 7.7, Part 4/9 — "انقطع" (covers "انقطعت"/"انقطعوا"/etc., the common
+// past-tense phrasing of "cut off") was missing: only the present-tense
+// "منقطع"/"ينقطع" were covered, so an entirely ordinary complaint opener like
+// "انقطعت عني المياه" never registered as a grievance at all, which kept the
+// missing-fields/complaint-collection flow from ever activating even once
+// routing correctly resolved the entity.
 const GRIEVANCE_SIGNAL_PATTERN =
-  /أشتكي|اشتكي|شكوى|شكوي|بلاغ|اعتراض|اعترض|مشكل[ةه]|منقطع|ينقطع|توقف|ما\s*(يشتغل|يعمل|رجع|يرد|رجعوا|ردوا)|رفضوا|رفض\s*طلبي|تأخر|حفر[ةه]|غير\s*صحيح|مرتفع[ةه]?|تسرب|كسر|عطل|خلل|تعطل/
+  /أشتكي|اشتكي|شكوى|شكوي|بلاغ|اعتراض|اعترض|مشكل[ةه]|منقطع|ينقطع|انقطع|توقف|ما\s*(يشتغل|يعمل|رجع|يرد|رجعوا|ردوا)|رفضوا|رفض\s*طلبي|تأخر|حفر[ةه]|غير\s*صحيح|مرتفع[ةه]?|تسرب|كسر|عطل|خلل|تعطل/
 
 export function hasGrievanceSignal(message: string): boolean {
   return GRIEVANCE_SIGNAL_PATTERN.test(message)
