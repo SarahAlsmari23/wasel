@@ -2,7 +2,6 @@
 
 import { motion } from 'motion/react'
 import { WaselLogo } from '@/components/brand/wasel-logo'
-import { SuggestionChips } from '@/components/wasal/suggestion-chips'
 
 export const CHAT_GREETING = 'مرحبًا، كيف يمكنني مساعدتك اليوم؟'
 
@@ -14,7 +13,13 @@ type ChatEmptyStateProps = {
  * The first thing a visitor sees on /wasal: a ready assistant, not a choice of
  * modes. Guests can start typing immediately — the complaint flow is offered
  * later, in context, once there is something to build a complaint from.
+ *
+ * `onSelectSuggestion` is currently unused here (the suggestion-chips section
+ * is hidden from this empty state) but stays part of the prop contract on
+ * purpose — the suggestion data/logic itself is untouched, only its
+ * rendering here is suppressed.
  */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export function ChatEmptyState({ onSelectSuggestion }: ChatEmptyStateProps) {
   return (
     <motion.div
@@ -32,11 +37,6 @@ export function ChatEmptyState({ onSelectSuggestion }: ChatEmptyStateProps) {
         <p className="text-muted-foreground mx-auto max-w-md text-sm leading-relaxed text-pretty">
           اشرح مشكلتك بلغتك الطبيعية، وسيساعدك واصل في تحديد الجهة الحكومية المختصة وخطوات التقديم.
         </p>
-      </div>
-
-      <div className="flex w-full flex-col items-center gap-3">
-        <p className="text-muted-foreground text-xs">جرّب أن تسأل:</p>
-        <SuggestionChips onSelect={onSelectSuggestion} className="justify-center" />
       </div>
     </motion.div>
   )
