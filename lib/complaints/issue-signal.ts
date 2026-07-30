@@ -28,8 +28,16 @@ const SECTOR_ISSUE_SIGNAL_PATTERNS: Partial<Record<Sector, RegExp>> = {
   // Phase 7.7, Part 5 — extended with the additional targeted-question
   // categories the spec itself lists (منتج/طلب/استبدال/خدمة/إعلان مضلل),
   // alongside the categories already covered from Phase 7.6.
+  //
+  // Phase 8, Part 2/12 — further extended with common colloquial phrasing
+  // that expresses the exact same categories without the more formal words
+  // above: "خربان"/"مكسور" (broken, same meaning as "معيب"), "رجعوا"/"فلوس"
+  // (a refund never came back — "ما رجعوا فلوسي"), and an elapsed-time
+  // pattern ("الشحنة لها أسبوعين") that implies a delivery delay without any
+  // explicit negation word at all — a duration attached to "لها" (has been
+  // [duration]) said about an order/shipment is itself the signal.
   commerce:
-    /معيب|تالف|عيب|استرجاع|استرداد|ارجاع|استعاده|تسليم|تاخر|مبلغ|رفض|استبدال|منتج|طلب|خدمه|مضلل/,
+    /معيب|تالف|عيب|استرجاع|استرداد|ارجاع|استعاده|تسليم|تاخر|مبلغ|رفض|استبدال|منتج|طلب|خدمه|مضلل|خربان|مكسور|تكسر|فلوس|رجعوا|لها\s*(يوم|يومين|اسبوع|اسبوعين|شهر|شهرين)/,
 }
 
 /** Only defined for the sectors this phase's live-verified scenarios cover

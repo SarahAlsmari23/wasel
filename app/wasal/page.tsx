@@ -2,17 +2,12 @@ import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { WasalChat } from '@/components/wasal/wasal-chat'
 import type { ComplaintResult } from '@/components/wasal/complaint-result-card'
-import {
-  buildKnownFieldKeysFromPersistedFields,
-  computeMissingFields,
-  getRequiredFieldsForComplaintType,
-} from '@/lib/ai/missing-fields'
 import { hydrateSavedRouting } from '@/lib/ai/routing'
 import { buildComplaintAnalysisFromRouting } from '@/lib/complaints/analysis'
 import { getCollectedInformationForConversation } from '@/lib/db/collected-information'
+import { loadComplaintCollectionState } from '@/lib/wasal/conversation-state'
 import { getComplaintByConversationId } from '@/lib/db/complaints'
 import { getConversationWithMessages, getSavedRouting } from '@/lib/db/conversations'
-import { getProfileFullName } from '@/lib/db/profiles'
 import { createClient } from '@/lib/supabase/server'
 import type { ComplaintAnalysis, WasalMode } from '@/types/wasal'
 
@@ -81,19 +76,17 @@ async function resolveInProgressComplaintState(
     return { collectedFields, pendingFieldKey: undefined, analysis: null, routingPersisted }
   }
 
-  const requiredFields = await getRequiredFieldsForComplaintType(
+  const collectionState = await loadComplaintCollectionState(
     supabase,
     savedRouting.complaintTypeId,
+    collectedFields,
   )
-  const missing = computeMissingFields(
-    requiredFields,
-    buildKnownFieldKeysFromPersistedFields(collectedFields),
-  )
+  const missing = collectionState?.missing
 
-  if (!missing.readyToGenerateComplaint) {
+  if (!missing?.readyToGenerateComplaint) {
     return {
       collectedFields,
-      pendingFieldKey: missing.nextField?.key,
+      pendingFieldKey: missing?.nextField?.key,
       analysis: null,
       routingPersisted,
     }
@@ -143,12 +136,6 @@ export default async function WasalPage({ searchParams }: { searchParams: Promis
   // Remove once Phase 1 persistence is confirmed working end-to-end.
   console.log(`[wasal-page] isAuthenticated=${Boolean(user)}`)
 
-  // Read once, used by both branches below — the real DB-backed complaint
-  // flow never needs this (complaint_types.required_fields never includes a
-  // name field), but the legacy fallback's fixed question script does, for
-  // any complaint session, resumed or fresh.
-  const authenticatedFullName = user ? await getProfileFullName(supabase, user.id) : null
-
   const conversationId = parseConversationId(params.conversationId)
 
   if (conversationId) {
@@ -191,16 +178,9 @@ export default async function WasalPage({ searchParams }: { searchParams: Promis
         initialPendingFieldKey={initialPendingFieldKey}
         initialAnalysis={initialAnalysis}
         initialRoutingPersisted={initialRoutingPersisted}
-        authenticatedFullName={authenticatedFullName}
       />
     )
   }
 
-  return (
-    <WasalChat
-      isAuthenticated={Boolean(user)}
-      initialMode={parseMode(params.mode)}
-      authenticatedFullName={authenticatedFullName}
-    />
-  )
+  return <WasalChat isAuthenticated={Boolean(user)} initialMode={parseMode(params.mode)} />
 }

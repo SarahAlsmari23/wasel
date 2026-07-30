@@ -110,7 +110,7 @@ export const IDENTITY_RESPONSE = `أنا واصل، مساعدك الذكي لل
  */
 const OUT_OF_SCOPE_PATTERNS = [
   /معادله\s*رياضي|حل\s*لي\s*معادل|كم\s*(ناتج|حاصل)|\d+\s*[+\-*×÷/]\s*\d+/,
-  /وصفه\s*(طعام|اكل|كيك|حلا|طبخ)|طريقه\s*عمل\s*(كيك|اكل|طبخ)/,
+  /وصفه\s*(طعام|اكل|كيك|حلا|طبخ)|طريقه\s*عمل\s*(ال)?(كيك|اكل|طبخ)/,
   /من\s+فاز|نتيجه\s*(ال)?مباراه|هدف\s*(ال)?مباراه|الدوري\s*(ال)?سعودي\s*لكره/,
   /اكتب\s*(لي\s*)?كود|اكتب\s*(لي\s*)?برنامج|بايثون|جافا\s*سكريبت|javascript|python\s*code/i,
   /تشخيص\s*(طبي|مرض)|اعراض\s*مرض|عندي\s*مرض/,
@@ -175,8 +175,15 @@ export function isGreetingOnly(message: string): boolean {
 // "انقطعت عني المياه" never registered as a grievance at all, which kept the
 // missing-fields/complaint-collection flow from ever activating even once
 // routing correctly resolved the entity.
+//
+// Phase 8, Part 2/12 — "قطعوا" (a transitive "they cut it off", distinct from
+// the reflexive "انقطع"/"منقطع" forms already covered — "قطعوا الخدمة" after
+// paying a bill is a very common real phrasing) and "وصل"/"وصلت" added to
+// the negated-verb group (covers "الطلب ما وصل" — an order that never
+// arrived). "خربان"/"مكسور" are colloquial for "broken" — "كسر" alone does
+// not match "مكسور" (the extra و breaks the substring).
 const GRIEVANCE_SIGNAL_PATTERN =
-  /أشتكي|اشتكي|شكوى|شكوي|بلاغ|اعتراض|اعترض|مشكل[ةه]|منقطع|ينقطع|انقطع|توقف|ما\s*(يشتغل|يعمل|رجع|يرد|رجعوا|ردوا)|رفضوا|رفض\s*طلبي|تأخر|حفر[ةه]|غير\s*صحيح|مرتفع[ةه]?|تسرب|كسر|عطل|خلل|تعطل/
+  /أشتكي|اشتكي|شكوى|شكوي|بلاغ|اعتراض|اعترض|مشكل[ةه]|منقطع|ينقطع|انقطع|قطعوا|توقف|ما\s*(يشتغل|يعمل|رجع|يرد|رجعوا|ردوا|وصل|وصلت)|رفضوا|رفض\s*طلبي|تأخر|حفر[ةه]|غير\s*صحيح|مرتفع[ةه]?|تسرب|كسر|خربان|مكسور|عطل|خلل|تعطل/
 
 export function hasGrievanceSignal(message: string): boolean {
   return GRIEVANCE_SIGNAL_PATTERN.test(message)
@@ -289,6 +296,9 @@ const FALSE_ANSWER_PHRASES = [
   'ماعندي رقم مرجعي',
   'ما سبق وتواصلت',
   'ماسبق وتواصلت',
+  // Phase 8, Part 12 — explicitly listed in the spec alongside "لا"/"ابدا".
+  'ولا مرة',
+  'ولا مره',
 ].map(normalizeArabicInput)
 
 const TRUE_ANSWER_PHRASES = [

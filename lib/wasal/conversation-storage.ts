@@ -1,6 +1,5 @@
 import type { MockMessage } from '@/types/conversation'
 import type { ComplaintAnalysis, WasalMode } from '@/types/wasal'
-import type { ComplaintAnswers } from '@/lib/wasal/mock-engine'
 
 /**
  * Keeps the in-progress conversation alive across the sign-in round trip.
@@ -26,19 +25,12 @@ export type PersistedConversation = {
   messages: MockMessage[]
   /** Which of the two /wasal experiences was active — the single source of
    * truth for restoring complaint mode on a plain reload. Never inferred
-   * from `analysis`/`stepIndex`/`pendingComplaint`, all of which can be
-   * absent or stale for reasons unrelated to the current mode. */
+   * from `analysis`/`pendingComplaint`, both of which can be absent or stale
+   * for reasons unrelated to the current mode. */
   mode?: WasalMode
-  /** Legacy fallback engine's answers only — these do NOT reflect the real
-   * API-driven complaint flow's progress. See `collectedFields`/
-   * `pendingFieldKey` for that. Present once the complaint builder has
-   * started. */
-  complaintAnswers?: ComplaintAnswers
-  stepIndex?: number
   analysis?: ComplaintAnalysis | null
   /** The real, API-driven complaint flow's collected answers, keyed by
-   * complaint_types.required_fields' real keys (e.g. `merchant_name`) —
-   * distinct from the legacy `complaintAnswers` above. */
+   * complaint_types.required_fields' real keys (e.g. `merchant_name`). */
   collectedFields?: Record<string, string>
   /** Which required-field key the user's next answer should be recorded
    * under, per the server's last `nextFieldKey` — restored so a reload

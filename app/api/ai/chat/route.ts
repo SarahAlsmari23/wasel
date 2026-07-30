@@ -4,11 +4,6 @@ import { AiProviderError } from '@/lib/ai/generation-shared'
 import { getGenerationProvider } from '@/lib/ai/provider'
 import {
   buildKnownFieldKeysFromComplaintContext,
-  buildKnownFieldKeysFromPersistedFields,
-  computeMissingFields,
-  findClarificationHint,
-  parseClarificationRules,
-  parseRequiredFields,
   type MissingFieldsResult,
 } from '@/lib/ai/missing-fields'
 import { buildPrompt } from '@/lib/ai/prompts'
@@ -30,6 +25,7 @@ import {
   hasSectorIssueSignal,
   SUBTYPE_CLARIFICATION_QUESTIONS,
 } from '@/lib/complaints/issue-signal'
+import { loadComplaintCollectionState } from '@/lib/wasal/conversation-state'
 import { isExplicitRoutingChange, wantsToCreateComplaint } from '@/lib/wasal/complaint-intent'
 import {
   appendPendingQuestion,
@@ -378,61 +374,33 @@ export async function POST(request: Request) {
   // complaint-related (Part 2 — an informational question must never surface
   // missingFields/nextFieldKey, and must never spend a query building state
   // for a collection flow it was never part of).
+  //
+  // Phase 8, Part 1/16 — the actual computation (required_fields lookup,
+  // known-key merge, computeMissingFields, clarification hint) now lives in
+  // one shared function (lib/wasal/conversation-state.ts) instead of being
+  // duplicated here and in app/wasal/page.tsx's resume path. Database state
+  // (collected_information) is still the only durable source of truth;
+  // `buildKnownFieldKeysFromComplaintContext` only ever adds *this turn's*
+  // own client-sent answer on top of it, never in place of it.
   if (likelyComplaint && routing?.complaintTypeId) {
     try {
-      // The client-sent collectedFields and the durably persisted
-      // collected_information for this conversation are fetched together —
-      // neither depends on the other's result (Phase 6.10B, Part 5: the
-      // persisted table is the real single source of truth, so a field
-      // already saved on an earlier turn can never be re-asked here even if
-      // the client's own in-memory state omitted it this turn).
-      const [complaintTypeResult, persistedFields] = await Promise.all([
-        supabase
-          .from('complaint_types')
-          .select('required_fields, clarification_rules')
-          .eq('id', routing.complaintTypeId)
-          .maybeSingle(),
+      const persistedFields =
         user && dbConversationId
-          ? getCollectedInformationForConversation(supabase, dbConversationId)
-          : Promise.resolve<Record<string, string>>({}),
-      ])
-      const { data: complaintTypeRow, error: complaintTypeError } = complaintTypeResult
+          ? await getCollectedInformationForConversation(supabase, dbConversationId)
+          : {}
+      const collectionState = await loadComplaintCollectionState(
+        supabase,
+        routing.complaintTypeId,
+        persistedFields,
+        buildKnownFieldKeysFromComplaintContext(sanitizedComplaintContext),
+      )
 
-      if (complaintTypeError) throw complaintTypeError
-
-      if (complaintTypeRow) {
-        const requiredFields = parseRequiredFields(complaintTypeRow.required_fields)
-        const knownFieldKeys = buildKnownFieldKeysFromComplaintContext(sanitizedComplaintContext)
-        for (const key of buildKnownFieldKeysFromPersistedFields(persistedFields)) {
-          knownFieldKeys.add(key)
-        }
-        missingFieldsResult = computeMissingFields(requiredFields, knownFieldKeys)
-
-        // Final consistency check (Phase 6.10B, Part 5) — unreachable in
-        // practice, since computeMissingFields already excludes every known
-        // key by construction, but kept as an explicit assertion rather than
-        // trusting that invariant silently: nextField must never be a field
-        // that's already known.
-        if (
-          missingFieldsResult.nextField &&
-          knownFieldKeys.has(missingFieldsResult.nextField.key)
-        ) {
-          missingFieldsResult = computeMissingFields(
-            requiredFields.filter((field) => field.key !== missingFieldsResult!.nextField!.key),
-            knownFieldKeys,
-          )
-        }
-
-        if (missingFieldsResult.nextField) {
-          const clarificationRules = parseClarificationRules(complaintTypeRow.clarification_rules)
-          nextFieldHint = findClarificationHint(
-            clarificationRules,
-            missingFieldsResult.nextField.key,
-          )
-        }
+      if (collectionState) {
+        missingFieldsResult = collectionState.missing
+        nextFieldHint = collectionState.nextFieldHint
 
         console.log(
-          `[chat] missing-fields-resolved missingCount=${missingFieldsResult.missingFields.length} ready=${missingFieldsResult.readyToGenerateComplaint} elapsedMs=${Date.now() - missingFieldsStart}`,
+          `[chat] missing-fields-resolved missingCount=${collectionState.missing.missingFields.length} ready=${collectionState.missing.readyToGenerateComplaint} elapsedMs=${Date.now() - missingFieldsStart}`,
         )
       }
     } catch (error) {
@@ -806,7 +774,56 @@ export async function POST(request: Request) {
     console.log(
       `[chat] generation-failed category=${categorizeGenerationFailure(error)} elapsedMs=${Date.now() - generationStart}`,
     )
+    // Phase 8, Part 1/16 — a model failure never needs to abort a complaint-
+    // collection turn: routing/missing-fields were already resolved above
+    // entirely independently of the model (RAG + the deterministic keyword
+    // fallback + computeMissingFields). Only the model's own phrasing is
+    // unavailable — the deterministic, label-based question already covers
+    // the same content. Falling back to that here (instead of a hard error)
+    // is what makes the whole legacy, hardcoded fallback engine unnecessary:
+    // the one real state machine degrades gracefully on its own, so a
+    // provider outage never actually stalls or resets a complaint in
+    // progress. A genuinely open-ended informational question that fails
+    // still has no deterministic answer to give, so that case is unchanged.
     if (error instanceof AiProviderError) {
+      if (missingFieldsResult?.readyToGenerateComplaint) {
+        return NextResponse.json<ChatSuccessResponse>(
+          {
+            answer: COMPLETION_MESSAGE,
+            intent: 'complaint_guidance',
+            confidence: 'high',
+            grounded: false,
+            missingFields: [],
+            suggestedQuestions: [],
+            sources: [],
+            routing,
+            nextQuestion: null,
+            nextFieldKey: null,
+            readyToGenerateComplaint: true,
+            routingPersisted,
+          },
+          { status: 200 },
+        )
+      }
+      if (nextField && pendingQuestionText) {
+        return NextResponse.json<ChatSuccessResponse>(
+          {
+            answer: pendingQuestionText,
+            intent: 'complaint_guidance',
+            confidence: 'medium',
+            grounded: false,
+            missingFields: missingFieldsResult ? missingFieldsResult.missingFields : [],
+            suggestedQuestions: [],
+            sources: [],
+            routing,
+            nextQuestion: pendingQuestionText,
+            nextFieldKey: nextField.key,
+            readyToGenerateComplaint: false,
+            routingPersisted,
+          },
+          { status: 200 },
+        )
+      }
       return errorResponse('تعذر التواصل مع المساعد الذكي حالياً. حاول مرة أخرى لاحقاً.', 502)
     }
     return errorResponse('حدث خطأ غير متوقع. حاول مرة أخرى.', 500)
