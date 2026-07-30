@@ -182,8 +182,11 @@ export function isGreetingOnly(message: string): boolean {
 // the negated-verb group (covers "الطلب ما وصل" — an order that never
 // arrived). "خربان"/"مكسور" are colloquial for "broken" — "كسر" alone does
 // not match "مكسور" (the extra و breaks the substring).
+// Emergency release fix — "لم" added alongside "ما" as a negation particle
+// ("لم يصل الطلب" — an order that never arrived, using the more formal
+// negation instead of the colloquial "ما").
 const GRIEVANCE_SIGNAL_PATTERN =
-  /أشتكي|اشتكي|شكوى|شكوي|بلاغ|اعتراض|اعترض|مشكل[ةه]|منقطع|ينقطع|انقطع|قطعوا|توقف|ما\s*(يشتغل|يعمل|رجع|يرد|رجعوا|ردوا|وصل|وصلت)|رفضوا|رفض\s*طلبي|تأخر|حفر[ةه]|غير\s*صحيح|مرتفع[ةه]?|تسرب|كسر|خربان|مكسور|عطل|خلل|تعطل/
+  /أشتكي|اشتكي|شكوى|شكوي|بلاغ|اعتراض|اعترض|مشكل[ةه]|منقطع|ينقطع|انقطع|قطعوا|توقف|(ما|لم)\s*(يشتغل|يعمل|رجع|يرد|رجعوا|ردوا|وصل|وصلت|تصل)|رفضوا|رفض\s*طلبي|تأخر|حفر[ةه]|غير\s*صحيح|مرتفع[ةه]?|تسرب|كسر|خربان|مكسور|عطل|خلل|تعطل/
 
 export function hasGrievanceSignal(message: string): boolean {
   return GRIEVANCE_SIGNAL_PATTERN.test(message)

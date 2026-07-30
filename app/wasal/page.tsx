@@ -57,6 +57,7 @@ async function resolveInProgressComplaintState(
   collectedFields: Record<string, string> | undefined
   pendingFieldKey: string | undefined
   analysis: ComplaintAnalysis | null
+  isComplaintReady: boolean
   routingPersisted: boolean
 }> {
   const collectedFields = await getCollectedInformationForConversation(supabase, conversationId)
@@ -68,12 +69,19 @@ async function resolveInProgressComplaintState(
       collectedFields: undefined,
       pendingFieldKey: undefined,
       analysis: null,
+      isComplaintReady: false,
       routingPersisted,
     }
   }
 
   if (!savedRouting) {
-    return { collectedFields, pendingFieldKey: undefined, analysis: null, routingPersisted }
+    return {
+      collectedFields,
+      pendingFieldKey: undefined,
+      analysis: null,
+      isComplaintReady: false,
+      routingPersisted,
+    }
   }
 
   const collectionState = await loadComplaintCollectionState(
@@ -82,26 +90,26 @@ async function resolveInProgressComplaintState(
     collectedFields,
   )
   const missing = collectionState?.missing
+  const isComplaintReady = Boolean(missing?.readyToGenerateComplaint)
 
-  if (!missing?.readyToGenerateComplaint) {
-    return {
-      collectedFields,
-      pendingFieldKey: missing?.nextField?.key,
-      analysis: null,
-      routingPersisted,
-    }
-  }
-
-  // All required fields are already known — reconstruct the ready state
-  // deterministically, the same way a live turn would have (see
-  // lib/complaints/analysis.ts), never inventing an entity when hydration
-  // fails.
+  // Emergency release fix, Part 7/8 — the authority card is reconstructed
+  // as soon as routing is valid (getSavedRouting only ever returns a fully
+  // resolved entity/service/complaintType triple — see lib/db/conversations.ts),
+  // independent of whether every required field has been collected yet.
+  // `isComplaintReady` (returned separately) is the only signal that gates
+  // the composer lock and the save button.
   const hydratedRouting = await hydrateSavedRouting(supabase, savedRouting)
   const analysis = hydratedRouting
     ? buildComplaintAnalysisFromRouting(hydratedRouting, collectedFields)
     : null
 
-  return { collectedFields, pendingFieldKey: undefined, analysis, routingPersisted }
+  return {
+    collectedFields,
+    pendingFieldKey: isComplaintReady ? undefined : missing?.nextField?.key,
+    analysis,
+    isComplaintReady,
+    routingPersisted,
+  }
 }
 
 async function loadDisplayTitle(
@@ -155,6 +163,7 @@ export default async function WasalPage({ searchParams }: { searchParams: Promis
     let initialCollectedFields: Record<string, string> | undefined
     let initialPendingFieldKey: string | undefined
     let initialAnalysis: ComplaintAnalysis | null = null
+    let initialIsComplaintReady = false
     let initialRoutingPersisted = false
 
     if (conversation.mode === 'complaint' && user && !complaint) {
@@ -162,6 +171,7 @@ export default async function WasalPage({ searchParams }: { searchParams: Promis
       initialCollectedFields = state.collectedFields
       initialPendingFieldKey = state.pendingFieldKey
       initialAnalysis = state.analysis
+      initialIsComplaintReady = state.isComplaintReady
       initialRoutingPersisted = state.routingPersisted
     }
 
@@ -177,6 +187,7 @@ export default async function WasalPage({ searchParams }: { searchParams: Promis
         initialCollectedFields={initialCollectedFields}
         initialPendingFieldKey={initialPendingFieldKey}
         initialAnalysis={initialAnalysis}
+        initialIsComplaintReady={initialIsComplaintReady}
         initialRoutingPersisted={initialRoutingPersisted}
       />
     )

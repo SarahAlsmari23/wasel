@@ -52,6 +52,17 @@ export type ChatComplaintContext = {
    * it's flattened into readable text, or omitted, before buildPrompt).
    */
   collectedFields?: Record<string, string>
+  /**
+   * Emergency release fix, Part 2 — the required_fields key this turn's
+   * message was actually attributed to answering (or a correction's target
+   * key), when the client believes it just merged a genuine new value for
+   * it. Lets the server detect the exact "hard duplicate-question invariant"
+   * violation: the same field being asked again right after it was
+   * successfully answered. Purely a signal for that one check — never
+   * trusted as authoritative for anything else (the server always
+   * recomputes missing fields from persisted collected_information itself).
+   */
+  answeredFieldKey?: string
 }
 
 export type ChatRequest = {

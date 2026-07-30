@@ -54,6 +54,12 @@ const BILL_DISPUTE_KEYWORDS = [
   'خطأ في الفاتورة',
   'ارتفاع الفاتورة',
   'فاتورة مبالغ فيها',
+  // Emergency release fix — the exact phrases Part 3 requires that don't
+  // themselves contain the word "فاتورة" ("مبلغ غير صحيح", "خصم زائد") —
+  // still unambiguous, two-word dispute phrases, never a bare "مبلغ"/"خصم"
+  // alone, for the same false-positive reason as above.
+  'مبلغ غير صحيح',
+  'خصم زائد',
 ]
 
 const SECTOR_ISSUE_CLAUSES: Record<Sector, IssueRule[]> = {
@@ -63,13 +69,21 @@ const SECTOR_ISSUE_CLAUSES: Record<Sector, IssueRule[]> = {
     { keywords: BILL_DISPUTE_KEYWORDS, clause: 'احتساب فاتورة مياه غير صحيحة' },
   ],
   telecom: [
-    // One combined rule, not split by outage vs. weak-signal keyword — must
-    // stay in lockstep with formal-letter.ts's own SECTOR_SUBJECT_RULES telecom
-    // rule (same combined keyword set), so the subject line and this
-    // mid-sentence clause never describe two different problems.
+    // Emergency release fix — service interruption and weak coverage were
+    // previously one merged rule producing the same clause text either way,
+    // so a genuine outage ("انقطعت عني خدمة الإنترنت وأنا دفعت قيمتها") could
+    // end up described as "weak coverage" in the generated letter. Split into
+    // two distinct rules, interruption checked first — must stay in lockstep
+    // with formal-letter.ts's own SECTOR_SUBJECT_RULES telecom rules (same
+    // keyword sets, same order), so the subject line and this mid-sentence
+    // clause never describe two different problems.
     {
-      keywords: ['انقطاع', 'منقطع', 'مقطوع', 'ضعيف', 'ضعف', 'بطيء', 'بطء'],
-      clause: 'ضعف أو انقطاع خدمة الإنترنت',
+      keywords: ['انقطاع', 'منقطع', 'مقطوع', 'انقطعت', 'توقف', 'توقفت', 'ما يشتغل', 'ما يعمل'],
+      clause: 'انقطاع خدمة الإنترنت',
+    },
+    {
+      keywords: ['ضعيف', 'ضعف', 'بطيء', 'بطء', 'سيئ', 'سيئة'],
+      clause: 'ضعف تغطية خدمة الإنترنت',
     },
     { keywords: BILL_DISPUTE_KEYWORDS, clause: 'احتساب فاتورة اتصالات غير صحيحة' },
   ],

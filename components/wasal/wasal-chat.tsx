@@ -17,6 +17,7 @@ import { createComplaintAction, markComplaintSubmittedAction } from '@/app/wasal
 import { AuthorityModal } from '@/components/wasal/authority-modal'
 import { ChatComposer, type PendingAttachment } from '@/components/wasal/chat-composer'
 import { ChatEmptyState, CHAT_GREETING } from '@/components/wasal/chat-empty-state'
+import { ASSISTANT_SUGGESTIONS } from '@/components/wasal/suggestion-chips'
 import { ChatMessage } from '@/components/wasal/chat-message'
 import { ComplaintResultCard, type ComplaintResult } from '@/components/wasal/complaint-result-card'
 import { LoginRequiredModal } from '@/components/wasal/login-required-modal'
@@ -221,6 +222,11 @@ type WasalChatProps = {
    * conversation — seeds `isRoutingPersisted` so the create button doesn't
    * need a live round trip just to re-confirm what the server already knows. */
   initialRoutingPersisted?: boolean
+  /** Emergency release fix, Part 7/8 — true only when every required field
+   * was already satisfied on resume (previously the same condition that
+   * gated `initialAnalysis` itself; now separate, since the card can appear
+   * on resume even when routing is valid but collection isn't finished). */
+  initialIsComplaintReady?: boolean
 }
 
 export function WasalChat({
@@ -232,6 +238,7 @@ export function WasalChat({
   initialPendingFieldKey,
   initialAnalysis,
   initialRoutingPersisted,
+  initialIsComplaintReady,
 }: WasalChatProps) {
   const router = useRouter()
   const { showToast } = useToast()
@@ -246,6 +253,13 @@ export function WasalChat({
   const [failedMessage, setFailedMessage] = useState<string | null>(null)
 
   const [analysis, setAnalysis] = useState<ComplaintAnalysis | null>(null)
+  /** Emergency release fix, Part 7/8 — the TRUE completion signal
+   * (`readyToGenerateComplaint`), kept separate from `analysis` itself.
+   * `analysis` now populates as soon as routing resolves (so the authority
+   * card can appear well before every field is collected — Part 7), so it
+   * can no longer be what gates the composer lock or the save button; both
+   * now check this instead. */
+  const [isComplaintReady, setIsComplaintReady] = useState(false)
 
   /** The real, API-driven complaint flow's collected answers, keyed by
    * complaint_types.required_fields' real field keys (e.g. `merchant_name`).
@@ -366,6 +380,7 @@ export function WasalChat({
       pendingFieldKeyRef.current = 'problem_description'
       pendingQuestionTextRef.current = ''
       setAnalysis(null)
+      setIsComplaintReady(false)
       setIsRoutingPersisted(false)
       setAwaitingSignIn(false)
       setComplaintResult(null)
@@ -443,14 +458,19 @@ export function WasalChat({
           setCollectedFields(initialCollectedFields)
         }
 
+        // Emergency release fix, Part 7/8 — `analysis` (the authority card)
+        // and `isComplaintReady` (whether collection is actually finished)
+        // are independent now: the card can be present on resume even while
+        // a pending field remains, so both are restored together instead of
+        // treating "has analysis" and "has a pending field" as mutually
+        // exclusive.
         if (initialAnalysis) {
-          // Every required field was already restored — the deterministic
-          // ready state is reconstructed server-side (Part 1), never derived
-          // by overwriting pendingFieldKeyRef with a guess.
           setAnalysis(initialAnalysis)
-        } else if (initialPendingFieldKey) {
+        }
+        if (initialPendingFieldKey) {
           pendingFieldKeyRef.current = initialPendingFieldKey
         }
+        setIsComplaintReady(Boolean(initialIsComplaintReady))
 
         if (initialRoutingPersisted) {
           setIsRoutingPersisted(true)
@@ -647,11 +667,19 @@ export function WasalChat({
       // assistant chat, or an already-in-progress complaint session), never
       // show the fixed opening question again — continue straight from the
       // real next missing field instead.
+      //
+      // Emergency release fix, Part 3 — the generic telecom-starter trigger
+      // is the one exception: it must NOT be seeded as `problem_description`
+      // (deriveComplaintResumeState would otherwise treat this generic text
+      // as the real, specific description, letting the server skip straight
+      // past the subtype-clarification question). It still becomes this
+      // turn's real message — routing still resolves from it — just not an
+      // accepted answer to any field yet.
       const genuineMessages = sanitizeGenuineMessages(currentMessages)
-      const { collectedFields: resumedFields, resumeTriggerContent } = deriveComplaintResumeState(
-        genuineMessages,
-        collectedFields,
-      )
+      const isGenericStarterTrigger = triggerMessage?.content === ASSISTANT_SUGGESTIONS[0]
+      const { collectedFields: resumedFields, resumeTriggerContent } = isGenericStarterTrigger
+        ? { collectedFields, resumeTriggerContent: triggerMessage.content }
+        : deriveComplaintResumeState(genuineMessages, collectedFields)
       startComplaintBuilder(genuineMessages, resumedFields, resumeTriggerContent)
     },
     [
@@ -782,6 +810,17 @@ export function WasalChat({
         // engine already uses.
         const entityName = result.suggestedEntityName ?? matchEntity(content)?.entity.name
         announceEntity(entityName, result.suggestedEntityReason)
+      }
+
+      // Emergency release fix, Part 7/9 — a grievance described in general
+      // chat (e.g. the telecom starter, which never itself switches into
+      // `mode === 'complaint'`) still resolves real routing server-side; the
+      // authority card must reflect that as soon as it's valid, exactly like
+      // the complaint-builder path does, rather than never appearing until
+      // the user separately triggers the structured builder.
+      if (result.routing && result.routing.confidence !== 'low' && result.routing.entityId) {
+        setAnalysis(buildComplaintAnalysisFromRouting(result.routing, collectedFields))
+        setIsRoutingPersisted(Boolean(result.routingPersisted))
       }
     } catch (error) {
       if (error instanceof DOMException && error.name === 'AbortError') return
@@ -1058,6 +1097,19 @@ export function WasalChat({
             ? 'complaint_side_question'
             : 'complaint_guidance'
 
+    // Emergency release fix, Part 2 — the field key this turn genuinely
+    // believes it just answered (mirrors the exact condition that decided
+    // `updatedFields` above) — lets the server detect the hard
+    // duplicate-question invariant: the very same field coming back as
+    // still-pending right after it was successfully merged.
+    const answeredFieldKeyForRequest = correction
+      ? correctionCanonical !== null
+        ? correction.key
+        : undefined
+      : wouldMergeAnswer && !rejectedBooleanAnswer
+        ? pendingKey
+        : undefined
+
     try {
       const result = await requestAssistantAnswer({
         conversationId: conversationIdRef.current,
@@ -1069,7 +1121,10 @@ export function WasalChat({
         message: content,
         history,
         intent: requestIntent,
-        complaintContext: { collectedFields: updatedFields },
+        complaintContext: {
+          collectedFields: updatedFields,
+          answeredFieldKey: answeredFieldKeyForRequest,
+        },
         signal: controller.signal,
       })
       if (controller.signal.aborted) return
@@ -1184,14 +1239,22 @@ export function WasalChat({
         ? pendingFieldKeyRef.current
         : (result.nextFieldKey ?? answeredKey)
 
-      if (
-        result.readyToGenerateComplaint &&
-        result.routing &&
-        result.routing.confidence !== 'low' &&
-        result.routing.entityId
-      ) {
+      // Emergency release fix, Part 7/8 — the authority card is now
+      // state-driven by routing alone, not by full field completion: it
+      // appears as soon as routing is valid (confidence !== 'low' and a
+      // real entityId) and stays synchronized on every turn afterward,
+      // including an interruption/greeting/AI-failure turn (this block runs
+      // for those too — only `isServerReady`/`readyToGenerateComplaint`
+      // itself is gated separately below). `isComplaintReady` — not
+      // `analysis` — is what the composer lock and the save button now
+      // check, so showing the card early never blocks answering the
+      // remaining questions.
+      if (result.routing && result.routing.confidence !== 'low' && result.routing.entityId) {
         setAnalysis(buildComplaintAnalysisFromRouting(result.routing, updatedFields))
         setIsRoutingPersisted(Boolean(result.routingPersisted))
+      }
+      if (result.readyToGenerateComplaint) {
+        setIsComplaintReady(true)
       }
     } catch (error) {
       if (error instanceof DOMException && error.name === 'AbortError') return
@@ -1244,7 +1307,15 @@ export function WasalChat({
     // problem first; if so, it continues from the real next missing field —
     // never restarting, never duplicating the opening question. Respects the
     // exact same authentication gating as the header button.
-    if (wantsToCreateComplaint(content)) {
+    // Emergency release fix, Part 3 — the telecom starter must "enter a
+    // telecom flow and lock the sector", same as the commerce starter
+    // already does via `wantsToCreateComplaint` below. Deliberately narrow
+    // (the exact suggested-starter text only, from the single shared
+    // source — suggestion-chips.tsx) rather than any message that merely
+    // mentions telecom keywords, which would incorrectly force complaint
+    // mode onto a purely informational question ("كيف أتواصل مع هيئة
+    // الاتصالات؟").
+    if (content === ASSISTANT_SUGGESTIONS[0] || wantsToCreateComplaint(content)) {
       requestComplaintCreation(userMessage)
       return
     }
@@ -1284,6 +1355,7 @@ export function WasalChat({
     setFailedMessage(null)
     setCollectedFields({})
     setAnalysis(null)
+    setIsComplaintReady(false)
     setIsRoutingPersisted(false)
     setAwaitingSignIn(false)
     setComplaintResult(null)
@@ -1304,11 +1376,13 @@ export function WasalChat({
    * reset or restart the conversation in any way.
    */
   async function handleCreateComplaint() {
-    // isRoutingPersisted is a defense-in-depth UI guard (Phase 6.6F) — the
-    // button itself is already disabled while false, but this blocks any
+    // isRoutingPersisted/isComplaintReady are defense-in-depth UI guards
+    // (Phase 6.6F; emergency release fix Part 7/8) — the button itself is
+    // already disabled while either is false, but this blocks any
     // programmatic call too. createComplaintAction still independently
-    // re-reads saved routing as the real security authority regardless.
-    if (isCreatingComplaint || complaintResult || !isRoutingPersisted) return
+    // re-reads saved routing and required fields as the real security
+    // authority regardless.
+    if (isCreatingComplaint || complaintResult || !isRoutingPersisted || !isComplaintReady) return
     const conversationId = dbComplaintConversationIdRef.current
     if (!conversationId) {
       setCreateComplaintError('حدث خطأ غير متوقع. حاول مرة أخرى.')
@@ -1369,7 +1443,11 @@ export function WasalChat({
 
   const isComplaintMode = mode === 'complaint'
   const isEmpty = messages.length === 0
-  const isComposerDisabled = status !== 'idle' || (isComplaintMode && analysis !== null)
+  // Emergency release fix, Part 7/8 — locks on true completion
+  // (`isComplaintReady`), not on the authority card's mere presence
+  // (`analysis`), since the card can now be visible well before every
+  // required field is collected.
+  const isComposerDisabled = status !== 'idle' || (isComplaintMode && isComplaintReady)
 
   return (
     <div className="flex min-h-0 flex-1 flex-col lg:flex-row-reverse">
@@ -1476,7 +1554,11 @@ export function WasalChat({
       </div>
 
       <AnimatePresence>
-        {isComplaintMode && (status === 'analyzing' || analysis || complaintResult) ? (
+        {/* Emergency release fix, Part 7 — no longer gated on `isComplaintMode`:
+            a grievance resolved through general chat (e.g. the telecom
+            starter) can populate `analysis` without ever switching modes,
+            and the card must show regardless. */}
+        {(isComplaintMode && status === 'analyzing') || analysis || complaintResult ? (
           <aside className="border-border w-full shrink-0 overflow-y-auto border-t p-4 sm:p-6 lg:w-96 lg:border-t-0 lg:border-l">
             <div className="flex flex-col gap-4">
               {status === 'analyzing' ? (
@@ -1489,14 +1571,18 @@ export function WasalChat({
                 />
               ) : analysis ? (
                 <>
-                  <ProgressTimeline currentStage="ready" />
+                  <ProgressTimeline currentStage={isComplaintReady ? 'ready' : 'summary'} />
                   <RecommendationCard
                     analysis={analysis}
                     letter={analysis.summary}
                     onSave={handleCreateComplaint}
                     isSaving={isCreatingComplaint}
                     saveDisabledNotice={
-                      !isRoutingPersisted ? 'جارٍ تثبيت بيانات الجهة المختصة...' : undefined
+                      !isComplaintReady
+                        ? 'لا تزال بعض المعلومات مطلوبة لإكمال البلاغ...'
+                        : !isRoutingPersisted
+                          ? 'جارٍ تثبيت بيانات الجهة المختصة...'
+                          : undefined
                     }
                   />
                   {createComplaintError ? (

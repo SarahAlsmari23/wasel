@@ -21,6 +21,7 @@ const COMPLAINT_CONTEXT_ALLOWED_KEYS: Exclude<keyof ChatComplaintContext, 'colle
   'description',
   'city',
   'issueDate',
+  'answeredFieldKey',
 ]
 
 function stripSensitiveKeys<T extends Record<string, unknown>>(value: T): Partial<T> {

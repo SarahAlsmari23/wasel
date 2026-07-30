@@ -38,6 +38,7 @@ const COMPLAINT_CONTEXT_ALLOWED_KEYS = [
   'city',
   'issueDate',
   'collectedFields',
+  'answeredFieldKey',
 ] as const
 
 const MAX_COLLECTED_FIELD_VALUE_LENGTH = 500
