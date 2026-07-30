@@ -1519,109 +1519,118 @@ export function WasalChat({
   // (`analysis`), since the card can now be visible well before every
   // required field is collected.
   const isComposerDisabled = status !== 'idle' || (isComplaintMode && isComplaintReady)
+  // Mobile authority-card-overlap fix — same condition the aside's own
+  // render check already used, extracted so the grid container can also
+  // know whether a card column/row needs to be reserved at all. Without
+  // this, a fixed two-column desktop grid would leave an empty reserved
+  // column whenever no card exists yet.
+  const showCardArea = Boolean(
+    (isComplaintMode && status === 'analyzing') || analysis || complaintResult,
+  )
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col lg:flex-row-reverse">
-      <div className="flex min-h-0 flex-1 flex-col">
-        {/* Nothing to act on before the first message — keep the blank slate clean. */}
-        {isEmpty ? null : (
-          <div className="border-border bg-background/85 flex items-center justify-between gap-3 border-b px-4 py-2.5 backdrop-blur-lg sm:px-6">
-            <div className="flex items-center gap-2">
-              {isComplaintMode ? (
-                <span className="bg-primary/8 text-primary inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium">
-                  <FileSignature className="h-3.5 w-3.5" aria-hidden="true" />
-                  جارٍ إعداد البلاغ
-                </span>
-              ) : (
-                <span className="text-muted-foreground text-sm font-medium">واصل</span>
-              )}
-            </div>
+    <div
+      className={
+        // Mobile authority-card-overlap fix — a single CSS grid replaces the
+        // previous flex-col/lg:flex-row-reverse split. Below `lg`, every
+        // piece is auto-placed into its own row in DOM order (header,
+        // messages, card, composer), which is exactly the required mobile
+        // order — no explicit mobile placement classes needed. At `lg` and
+        // above, each piece gets an explicit column/row so the layout
+        // reproduces today's desktop split exactly (header + messages +
+        // composer stacked in the left column, the card spanning the full
+        // height of a fixed-width right column) — see the per-element
+        // `lg:col-start-*`/`lg:row-start-*` classes below. The column/row for
+        // the card is only ever reserved when a card actually exists
+        // (`showCardArea`), so an absent card never leaves an empty desktop
+        // column, exactly like the previous conditional flex item did.
+        showCardArea
+          ? 'grid min-h-0 flex-1 grid-cols-1 grid-rows-[auto_1fr_auto_auto] lg:grid-cols-[minmax(0,1fr)_24rem] lg:grid-rows-[auto_1fr_auto]'
+          : 'grid min-h-0 flex-1 grid-cols-1 grid-rows-[auto_1fr_auto]'
+      }
+    >
+      {/* Nothing to act on before the first message — keep the blank slate clean. */}
+      {isEmpty ? null : (
+        <div className="border-border bg-background/85 flex items-center justify-between gap-3 border-b px-4 py-2.5 backdrop-blur-lg sm:px-6 lg:col-start-1 lg:row-start-1">
+          <div className="flex items-center gap-2">
+            {isComplaintMode ? (
+              <span className="bg-primary/8 text-primary inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium">
+                <FileSignature className="h-3.5 w-3.5" aria-hidden="true" />
+                جارٍ إعداد البلاغ
+              </span>
+            ) : (
+              <span className="text-muted-foreground text-sm font-medium">واصل</span>
+            )}
+          </div>
 
-            <div className="flex items-center gap-1.5">
-              {isComplaintMode ? null : (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => requestComplaintCreation()}
-                  className="hidden sm:inline-flex"
-                >
-                  <FileSignature className="h-3.5 w-3.5" aria-hidden="true" />
-                  إنشاء بلاغ
-                </Button>
-              )}
-
+          <div className="flex items-center gap-1.5">
+            {isComplaintMode ? null : (
               <Button
                 type="button"
                 variant="ghost"
                 size="sm"
-                onClick={handleNewConversation}
-                aria-label="بدء محادثة جديدة"
-                title="بدء محادثة جديدة"
+                onClick={() => requestComplaintCreation()}
+                className="hidden sm:inline-flex"
               >
-                <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />
-                <span className="hidden sm:inline">محادثة جديدة</span>
+                <FileSignature className="h-3.5 w-3.5" aria-hidden="true" />
+                إنشاء بلاغ
               </Button>
-            </div>
-          </div>
-        )}
+            )}
 
-        <div className="min-h-0 flex-1 overflow-y-auto px-4 py-6 sm:px-6">
-          <div className="mx-auto flex w-full max-w-3xl flex-col gap-5">
-            {isEmpty && status === 'idle' ? (
-              <ChatEmptyState onSelectSuggestion={(suggestion) => void handleSend(suggestion)} />
-            ) : null}
-
-            {messages.map((message) => (
-              <ChatMessage
-                key={message.id}
-                message={message}
-                onCreateComplaint={requestComplaintCreation}
-              />
-            ))}
-
-            <AnimatePresence>
-              {status !== 'idle' ? (
-                <TypingIndicator
-                  key="typing"
-                  label={status === 'analyzing' ? 'واصل يحلل الشكوى...' : 'واصل يكتب...'}
-                />
-              ) : null}
-            </AnimatePresence>
-
-            {failedMessage ? (
-              <div className="border-danger/25 bg-danger/5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border px-4 py-3">
-                <p className="text-danger text-sm">
-                  {isComplaintMode
-                    ? 'تعذر تحليل الشكوى. يرجى المحاولة مرة أخرى.'
-                    : 'تعذر إرسال رسالتك حالياً. حاول مرة أخرى.'}
-                </p>
-                <Button type="button" variant="outline" size="sm" onClick={handleRetry}>
-                  <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />
-                  {isComplaintMode ? 'إعادة التحليل' : 'إعادة المحاولة'}
-                </Button>
-              </div>
-            ) : null}
-
-            <div ref={scrollAnchorRef} />
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={handleNewConversation}
+              aria-label="بدء محادثة جديدة"
+              title="بدء محادثة جديدة"
+            >
+              <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />
+              <span className="hidden sm:inline">محادثة جديدة</span>
+            </Button>
           </div>
         </div>
+      )}
 
-        <ChatComposer
-          value={inputValue}
-          onChange={setInputValue}
-          onSend={() => void handleSend()}
-          attachment={attachment}
-          onAttachmentChange={setAttachment}
-          disabled={isComposerDisabled}
-          placeholder={
-            isComplaintMode && analysis
-              ? 'اكتمل البلاغ — احفظه أو انسخ الملخص من البطاقة.'
-              : isComplaintMode
-                ? 'اكتب إجابتك...'
-                : CHAT_GREETING
-          }
-        />
+      <div className="min-h-0 overflow-y-auto px-4 py-6 sm:px-6 lg:col-start-1 lg:row-start-2">
+        <div className="mx-auto flex w-full max-w-3xl flex-col gap-5">
+          {isEmpty && status === 'idle' ? (
+            <ChatEmptyState onSelectSuggestion={(suggestion) => void handleSend(suggestion)} />
+          ) : null}
+
+          {messages.map((message) => (
+            <ChatMessage
+              key={message.id}
+              message={message}
+              onCreateComplaint={requestComplaintCreation}
+            />
+          ))}
+
+          <AnimatePresence>
+            {status !== 'idle' ? (
+              <TypingIndicator
+                key="typing"
+                label={status === 'analyzing' ? 'واصل يحلل الشكوى...' : 'واصل يكتب...'}
+              />
+            ) : null}
+          </AnimatePresence>
+
+          {failedMessage ? (
+            <div className="border-danger/25 bg-danger/5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border px-4 py-3">
+              <p className="text-danger text-sm">
+                {isComplaintMode
+                  ? 'تعذر تحليل الشكوى. يرجى المحاولة مرة أخرى.'
+                  : 'تعذر إرسال رسالتك حالياً. حاول مرة أخرى.'}
+              </p>
+              <Button type="button" variant="outline" size="sm" onClick={handleRetry}>
+                <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />
+                {isComplaintMode ? 'إعادة التحليل' : 'إعادة المحاولة'}
+              </Button>
+            </div>
+          ) : null}
+
+          <div ref={scrollAnchorRef} />
+        </div>
       </div>
 
       <AnimatePresence>
@@ -1629,8 +1638,17 @@ export function WasalChat({
             a grievance resolved through general chat (e.g. the telecom
             starter) can populate `analysis` without ever switching modes,
             and the card must show regardless. */}
-        {(isComplaintMode && status === 'analyzing') || analysis || complaintResult ? (
-          <aside className="border-border w-full shrink-0 overflow-y-auto border-t p-4 sm:p-6 lg:w-96 lg:border-t-0 lg:border-l">
+        {showCardArea ? (
+          // Mobile authority-card-overlap fix — width/positioning now come
+          // entirely from the grid (`w-full max-w-full` here is the literal,
+          // explicit requirement; the grid's default stretch would already
+          // size it the same way). `lg:col-start-2 lg:row-start-1
+          // lg:row-span-3` reproduces today's desktop sidebar exactly: a
+          // fixed-width column spanning the full height alongside the
+          // header/messages/composer column. No fixed/absolute/sticky
+          // positioning anywhere — this is a normal, in-flow grid item at
+          // every breakpoint.
+          <aside className="border-border w-full max-w-full shrink-0 overflow-y-auto border-t p-4 sm:p-6 lg:col-start-2 lg:row-span-3 lg:row-start-1 lg:w-96 lg:border-t-0 lg:border-l">
             <div className="flex flex-col gap-4">
               {status === 'analyzing' ? (
                 <RecommendationSkeleton />
@@ -1676,6 +1694,32 @@ export function WasalChat({
           </aside>
         ) : null}
       </AnimatePresence>
+
+      {/* Mobile authority-card-overlap fix, cont'd — this must come after the
+          card in DOM order: below `lg`, grid items with no explicit
+          placement auto-fill rows in DOM order, so the composer needs to be
+          the last child to land in the last row (the required mobile order
+          is header, messages, card, composer). At `lg` and above, the
+          explicit `lg:row-start-3`/`lg:col-start-1` below overrides this
+          DOM-order placement, returning it to its current desktop position
+          at the bottom of the chat column regardless. */}
+      <div className="lg:col-start-1 lg:row-start-3">
+        <ChatComposer
+          value={inputValue}
+          onChange={setInputValue}
+          onSend={() => void handleSend()}
+          attachment={attachment}
+          onAttachmentChange={setAttachment}
+          disabled={isComposerDisabled}
+          placeholder={
+            isComplaintMode && analysis
+              ? 'اكتمل البلاغ — احفظه أو انسخ الملخص من البطاقة.'
+              : isComplaintMode
+                ? 'اكتب إجابتك...'
+                : CHAT_GREETING
+          }
+        />
+      </div>
 
       <AuthorityModal
         isOpen={isAuthorityModalOpen}

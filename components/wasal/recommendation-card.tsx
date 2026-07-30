@@ -137,7 +137,7 @@ export function RecommendationCard({
           onClick={onSave}
           isLoading={isSaving}
           disabled={isSaved || Boolean(saveDisabledNotice)}
-          className="self-center"
+          className="lg:self-center"
         >
           {isSaving ? (
             'جارٍ إنشاء البلاغ...'
