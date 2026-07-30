@@ -1531,22 +1531,27 @@ export function WasalChat({
   return (
     <div
       className={
-        // Mobile authority-card-overlap fix — a single CSS grid replaces the
-        // previous flex-col/lg:flex-row-reverse split. Below `lg`, every
-        // piece is auto-placed into its own row in DOM order (header,
-        // messages, card, composer), which is exactly the required mobile
-        // order — no explicit mobile placement classes needed. At `lg` and
-        // above, each piece gets an explicit column/row so the layout
-        // reproduces today's desktop split exactly (header + messages +
-        // composer stacked in the left column, the card spanning the full
-        // height of a fixed-width right column) — see the per-element
-        // `lg:col-start-*`/`lg:row-start-*` classes below. The column/row for
-        // the card is only ever reserved when a card actually exists
-        // (`showCardArea`), so an absent card never leaves an empty desktop
-        // column, exactly like the previous conditional flex item did.
+        // Mobile one-continuous-scroll fix — below `lg`, this is a plain
+        // `flex-col`: no min-h-0/flex-1 height constraint, no grid. Every
+        // piece (header, messages, card, composer) simply stacks in normal
+        // document flow, in DOM order, and grows to its natural content
+        // height — the page/body itself is the single scroll container
+        // (enabled by the matching change in app/wasal/layout.tsx, which
+        // stops constraining the page to a fixed viewport height below
+        // `lg`). No independent scroll region, no fixed/sticky/absolute
+        // positioning anywhere in this mobile path.
+        //
+        // At `lg` and above, this switches to the previous CSS grid,
+        // reproducing today's desktop split exactly: header + messages +
+        // composer stacked in a variable-width left column, the card
+        // spanning the full height of a fixed-width right column — see the
+        // per-element `lg:col-start-*`/`lg:row-start-*` classes below. The
+        // column/row for the card is only ever reserved when a card
+        // actually exists (`showCardArea`), so an absent card never leaves
+        // an empty desktop column.
         showCardArea
-          ? 'grid min-h-0 flex-1 grid-cols-1 grid-rows-[auto_1fr_auto_auto] lg:grid-cols-[minmax(0,1fr)_24rem] lg:grid-rows-[auto_1fr_auto]'
-          : 'grid min-h-0 flex-1 grid-cols-1 grid-rows-[auto_1fr_auto]'
+          ? 'flex flex-col lg:grid lg:min-h-0 lg:flex-1 lg:grid-cols-[minmax(0,1fr)_24rem] lg:grid-rows-[auto_1fr_auto]'
+          : 'flex flex-col lg:grid lg:min-h-0 lg:flex-1 lg:grid-cols-1 lg:grid-rows-[auto_1fr_auto]'
       }
     >
       {/* Nothing to act on before the first message — keep the blank slate clean. */}
@@ -1592,7 +1597,7 @@ export function WasalChat({
         </div>
       )}
 
-      <div className="min-h-0 overflow-y-auto px-4 py-6 sm:px-6 lg:col-start-1 lg:row-start-2">
+      <div className="px-4 py-6 sm:px-6 lg:col-start-1 lg:row-start-2 lg:min-h-0 lg:overflow-y-auto">
         <div className="mx-auto flex w-full max-w-3xl flex-col gap-5">
           {isEmpty && status === 'idle' ? (
             <ChatEmptyState onSelectSuggestion={(suggestion) => void handleSend(suggestion)} />
@@ -1639,16 +1644,19 @@ export function WasalChat({
             starter) can populate `analysis` without ever switching modes,
             and the card must show regardless. */}
         {showCardArea ? (
-          // Mobile authority-card-overlap fix — width/positioning now come
-          // entirely from the grid (`w-full max-w-full` here is the literal,
-          // explicit requirement; the grid's default stretch would already
-          // size it the same way). `lg:col-start-2 lg:row-start-1
-          // lg:row-span-3` reproduces today's desktop sidebar exactly: a
-          // fixed-width column spanning the full height alongside the
-          // header/messages/composer column. No fixed/absolute/sticky
-          // positioning anywhere — this is a normal, in-flow grid item at
-          // every breakpoint.
-          <aside className="border-border w-full max-w-full shrink-0 overflow-y-auto border-t p-4 sm:p-6 lg:col-start-2 lg:row-span-3 lg:row-start-1 lg:w-96 lg:border-t-0 lg:border-l">
+          // Mobile one-continuous-scroll fix — no independent scroll region
+          // below `lg` (`overflow-y-auto`/`min-h-0` are `lg:`-only now): the
+          // card grows to its natural height and participates in the same
+          // page-level document flow as the messages above it and the
+          // composer below it. `w-full max-w-full` is the explicit mobile
+          // width requirement (the flex-col's default stretch would already
+          // size it the same way). At `lg` and above, `lg:col-start-2
+          // lg:row-start-1 lg:row-span-3` reproduces today's desktop sidebar
+          // exactly: a fixed-width column spanning the full height alongside
+          // the header/messages/composer column, scrolling independently via
+          // `lg:overflow-y-auto` exactly as before. No fixed/absolute/sticky
+          // positioning anywhere at any breakpoint.
+          <aside className="border-border w-full max-w-full shrink-0 border-t p-4 sm:p-6 lg:col-start-2 lg:row-span-3 lg:row-start-1 lg:w-96 lg:overflow-y-auto lg:border-t-0 lg:border-l">
             <div className="flex flex-col gap-4">
               {status === 'analyzing' ? (
                 <RecommendationSkeleton />
