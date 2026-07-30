@@ -133,6 +133,29 @@ function getFixedStarterAnswer(content: string): string | null {
   return FIXED_STARTER_ANSWERS[normalizeArabicInput(content)] ?? null
 }
 
+// Emergency Fix #2, Parts 1/3/4 — the two starters that lock a sector
+// ("لدي مشكلة مع شركة اتصالات", "أريد تقديم شكوى ضد متجر") are generic
+// trigger text, never a real description of the issue. Two independent
+// places previously re-derived "the real problem_description" from this
+// same generic text and disagreed about it: `deriveComplaintResumeState`
+// (only guarded for the telecom starter, via `isGenericStarterTrigger`
+// below) seeded it as the initial value, while `runComplaintTurn`'s own
+// per-turn answer-merge logic (unconditional, unaware of where `content`
+// came from) re-derived and persisted the exact same generic text as
+// `problem_description` regardless — for BOTH starters, since that merge
+// never checked for this case at all. Once poisoned with non-descriptive
+// text, the next turn's real answer was rejected by the stale-pending-field
+// guard (the real answer differs from the "already known" generic text) and
+// the assistant looped on the same subtype-clarification question forever.
+// Root-caused via a live trace of the exact reported production failure
+// (commerce starter → "تأخر في تسليم الطلب..." → repeated question); fixed
+// by using this single shared set at both call sites instead of one
+// starter-specific special case in only one of them.
+const GENERIC_SECTOR_STARTER_MESSAGES = new Set([
+  ASSISTANT_SUGGESTIONS[0],
+  ASSISTANT_SUGGESTIONS[1],
+])
+
 /**
  * The single shared rule for continuing a complaint session from whatever
  * genuine information already exists — used identically whether that's a
@@ -668,17 +691,24 @@ export function WasalChat({
       // show the fixed opening question again — continue straight from the
       // real next missing field instead.
       //
-      // Emergency release fix, Part 3 — the generic telecom-starter trigger
-      // is the one exception: it must NOT be seeded as `problem_description`
+      // Emergency Fix #2, Parts 1/3/4 — either sector-locking starter is the
+      // exception: neither must be seeded as `problem_description`
       // (deriveComplaintResumeState would otherwise treat this generic text
       // as the real, specific description, letting the server skip straight
-      // past the subtype-clarification question). It still becomes this
-      // turn's real message — routing still resolves from it — just not an
-      // accepted answer to any field yet.
+      // past the subtype-clarification question — or, worse, poison the
+      // field so the user's real follow-up answer looks like a change to an
+      // already-known value and gets silently discarded). It still becomes
+      // this turn's real message — routing still resolves from it — just
+      // not an accepted answer to any field yet. Previously only the telecom
+      // starter (`ASSISTANT_SUGGESTIONS[0]`) got this protection; the
+      // commerce starter fell through to the generic path and self-seeded,
+      // which was the confirmed root cause of the reported subtype loop.
       const genuineMessages = sanitizeGenuineMessages(currentMessages)
-      const isGenericStarterTrigger = triggerMessage?.content === ASSISTANT_SUGGESTIONS[0]
+      const isGenericStarterTrigger = Boolean(
+        triggerMessage && GENERIC_SECTOR_STARTER_MESSAGES.has(triggerMessage.content),
+      )
       const { collectedFields: resumedFields, resumeTriggerContent } = isGenericStarterTrigger
-        ? { collectedFields, resumeTriggerContent: triggerMessage.content }
+        ? { collectedFields, resumeTriggerContent: triggerMessage!.content }
         : deriveComplaintResumeState(genuineMessages, collectedFields)
       startComplaintBuilder(genuineMessages, resumedFields, resumeTriggerContent)
     },
@@ -954,6 +984,24 @@ export function WasalChat({
       !isInterruption &&
       isComplaintContinuationFiller(content)
 
+    // Emergency Fix #2, Parts 1/3/4 — this exact turn's message is one of the
+    // fixed sector-locking starter phrases, still targeting `problem_description`
+    // (i.e. this is the very first, auto-submitted turn of a freshly-started
+    // complaint session, not a later message that merely happens to repeat the
+    // same words). Guarding the initial seed alone (see
+    // `GENERIC_SECTOR_STARTER_MESSAGES` above) is not enough: without this
+    // check, this function's own merge below would re-derive and persist the
+    // exact same generic text as `problem_description` regardless of what the
+    // seed was, poisoning the field so the next turn's real answer looks like
+    // a change to an "already known" value and gets silently discarded by the
+    // stale-pending-field guard above — the confirmed root cause of the
+    // reported subtype-question loop.
+    const isGenericStarterMessage =
+      !complaintAlreadyGenerated &&
+      !correction &&
+      pendingKey === 'problem_description' &&
+      GENERIC_SECTOR_STARTER_MESSAGES.has(content)
+
     // Phase 7.6, Part 1 — `prior_provider_contact` is the one boolean-shaped
     // complaint field: whatever the user actually typed ("ماتواصلت", "عندي
     // رقم مرجعي", …) is never stored verbatim. It is normalized once, here,
@@ -981,7 +1029,8 @@ export function WasalChat({
       !correction &&
       !isInterruption &&
       !pendingFieldStale &&
-      !isContinuationFiller
+      !isContinuationFiller &&
+      !isGenericStarterMessage
     const answerCanonical = wouldMergeAnswer ? canonicalizeFieldValue(pendingKey, content) : null
     // True only when this turn would otherwise have merged a genuine answer
     // into a boolean-shaped field but couldn't confidently classify it —
@@ -1059,7 +1108,12 @@ export function WasalChat({
               userMessageId,
             )
           }
-        } else if (!isInterruption && !pendingFieldStale && !rejectedBooleanAnswer) {
+        } else if (
+          !isInterruption &&
+          !pendingFieldStale &&
+          !rejectedBooleanAnswer &&
+          !isGenericStarterMessage
+        ) {
           await saveCollectedFieldAction(
             conversationId,
             pendingKey,
@@ -1221,7 +1275,24 @@ export function WasalChat({
       // the untouched pendingKey in that case, but nothing was actually
       // answered, so the title must never be derived from a side
       // question/identity/out-of-scope aside.
-      if (conversationId && !isInterruption && answeredKey === 'problem_description') {
+      //
+      // Emergency Fix #2, Part 1 — also never fires for the generic sector-
+      // starter message itself (`isGenericStarterMessage`): live-testing this
+      // phase found that deriving the title from the starter's own generic
+      // text on turn 1 ("شكوى بشأن لدي مشكلة مع شركة اتصالات") permanently
+      // stuck the formal letter's own SUBJECT LINE on that generic text too
+      // (formal-letter.ts's `deriveSubject` prefers a "meaningful" — i.e. not
+      // one of the 3 known blank defaults — conversation title over its own
+      // keyword-classified subject, and this starter-derived title doesn't
+      // count as one of those 3 defaults) — the real turn-2 description
+      // never got a chance to correct it, since the title is only "upgraded"
+      // while still generic.
+      if (
+        conversationId &&
+        !isInterruption &&
+        !isGenericStarterMessage &&
+        answeredKey === 'problem_description'
+      ) {
         const descriptionForTitle = correction ? correction.value : content
         const candidateTitle = deriveComplaintTitleFromFields(
           result.routing?.entityName ?? '',
@@ -1315,7 +1386,7 @@ export function WasalChat({
     // mentions telecom keywords, which would incorrectly force complaint
     // mode onto a purely informational question ("كيف أتواصل مع هيئة
     // الاتصالات؟").
-    if (content === ASSISTANT_SUGGESTIONS[0] || wantsToCreateComplaint(content)) {
+    if (GENERIC_SECTOR_STARTER_MESSAGES.has(content) || wantsToCreateComplaint(content)) {
       requestComplaintCreation(userMessage)
       return
     }

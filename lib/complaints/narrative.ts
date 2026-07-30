@@ -60,7 +60,18 @@ const BILL_DISPUTE_KEYWORDS = [
   // alone, for the same false-positive reason as above.
   'مبلغ غير صحيح',
   'خصم زائد',
+  // Emergency Fix #2, Part 2 — same reasoning, one more unambiguous phrase.
+  'تم احتساب مبلغ إضافي',
 ]
+
+// Emergency Fix #2, Part 1 — commerce delivery-delay, checked before the
+// generic "استرجاع/استرداد/الطلب/متجر/المبلغ" bucket below (which also
+// contains the bare word "الطلب" and would otherwise swallow every delivery-
+// delay message into a generic "order/refund" clause instead of its own
+// specific one). Substring-matched against the raw, non-arabic-normalized
+// corpus (see buildCorpus) — every keyword here must therefore keep the
+// hamza exactly as typed ("تأخر", not "تاخر").
+const DELIVERY_DELAY_KEYWORDS = ['تأخر', 'لم يصل', 'ما وصل', 'تجاوز موعد التسليم', 'مر وقت التسليم']
 
 const SECTOR_ISSUE_CLAUSES: Record<Sector, IssueRule[]> = {
   water: [
@@ -73,22 +84,30 @@ const SECTOR_ISSUE_CLAUSES: Record<Sector, IssueRule[]> = {
     // previously one merged rule producing the same clause text either way,
     // so a genuine outage ("انقطعت عني خدمة الإنترنت وأنا دفعت قيمتها") could
     // end up described as "weak coverage" in the generated letter. Split into
-    // two distinct rules, interruption checked first — must stay in lockstep
-    // with formal-letter.ts's own SECTOR_SUBJECT_RULES telecom rules (same
-    // keyword sets, same order), so the subject line and this mid-sentence
-    // clause never describe two different problems.
+    // two distinct rules — must stay in lockstep with formal-letter.ts's own
+    // SECTOR_SUBJECT_RULES telecom rules (same keyword sets, same order), so
+    // the subject line and this mid-sentence clause never describe two
+    // different problems.
+    // Emergency Fix #2, Part 2 — explicit required priority: interruption,
+    // then billing, then weak coverage (previously billing was checked
+    // last). Matters whenever a message names both billing and weak-coverage
+    // wording with no interruption at all — billing must win.
     {
       keywords: ['انقطاع', 'منقطع', 'مقطوع', 'انقطعت', 'توقف', 'توقفت', 'ما يشتغل', 'ما يعمل'],
       clause: 'انقطاع خدمة الإنترنت',
     },
+    { keywords: BILL_DISPUTE_KEYWORDS, clause: 'احتساب فاتورة اتصالات غير صحيحة' },
     {
       keywords: ['ضعيف', 'ضعف', 'بطيء', 'بطء', 'سيئ', 'سيئة'],
       clause: 'ضعف تغطية خدمة الإنترنت',
     },
-    { keywords: BILL_DISPUTE_KEYWORDS, clause: 'احتساب فاتورة اتصالات غير صحيحة' },
   ],
   commerce: [
     { keywords: ['معيب', 'تالف', 'عيب'], clause: 'استلام منتج معيب أو تالف' },
+    // Emergency Fix #2, Part 1 — checked before the generic order/refund
+    // bucket below (which also matches the bare word "الطلب" and would
+    // otherwise swallow every delivery-delay message into a generic clause).
+    { keywords: DELIVERY_DELAY_KEYWORDS, clause: 'تأخر تسليم الطلب عن الموعد المحدد' },
     {
       keywords: ['استرجاع', 'استرداد', 'الطلب', 'متجر', 'المبلغ'],
       clause: 'عدم الوفاء بالتزامات الطلب أو عدم استرداد المبلغ المدفوع',

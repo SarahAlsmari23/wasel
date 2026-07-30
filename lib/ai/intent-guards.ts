@@ -157,6 +157,18 @@ export function isGreetingOnly(message: string): boolean {
   // Whole-message equality (never substring) — "مرحبا، ابي أجدد رخصتي" must
   // never be swallowed by the greeting reply just for containing "مرحبا".
   if (GREETING_PHRASES.includes(normalized)) return true
+
+  // Emergency Fix #2, Part 6 — a bare "لا" is only 1 edit away from "هلا"
+  // (insert one leading letter), so the fuzzy check below previously
+  // classified a plain "no" answer to a boolean complaint field (e.g. "هل
+  // تواصلت مع مزود الخدمة سابقاً؟") as a greeting — injecting the full fixed
+  // welcome reply mid-conversation instead of merging the answer. Live-
+  // reproduced during this phase's own test matrix. A message the shared
+  // boolean classifier can confidently read as yes/no is never a greeting,
+  // regardless of context, exactly like isLikelySideQuestion's existing
+  // boolean-shape exception below.
+  if (parseBooleanAnswer(normalized) !== null) return false
+
   return isFuzzyPhraseMatch(normalized, GREETING_PHRASES)
 }
 
