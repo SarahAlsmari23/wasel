@@ -24,7 +24,16 @@ import { normalizeArabicInput } from '@/lib/ai/arabic-normalize'
 import type { Sector } from '@/lib/complaints/sectors'
 
 const SECTOR_ISSUE_SIGNAL_PATTERNS: Partial<Record<Sector, RegExp>> = {
-  telecom: /قطع|ضعف|ضعيف|بطء|بطيء|تغطي|اشاره|فاتوره|فواتير/,
+  // Emergency release fix — "قطع" as a bare substring does NOT match every
+  // conjugation: "انقطاع" (ا-ن-ق-ط-ا-ع) and "مقطوع" (م-ق-ط-و-ع) both have a
+  // letter between ط and ع, breaking the substring, even though both are
+  // extremely common, central ways to describe an outage (in fact the exact
+  // wording of this app's own telecom clarifying question below). "توقف"
+  // (stopped) and "ما يشتغل"/"ما يعمل" (not working) are entirely different
+  // roots, not covered by "قطع" at all. All added explicitly rather than
+  // relying on one substring to carry every inflection.
+  telecom:
+    /قطع|انقطاع|مقطوع|توقف|ما\s*(يشتغل|يعمل)|ضعف|ضعيف|بطء|بطيء|تغطي|اشاره|سيئ|فاتوره|فواتير|مبلغ غير صحيح|خصم زائد/,
   // Phase 7.7, Part 5 — extended with the additional targeted-question
   // categories the spec itself lists (منتج/طلب/استبدال/خدمة/إعلان مضلل),
   // alongside the categories already covered from Phase 7.6.
@@ -36,8 +45,12 @@ const SECTOR_ISSUE_SIGNAL_PATTERNS: Partial<Record<Sector, RegExp>> = {
   // pattern ("الشحنة لها أسبوعين") that implies a delivery delay without any
   // explicit negation word at all — a duration attached to "لها" (has been
   // [duration]) said about an order/shipment is itself the signal.
+  // Emergency release fix — "لها مدة" (a generic, unit-less duration) added
+  // alongside the already-covered specific units ("لها أسبوعين").
+  // Emergency release fix — "شحنه" added bare: "الشحنة ما وصلت" names
+  // neither "طلب" nor "تسليم" nor "تاخر" at all, only "الشحنة" itself.
   commerce:
-    /معيب|تالف|عيب|استرجاع|استرداد|ارجاع|استعاده|تسليم|تاخر|مبلغ|رفض|استبدال|منتج|طلب|خدمه|مضلل|خربان|مكسور|تكسر|فلوس|رجعوا|لها\s*(يوم|يومين|اسبوع|اسبوعين|شهر|شهرين)/,
+    /معيب|تالف|عيب|استرجاع|استرداد|ارجاع|استعاده|تسليم|تاخر|مبلغ|رفض|استبدال|منتج|طلب|شحنه|خدمه|مضلل|خربان|مكسور|تكسر|فلوس|رجعوا|لها\s*(مده|يوم|يومين|اسبوع|اسبوعين|شهر|شهرين)/,
 }
 
 /** Only defined for the sectors this phase's live-verified scenarios cover

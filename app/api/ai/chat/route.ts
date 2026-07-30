@@ -57,6 +57,13 @@ import type {
 // server has authoritatively decided the complaint-collection flow is done.
 const COMPLETION_MESSAGE = 'اكتملت المعلومات اللازمة، وسأقوم الآن بإعداد البلاغ الرسمي.'
 
+// Emergency release fix, Part 2 — shown only when the hard duplicate-
+// question invariant catches a genuine validation/persistence failure (the
+// client believed it just answered a field, but a fresh reload of
+// collected_information still shows it missing) — a short, honest notice
+// instead of ever silently repeating the exact same question a second time.
+const VALIDATION_RETRY_MESSAGE = 'تعذر حفظ إجابتك الأخيرة. حاول إرسالها مرة أخرى من فضلك.'
+
 const RATE_LIMIT_WINDOW_MS = 60_000
 // Guests get a tighter budget than signed-in users: the assistant is open to
 // everyone (Phase 1 "Guest User"), so the anonymous path is the one exposed
@@ -382,18 +389,60 @@ export async function POST(request: Request) {
   // (collected_information) is still the only durable source of truth;
   // `buildKnownFieldKeysFromComplaintContext` only ever adds *this turn's*
   // own client-sent answer on top of it, never in place of it.
+  // Emergency release fix, Part 2 — the hard duplicate-question invariant:
+  // once true, the same required field must never be handed back as
+  // `nextField` on the very turn that just supplied a genuine answer for it.
+  let duplicateInvariantViolated = false
   if (likelyComplaint && routing?.complaintTypeId) {
     try {
       const persistedFields =
         user && dbConversationId
           ? await getCollectedInformationForConversation(supabase, dbConversationId)
           : {}
-      const collectionState = await loadComplaintCollectionState(
+      let collectionState = await loadComplaintCollectionState(
         supabase,
         routing.complaintTypeId,
         persistedFields,
         buildKnownFieldKeysFromComplaintContext(sanitizedComplaintContext),
       )
+
+      const answeredFieldKey = sanitizedComplaintContext?.answeredFieldKey
+      const answeredValue = answeredFieldKey
+        ? sanitizedComplaintContext?.collectedFields?.[answeredFieldKey]
+        : undefined
+      if (
+        collectionState &&
+        answeredFieldKey &&
+        answeredValue?.trim() &&
+        collectionState.missing.nextField?.key === answeredFieldKey
+      ) {
+        // The client believes it just answered exactly the field the server
+        // is about to ask for again — reload collected_information fresh
+        // (in case an earlier read in this same request raced a concurrent
+        // write) and recompute once more before concluding anything.
+        console.log('[chat] duplicate-invariant-check reload')
+        const freshPersistedFields =
+          user && dbConversationId
+            ? await getCollectedInformationForConversation(supabase, dbConversationId)
+            : {}
+        const freshState = await loadComplaintCollectionState(
+          supabase,
+          routing.complaintTypeId,
+          freshPersistedFields,
+          buildKnownFieldKeysFromComplaintContext(sanitizedComplaintContext),
+        )
+        if (freshState) collectionState = freshState
+
+        if (collectionState.missing.nextField?.key === answeredFieldKey) {
+          // Still the same field after a fresh reload — the answer was
+          // never actually persisted (a genuine validation/persistence
+          // failure on the client's side, not a stale read here). Flagged
+          // so the response can say so plainly instead of silently
+          // repeating the exact same question a second time.
+          duplicateInvariantViolated = true
+          console.log('[chat] duplicate-invariant-violated')
+        }
+      }
 
       if (collectionState) {
         missingFieldsResult = collectionState.missing
@@ -743,9 +792,16 @@ export async function POST(request: Request) {
       // is collected, the displayed message is this fixed string — never the
       // model's own free-text answer, which is otherwise unconstrained and
       // can invent an extra question outside complaint_types.required_fields.
-      answer: isServerReady
-        ? COMPLETION_MESSAGE
-        : (sideQuestionAnswer ?? informationalFallback ?? result.answer),
+      // Emergency release fix, Part 2 — the hard duplicate-question
+      // invariant takes priority even over that: a confirmed
+      // validation/persistence failure gets a short, honest retry notice
+      // instead of ever silently repeating the exact same question.
+      answer:
+        isComplaint && duplicateInvariantViolated
+          ? VALIDATION_RETRY_MESSAGE
+          : isServerReady
+            ? COMPLETION_MESSAGE
+            : (sideQuestionAnswer ?? informationalFallback ?? result.answer),
       sources,
       routing,
       missingFields: isComplaint
@@ -758,9 +814,11 @@ export async function POST(request: Request) {
       // side answer + resumed question); see the identical note on the
       // complaint-interruption early return above.
       nextQuestion:
-        isComplaint && nextField && finalIntent !== 'complaint_side_question'
-          ? result.nextQuestion?.trim() || (missingFieldsResult?.nextQuestion ?? null)
-          : null,
+        isComplaint && duplicateInvariantViolated
+          ? VALIDATION_RETRY_MESSAGE
+          : isComplaint && nextField && finalIntent !== 'complaint_side_question'
+            ? result.nextQuestion?.trim() || (missingFieldsResult?.nextQuestion ?? null)
+            : null,
       nextFieldKey: isComplaint ? (nextField?.key ?? null) : null,
       readyToGenerateComplaint: isComplaint
         ? missingFieldsResult
@@ -786,6 +844,25 @@ export async function POST(request: Request) {
     // progress. A genuinely open-ended informational question that fails
     // still has no deterministic answer to give, so that case is unchanged.
     if (error instanceof AiProviderError) {
+      if (duplicateInvariantViolated) {
+        return NextResponse.json<ChatSuccessResponse>(
+          {
+            answer: VALIDATION_RETRY_MESSAGE,
+            intent: 'complaint_guidance',
+            confidence: 'medium',
+            grounded: false,
+            missingFields: missingFieldsResult ? missingFieldsResult.missingFields : [],
+            suggestedQuestions: [],
+            sources: [],
+            routing,
+            nextQuestion: VALIDATION_RETRY_MESSAGE,
+            nextFieldKey: nextField?.key ?? null,
+            readyToGenerateComplaint: false,
+            routingPersisted,
+          },
+          { status: 200 },
+        )
+      }
       if (missingFieldsResult?.readyToGenerateComplaint) {
         return NextResponse.json<ChatSuccessResponse>(
           {

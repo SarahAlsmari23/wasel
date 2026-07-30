@@ -114,10 +114,21 @@ const SECTOR_SUBJECT_RULES: Record<Sector, SubjectRule[]> = {
     { keywords: ['توصيل', 'تركيب', 'خط مياه'], subject: 'شكوى بشأن خدمة توصيل المياه' },
   ],
   telecom: [
-    { keywords: ['فاتورة', 'فواتير'], subject: 'اعتراض على فاتورة اتصالات' },
+    // Emergency release fix — interruption and weak coverage are now two
+    // distinct rules (previously merged, always labeling a genuine outage as
+    // "ضعف خدمة الإنترنت"), interruption checked first, same as
+    // narrative.ts's SECTOR_ISSUE_CLAUSES telecom rules (kept in lockstep).
     {
-      keywords: ['ضعيف', 'ضعف', 'بطيء', 'بطء', 'انقطاع', 'منقطع', 'مقطوع'],
-      subject: 'شكوى بشأن ضعف خدمة الإنترنت',
+      keywords: ['انقطاع', 'منقطع', 'مقطوع', 'انقطعت', 'توقف', 'توقفت', 'ما يشتغل', 'ما يعمل'],
+      subject: 'شكوى بشأن انقطاع خدمة الإنترنت',
+    },
+    {
+      keywords: ['ضعيف', 'ضعف', 'بطيء', 'بطء', 'سيئ', 'سيئة'],
+      subject: 'شكوى بشأن ضعف تغطية الإنترنت',
+    },
+    {
+      keywords: ['فاتورة', 'فواتير', 'مبلغ غير صحيح', 'خصم زائد'],
+      subject: 'اعتراض على فاتورة اتصالات',
     },
   ],
   commerce: [
