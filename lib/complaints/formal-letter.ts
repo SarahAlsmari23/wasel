@@ -116,23 +116,41 @@ const SECTOR_SUBJECT_RULES: Record<Sector, SubjectRule[]> = {
   telecom: [
     // Emergency release fix — interruption and weak coverage are now two
     // distinct rules (previously merged, always labeling a genuine outage as
-    // "ضعف خدمة الإنترنت"), interruption checked first, same as
-    // narrative.ts's SECTOR_ISSUE_CLAUSES telecom rules (kept in lockstep).
+    // "ضعف خدمة الإنترنت"), same as narrative.ts's SECTOR_ISSUE_CLAUSES
+    // telecom rules (kept in lockstep).
+    // Emergency Fix #2, Part 2 — explicit required priority: interruption,
+    // then billing, then weak coverage (previously billing was checked
+    // last) — matters when a message names billing and weak-coverage
+    // wording with no interruption at all.
     {
       keywords: ['انقطاع', 'منقطع', 'مقطوع', 'انقطعت', 'توقف', 'توقفت', 'ما يشتغل', 'ما يعمل'],
       subject: 'شكوى بشأن انقطاع خدمة الإنترنت',
     },
     {
-      keywords: ['ضعيف', 'ضعف', 'بطيء', 'بطء', 'سيئ', 'سيئة'],
-      subject: 'شكوى بشأن ضعف تغطية الإنترنت',
+      keywords: [
+        'فاتورة',
+        'فواتير',
+        'مبلغ غير صحيح',
+        'خصم زائد',
+        // Emergency Fix #2, Part 2
+        'تم احتساب مبلغ إضافي',
+      ],
+      subject: 'اعتراض على فاتورة اتصالات',
     },
     {
-      keywords: ['فاتورة', 'فواتير', 'مبلغ غير صحيح', 'خصم زائد'],
-      subject: 'اعتراض على فاتورة اتصالات',
+      keywords: ['ضعيف', 'ضعف', 'بطيء', 'بطء', 'سيئ', 'سيئة'],
+      subject: 'شكوى بشأن ضعف تغطية الإنترنت',
     },
   ],
   commerce: [
     { keywords: ['معيب', 'تالف', 'عيب'], subject: 'بلاغ عن منتج معيب' },
+    // Emergency Fix #2, Part 1 — checked before the generic order/refund
+    // bucket below (same keywords as narrative.ts's DELIVERY_DELAY_KEYWORDS,
+    // kept in lockstep so the subject line and body clause agree).
+    {
+      keywords: ['تأخر', 'لم يصل', 'ما وصل', 'تجاوز موعد التسليم', 'مر وقت التسليم'],
+      subject: 'شكوى بشأن تأخر تسليم الطلب',
+    },
     {
       keywords: ['استرجاع', 'استرداد', 'الطلب', 'متجر', 'المبلغ'],
       subject: 'شكوى ضد متجر إلكتروني',

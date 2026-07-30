@@ -1,4 +1,3 @@
-import { Mail } from 'lucide-react'
 import Link from 'next/link'
 import { WaselLogo } from '@/components/brand/wasel-logo'
 
@@ -40,13 +39,6 @@ export function SiteFooter() {
 
         <div className="flex flex-col gap-3">
           <p className="text-foreground text-sm font-semibold">تواصل معنا</p>
-          <a
-            href="mailto:support@wasal.sa"
-            className="text-muted-foreground hover:text-primary flex items-center gap-2 text-sm transition-colors"
-          >
-            <Mail className="h-3.5 w-3.5" aria-hidden="true" />
-            support@wasal.sa
-          </a>
           {PENDING_LINKS.map((label) => (
             <span key={label} className="text-muted-foreground/60 text-sm" title="سيتوفر قريباً">
               {label}

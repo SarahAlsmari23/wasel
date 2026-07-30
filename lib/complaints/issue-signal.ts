@@ -33,7 +33,7 @@ const SECTOR_ISSUE_SIGNAL_PATTERNS: Partial<Record<Sector, RegExp>> = {
   // roots, not covered by "قطع" at all. All added explicitly rather than
   // relying on one substring to carry every inflection.
   telecom:
-    /قطع|انقطاع|مقطوع|توقف|ما\s*(يشتغل|يعمل)|ضعف|ضعيف|بطء|بطيء|تغطي|اشاره|سيئ|فاتوره|فواتير|مبلغ غير صحيح|خصم زائد/,
+    /قطع|انقطاع|مقطوع|توقف|ما\s*(يشتغل|يعمل)|ضعف|ضعيف|بطء|بطيء|تغطي|اشاره|سيئ|فاتوره|فواتير|مبلغ غير صحيح|خصم زائد|تم احتساب مبلغ اضافي/,
   // Phase 7.7, Part 5 — extended with the additional targeted-question
   // categories the spec itself lists (منتج/طلب/استبدال/خدمة/إعلان مضلل),
   // alongside the categories already covered from Phase 7.6.
