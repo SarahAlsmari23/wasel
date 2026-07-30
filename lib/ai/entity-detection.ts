@@ -35,9 +35,16 @@ const SECTOR_KEYWORD_PATTERNS: Record<Sector, RegExp> = {
   // "الموية" (colloquial) and "المياه" (formal) — normalizeArabicInput leaves
   // both spellings distinct (different letter order), so both are listed.
   water: /مياه|مويه|صرف صحي/,
-  telecom: /اتصالات|الانترنت|إنترنت|انترنت|تغطية الجوال/,
+  // Phase 8, Part 12 — "الشبكة"/"النت" are the same underlying concept as
+  // "الانترنت" in ordinary usage ("النت مقطوع" means exactly the same thing
+  // as "الانترنت مقطوع") and must resolve to the same sector.
+  telecom: /اتصالات|الانترنت|إنترنت|انترنت|النت|الشبكه|تغطية الجوال/,
   commerce: /متجر|تاجر|بائع/,
-  municipality: /بلديه|بلديات|رصيف|حفره في الشارع|نظافه عامه|قمامه/,
+  // Phase 8, Part 15 — bare "حفره" (not "حفره في الشارع" as an exact
+  // adjacent phrase): a real sentence almost always has words between the
+  // noun and "الشارع" ("حفرة كبيرة في الشارع"), which the old, over-specific
+  // phrase never matched at all. Same for "نظافه عامه" → bare "نظافه".
+  municipality: /بلديه|بلديات|رصيف|حفره|نظافه|قمامه/,
   electricity: /كهرباء|عداد الكهرباء/,
 }
 

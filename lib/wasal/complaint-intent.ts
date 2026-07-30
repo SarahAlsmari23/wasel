@@ -126,11 +126,32 @@ const CONTINUATION_FILLER_PHRASES = [
   'تم',
   'اوكي',
   'طيب',
+  // Phase 8, Part 6 — plain social interruptions that never answer any
+  // field shape (never a city/provider/merchant/number, and never one of
+  // parseBooleanAnswer's yes/no phrases either) — a brief courtesy reply
+  // followed immediately by resuming the exact pending question, same as
+  // every other filler here.
+  'تمام',
+  'شكرا',
+  'شكرا لك',
+  'مشكور',
+  'كيفك',
+  'كيف حالك',
+  'بعدها',
 ].map(normalizeArabicInput)
+
+// Laughter ("هههه", "هاها", "هاهاها"...) never answers any field either —
+// matched separately from the phrase list above since it's a repeated
+// pattern, not a fixed set of words. normalizeArabicInput already collapses
+// 3+ repeats of the same character to one (so "هههههه" becomes "ه"), but
+// leaves an exact 2-in-a-row alone (so "هه" stays "هه") and never touches a
+// 2-character repeated unit like "ها" at all.
+const LAUGHTER_PATTERN = /^(ها)+$|^ه{1,2}$/
 
 export function isComplaintContinuationFiller(rawMessage: string): boolean {
   const message = normalizeArabicInput(rawMessage)
   if (message === '') return false
+  if (LAUGHTER_PATTERN.test(message)) return true
   if (CONTINUATION_FILLER_PHRASES.includes(message)) return true
   return isFuzzyPhraseMatch(message, CONTINUATION_FILLER_PHRASES)
 }

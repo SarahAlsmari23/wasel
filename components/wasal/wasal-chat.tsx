@@ -7,7 +7,6 @@ import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { useToast } from '@/components/ui/toast'
 import {
-  checkSavedRoutingAction,
   createConversationAction,
   saveAssistantMessageAction,
   saveCollectedFieldAction,
@@ -47,18 +46,10 @@ import {
 import { matchEntity } from '@/lib/wasal/entity-matching'
 import { detectFieldCorrection } from '@/lib/wasal/field-corrections'
 import { sanitizeGenuineMessages } from '@/lib/wasal/message-classification'
-import {
-  buildComplaintAnalysis,
-  COMPLAINT_INTRO,
-  COMPLAINT_STEPS,
-  type ComplaintAnswers,
-} from '@/lib/wasal/mock-engine'
 import type { MockMessage } from '@/types/conversation'
 import type { ComplaintAnalysis, WasalMode } from '@/types/wasal'
 
 const MAX_HISTORY_ITEMS = 10
-const THINKING_DELAY_MS = 700
-const ANALYSIS_DELAY_MS = 1800
 // Bounded client-side ceiling for createComplaintAction (Phase 6.8, Part 3) —
 // the deterministic action itself normally completes in a few seconds; this
 // exists purely so a genuinely stuck request (network stall, etc.) can never
@@ -102,27 +93,20 @@ function createMessage(
   }
 }
 
-function delay(ms: number, signal: AbortSignal): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const timer = window.setTimeout(resolve, ms)
-    signal.addEventListener(
-      'abort',
-      () => {
-        window.clearTimeout(timer)
-        reject(new DOMException('Aborted', 'AbortError'))
-      },
-      { once: true },
-    )
-  })
-}
+// Phase 8, Part 1/16 — a fixed opening prompt only ever appears once, before
+// anything at all is known about the complaint (no routing, no fields, no
+// hardcoded question script to fall back on afterward). `problem_description`
+// is always the first required field for every complaint type, so this
+// single, sector-agnostic question is the only thing that can be asked
+// deterministically before the real state machine has anything to work with
+// — every question after this one is always computed dynamically from
+// complaint_types.required_fields (see lib/wasal/conversation-state.ts).
+const COMPLAINT_OPENING_MESSAGE =
+  'سأساعدك في إعداد بلاغ احترافي جاهز للتقديم.\n\nصف لي المشكلة التي تواجهها بالتفصيل، وسأحدد الجهة المختصة وأكمل معك بقية التفاصيل.'
 
 /** The first complaint-builder prompt, appended to the ongoing conversation. */
 function buildComplaintOpeningMessage(): MockMessage {
-  const firstStep = COMPLAINT_STEPS[0]
-  const question = firstStep.hint
-    ? `${firstStep.question}\n\n_${firstStep.hint}_`
-    : firstStep.question
-  return createMessage('assistant', `${COMPLAINT_INTRO}\n\n${question}`, {
+  return createMessage('assistant', COMPLAINT_OPENING_MESSAGE, {
     kind: 'complaint_opening',
   })
 }
@@ -160,6 +144,21 @@ function getFixedStarterAnswer(content: string): string | null {
  * when it isn't already known — never inferred from anything earlier, and
  * never overwriting an already-known value.
  */
+// Phase 8, Part 13 — the same assistant message must never appear twice in
+// direct succession. This is never a second model call (a "regenerate" in
+// the literal sense would just as likely produce the exact same deterministic
+// question again, and burns another AI-provider round trip for no reason) —
+// instead, a genuinely identical candidate is deterministically varied with a
+// short, honest clarifying prefix. Only ever compares against the single
+// most recent ASSISTANT bubble (never a user message, never further back).
+function avoidConsecutiveDuplicate(candidate: string, previousMessages: MockMessage[]): string {
+  const lastAssistant = [...previousMessages]
+    .reverse()
+    .find((message) => message.role === 'assistant')
+  if (lastAssistant?.content !== candidate) return candidate
+  return `لم أستلم إجابة واضحة على سؤالي السابق. ${candidate}`
+}
+
 function deriveComplaintResumeState(
   genuineMessages: MockMessage[],
   restoredFields: Record<string, string>,
@@ -222,11 +221,6 @@ type WasalChatProps = {
    * conversation — seeds `isRoutingPersisted` so the create button doesn't
    * need a live round trip just to re-confirm what the server already knows. */
   initialRoutingPersisted?: boolean
-  /** `profiles.full_name` for the authenticated user, read once server-side.
-   * The real, DB-backed complaint flow never asks for a name; this exists
-   * only so the legacy fallback can skip its fixed full-name question for an
-   * authenticated user who already has one on file. */
-  authenticatedFullName?: string | null
 }
 
 export function WasalChat({
@@ -238,7 +232,6 @@ export function WasalChat({
   initialPendingFieldKey,
   initialAnalysis,
   initialRoutingPersisted,
-  authenticatedFullName,
 }: WasalChatProps) {
   const router = useRouter()
   const { showToast } = useToast()
@@ -252,18 +245,12 @@ export function WasalChat({
   const [status, setStatus] = useState<ChatStatus>('idle')
   const [failedMessage, setFailedMessage] = useState<string | null>(null)
 
-  // Legacy engine state — kept temporarily for compatibility (fallback path
-  // only). These preserve the LEGACY deterministic engine's progress across a
-  // reload — they do NOT reflect the real API-driven complaint flow's
-  // progress. Not written to by the real API-driven flow below.
-  const [complaintAnswers, setComplaintAnswers] = useState<ComplaintAnswers>({})
-  const [stepIndex, setStepIndex] = useState(0)
   const [analysis, setAnalysis] = useState<ComplaintAnalysis | null>(null)
 
-  /** Real flow's collected answers, keyed by complaint_types.required_fields'
-   * real field keys (e.g. `merchant_name`) — distinct from the legacy
-   * `complaintAnswers`' fixed key union. Persisted to sessionStorage so a
-   * reload mid-complaint doesn't lose progress or re-ask an answered field. */
+  /** The real, API-driven complaint flow's collected answers, keyed by
+   * complaint_types.required_fields' real field keys (e.g. `merchant_name`).
+   * Persisted to sessionStorage so a reload mid-complaint doesn't lose
+   * progress or re-ask an answered field. */
   const [collectedFields, setCollectedFields] = useState<Record<string, string>>({})
 
   /** True only while a guest's complaint request is gated on sign-in — reset
@@ -375,8 +362,6 @@ export function WasalChat({
       // The builder continues the same thread rather than replacing it, so the
       // user keeps everything they already told Wasal in view.
       setMode('complaint')
-      setStepIndex(0)
-      setComplaintAnswers({})
       setCollectedFields(resumeFields ?? {})
       pendingFieldKeyRef.current = 'problem_description'
       pendingQuestionTextRef.current = ''
@@ -543,8 +528,6 @@ export function WasalChat({
     if (stored) {
       conversationIdRef.current = stored.conversationId
       setMessages(stored.messages)
-      setComplaintAnswers(stored.complaintAnswers ?? {})
-      setStepIndex(stored.stepIndex ?? 0)
       setAnalysis(stored.analysis ?? null)
       setCollectedFields(stored.collectedFields ?? {})
       pendingFieldKeyRef.current = stored.pendingFieldKey ?? 'problem_description'
@@ -603,8 +586,6 @@ export function WasalChat({
       conversationId: conversationIdRef.current,
       messages,
       mode,
-      complaintAnswers,
-      stepIndex,
       analysis,
       collectedFields,
       pendingFieldKey: pendingFieldKeyRef.current,
@@ -616,17 +597,7 @@ export function WasalChat({
       dbConversationId: dbConversationIdRef.current ?? undefined,
       dbComplaintConversationId: dbComplaintConversationIdRef.current ?? undefined,
     })
-  }, [
-    hasRestored,
-    messages,
-    mode,
-    complaintAnswers,
-    stepIndex,
-    analysis,
-    collectedFields,
-    announcedEntities,
-    awaitingSignIn,
-  ])
+  }, [hasRestored, messages, mode, analysis, collectedFields, announcedEntities, awaitingSignIn])
 
   /**
    * Offers the complaint flow, gating on auth only at this point.
@@ -659,8 +630,6 @@ export function WasalChat({
           conversationId: conversationIdRef.current,
           messages: currentMessages,
           mode,
-          complaintAnswers,
-          stepIndex,
           analysis,
           collectedFields,
           pendingFieldKey: pendingFieldKeyRef.current,
@@ -689,8 +658,6 @@ export function WasalChat({
       isAuthenticated,
       messages,
       mode,
-      complaintAnswers,
-      stepIndex,
       analysis,
       collectedFields,
       announcedEntities,
@@ -776,7 +743,10 @@ export function WasalChat({
       })
       if (controller.signal.aborted) return
 
-      setMessages((previous) => [...previous, createMessage('assistant', result.answer)])
+      // Phase 8, Part 13 — never let the exact same reply appear twice in a
+      // row (see avoidConsecutiveDuplicate's own doc comment).
+      const displayAnswer = avoidConsecutiveDuplicate(result.answer, messages)
+      setMessages((previous) => [...previous, createMessage('assistant', displayAnswer)])
 
       // Phase 7.7, Part 6 — every reply actually shown to the user is
       // persisted, whether it came from the real AI provider or the local
@@ -792,7 +762,7 @@ export function WasalChat({
         void persistUserTurnPromise
           .then(() => {
             if (dbConversationIdRef.current) {
-              return saveAssistantMessageAction(dbConversationIdRef.current, result.answer)
+              return saveAssistantMessageAction(dbConversationIdRef.current, displayAnswer)
             }
           })
           .catch(() => {})
@@ -824,100 +794,24 @@ export function WasalChat({
     }
   }
 
-  /**
-   * Legacy, fully local/deterministic complaint engine. Kept only as a
-   * temporary fallback for when the real API call fails (network error,
-   * invalid response shape, etc. — see runComplaintTurn's `isMocked` check).
-   * Never invoked on the normal successful path. The caller already
-   * persisted the user's message before falling back here; Phase 7.7,
-   * Part 6 — this engine's own questions/summary are now persisted too
-   * (previously deliberately skipped as "not a genuine AI response," which
-   * left a silent gap in conversation history: the user's next message was
-   * still saved, so a later resume showed it with no visible reply before
-   * it — this is the actual reply that was shown, so it belongs in history
-   * regardless of which engine produced it).
-   */
-  async function runLegacyComplaintTurn(content: string, controller: AbortController) {
-    const conversationId = dbComplaintConversationIdRef.current
-    const step = COMPLAINT_STEPS[stepIndex]
-    const nextAnswers: ComplaintAnswers = { ...complaintAnswers, [step.key]: content }
-    setComplaintAnswers(nextAnswers)
-
-    const nextIndex = stepIndex + 1
-    const nextStep = COMPLAINT_STEPS[nextIndex]
-    // An authenticated user's real name is already known (profiles.full_name)
-    // — the legacy engine's fixed fullName question is never asked again for
-    // them, even in this fallback path.
-    const skipFullNameStep = nextStep?.key === 'fullName' && Boolean(authenticatedFullName)
-    const isLastStep = nextIndex >= COMPLAINT_STEPS.length || skipFullNameStep
-
-    try {
-      if (!isLastStep) {
-        setStatus('thinking')
-        await delay(THINKING_DELAY_MS, controller.signal)
-
-        const question = nextStep.hint
-          ? `${nextStep.question}\n\n_${nextStep.hint}_`
-          : nextStep.question
-
-        setMessages((previous) => [...previous, createMessage('assistant', question)])
-        if (conversationId) {
-          void saveAssistantMessageAction(conversationId, question).catch(() => {})
-        }
-        setStepIndex(nextIndex)
-        return
-      }
-
-      setStatus('analyzing')
-      await delay(ANALYSIS_DELAY_MS, controller.signal)
-
-      const finalAnswers = skipFullNameStep
-        ? { ...nextAnswers, fullName: authenticatedFullName ?? undefined }
-        : nextAnswers
-      const result = buildComplaintAnalysis(finalAnswers)
-      setAnalysis(result)
-
-      // This engine never persists routing itself — but an earlier turn's
-      // real /api/ai/chat call may already have (independently of whether
-      // that turn's own generation succeeded), so the create button's
-      // isRoutingPersisted gate is re-checked against the real saved state
-      // instead of assuming it's always false (Phase 6.8, Part 3 — a
-      // conversation that only ever reaches "ready" via this fallback must
-      // never be stuck disabled forever).
-      if (conversationId) {
-        void checkSavedRoutingAction(conversationId)
-          .then((persisted) => setIsRoutingPersisted(persisted))
-          .catch(() => {})
-      }
-
-      const summary = `اكتمل التحليل ✅
-
-الجهة المختصة بشكواك هي **${result.entityName}**، ضمن تصنيف **${result.category}**.
-
-جهّزت لك ملخص البلاغ في **بطاقة الجهة المختصة**. يمكنك حفظ البلاغ، أو نسخ الملخص، أو الانتقال مباشرة إلى الموقع الرسمي للجهة.`
-      setMessages((previous) => [
-        ...previous,
-        createMessage('assistant', summary, { kind: 'legacy_analysis' }),
-      ])
-      if (conversationId) {
-        void saveAssistantMessageAction(conversationId, summary).catch(() => {})
-      }
-    } catch (error) {
-      if (error instanceof DOMException && error.name === 'AbortError') return
-      setFailedMessage(content)
-    } finally {
-      if (abortRef.current === controller) {
-        setStatus('idle')
-        abortRef.current = null
-      }
-    }
-  }
+  // Phase 8, Part 1/4/16 — the hardcoded, fixed-order legacy complaint
+  // engine (a separate 5-question script, unrelated to any real complaint
+  // type's actual required_fields) has been removed entirely. It existed
+  // only as a fallback for when the AI provider call failed — but
+  // app/api/ai/chat/route.ts now degrades a generation failure to the
+  // deterministic, already-server-computed next question (or completion
+  // message) itself, for any turn where routing/missing-fields already
+  // resolved (which is true for essentially every complaint turn, whether
+  // via RAG or the deterministic entity-keyword fallback — see
+  // lib/ai/entity-detection.ts). That leaves only a genuine network failure
+  // (never reaching the server at all) as a residual case, handled by
+  // showing a short retry notice below instead of jumping into a whole
+  // second, disconnected question flow.
+  const RETRY_NOTICE = 'تعذر معالجة طلبك حالياً. حاول مرة أخرى بعد قليل.'
 
   /**
    * Live complaint-flow orchestrator — calls the real /api/ai/chat pipeline
-   * (routing from Phase 4B, missing-fields from Phase 4C). Falls back to
-   * `runLegacyComplaintTurn` only when the real call didn't succeed
-   * (`result.isMocked`), never on the normal successful path.
+   * (routing from Phase 4B, missing-fields from Phase 4C).
    */
   async function runComplaintTurn(content: string, controller: AbortController) {
     let conversationId = isAuthenticated ? dbComplaintConversationIdRef.current : null
@@ -1200,9 +1094,15 @@ export function WasalChat({
           return
         }
 
-        // Real API path failed — fall back to the legacy engine, clearly
-        // isolated; its output is never persisted as a genuine AI response.
-        await runLegacyComplaintTurn(content, controller)
+        // Real API path failed to even reach the server (network/timeout) —
+        // route.ts itself already degrades a reachable-but-generation-failed
+        // turn to the deterministic next question (see the comment on
+        // RETRY_NOTICE above), so this residual case is a genuine connection
+        // failure with no state to fall back on.
+        setMessages((previous) => [...previous, createMessage('assistant', RETRY_NOTICE)])
+        if (conversationId) {
+          void saveAssistantMessageAction(conversationId, RETRY_NOTICE).catch(() => {})
+        }
         return
       }
 
@@ -1219,9 +1119,15 @@ export function WasalChat({
         result.nextFieldKey && updatedFields[result.nextFieldKey]?.trim(),
       )
 
-      const displayContent = isDuplicateNextField
+      const rawDisplayContent = isDuplicateNextField
         ? result.answer
         : (result.nextQuestion ?? result.answer)
+      // Phase 8, Part 13 — never shown for an interruption reply (identity/
+      // greeting/out-of-scope/side-question): asking the same question twice
+      // legitimately deserves the same fixed answer twice, that is not a bug.
+      const displayContent = isInterruption
+        ? rawDisplayContent
+        : avoidConsecutiveDuplicate(rawDisplayContent, messages)
       setMessages((previous) => [...previous, createMessage('assistant', displayContent)])
 
       // Phase 7.4B, Part 2/3: any genuine forward-moving turn (not an
@@ -1376,8 +1282,6 @@ export function WasalChat({
     setAttachment(null)
     setStatus('idle')
     setFailedMessage(null)
-    setComplaintAnswers({})
-    setStepIndex(0)
     setCollectedFields({})
     setAnalysis(null)
     setIsRoutingPersisted(false)
