@@ -1,18 +1,19 @@
 'use client'
 
 import { motion } from 'motion/react'
-import { FileSignature, Paperclip } from 'lucide-react'
+import { FileSignature } from 'lucide-react'
 import { WaselLogo } from '@/components/brand/wasel-logo'
+import { useCopy, useLocale } from '@/components/i18n/locale-provider'
+import { defineCopy } from '@/lib/i18n/config'
 import { MarkdownMessage } from '@/components/wasal/markdown-message'
 import { cn } from '@/lib/utils/cn'
 import { formatTime } from '@/lib/utils/format'
 import type { MockMessage } from '@/types/conversation'
 
-function formatFileSize(bytes: number): string {
-  if (bytes < 1024) return `${bytes} بايت`
-  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} كيلوبايت`
-  return `${(bytes / (1024 * 1024)).toFixed(1)} ميجابايت`
-}
+const COPY = defineCopy({
+  ar: { createComplaint: 'إنشاء البلاغ' },
+  en: { createComplaint: 'Create the complaint' },
+})
 
 type ChatMessageProps = {
   message: MockMessage
@@ -24,14 +25,16 @@ type ChatMessageProps = {
 }
 
 export function ChatMessage({ message, onCreateComplaint }: ChatMessageProps) {
+  const copy = useCopy(COPY)
+  const locale = useLocale()
   const isUser = message.role === 'user'
   const showCta = message.cta === 'create_complaint' && Boolean(onCreateComplaint)
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 8 }}
+      initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+      transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
       className={cn('flex w-full gap-2.5', isUser ? 'justify-start' : 'justify-end')}
     >
       {isUser ? null : <WaselLogo size="sm" variant="mark" className="mt-1 shrink-0" />}
@@ -50,37 +53,26 @@ export function ChatMessage({ message, onCreateComplaint }: ChatMessageProps) {
             // touch that component — a single authoritative wrap rule here.
             'rounded-2xl px-4 py-3 break-words',
             isUser
-              ? 'bg-primary text-primary-foreground rounded-tr-md'
-              : 'bg-surface border-border text-foreground shadow-soft rounded-tl-md border',
+              ? 'bg-primary text-primary-foreground rounded-ss-md'
+              : 'bg-surface border-border text-foreground shadow-soft rounded-se-md border',
           )}
         >
           {isUser ? (
-            <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.content}</p>
+            <p dir="auto" className="text-sm leading-relaxed whitespace-pre-wrap">
+              {message.content}
+            </p>
           ) : (
             <MarkdownMessage content={message.content} />
           )}
-
-          {message.attachment ? (
-            <div
-              className={cn(
-                'mt-3 flex items-center gap-2 rounded-xl px-3 py-2 text-xs',
-                isUser ? 'bg-primary-foreground/12' : 'bg-primary/6',
-              )}
-            >
-              <Paperclip className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-              <span className="truncate font-medium">{message.attachment.name}</span>
-              <span className="shrink-0 opacity-70">{formatFileSize(message.attachment.size)}</span>
-            </div>
-          ) : null}
 
           {showCta ? (
             <button
               type="button"
               onClick={onCreateComplaint}
-              className="bg-primary text-primary-foreground hover:bg-primary/90 shadow-soft mt-3 inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl px-4 text-sm font-medium transition-colors"
+              className="bg-primary text-primary-foreground hover:bg-primary-hover shadow-soft mt-3 inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl px-4 text-sm font-medium transition-colors"
             >
               <FileSignature className="h-4 w-4" aria-hidden="true" />
-              إنشاء البلاغ
+              {copy.createComplaint}
             </button>
           ) : null}
         </div>
@@ -91,7 +83,7 @@ export function ChatMessage({ message, onCreateComplaint }: ChatMessageProps) {
             isUser ? 'text-start' : 'text-end',
           )}
         >
-          {formatTime(message.createdAt)}
+          {formatTime(message.createdAt, locale)}
         </span>
       </div>
     </motion.div>

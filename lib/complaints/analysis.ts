@@ -53,5 +53,6 @@ export function buildComplaintAnalysisFromRouting(
     submissionSteps: [],
     confidence: routing.confidence,
     confidenceScore,
+    collectedFields: { ...collectedFields },
   }
 }

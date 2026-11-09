@@ -1,11 +1,24 @@
 import type { Metadata } from 'next'
 import type { ReactNode } from 'react'
 import { SiteHeader } from '@/components/marketing/site-header'
+import { defineCopy } from '@/lib/i18n/config'
+import { getLocale } from '@/lib/i18n/server'
 import { createClient } from '@/lib/supabase/server'
 
-export const metadata: Metadata = {
-  title: 'واصل — المساعد الذكي',
-  description: 'اسأل واصل عن بلاغك الحكومي، أو دعه يجهّز لك بلاغاً احترافياً جاهزاً للتقديم.',
+const COPY = defineCopy({
+  ar: {
+    title: 'واصل — المساعد الذكي',
+    description: 'اسأل واصل عن بلاغك الحكومي، أو دعه يجهّز لك بلاغاً احترافياً جاهزاً للتقديم.',
+  },
+  en: {
+    title: 'Wasel — AI assistant',
+    description:
+      'Ask Wasel about your government complaint, or let it prepare a professional complaint ready to submit.',
+  },
+})
+
+export async function generateMetadata(): Promise<Metadata> {
+  return COPY[await getLocale()]
 }
 
 export default async function WasalLayout({ children }: { children: ReactNode }) {

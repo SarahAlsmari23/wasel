@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { notFound } from 'next/navigation'
 import { PageHeader } from '@/components/dashboard/page-header'
 import { KnowledgeDocumentList } from '@/components/knowledge/knowledge-document-list'
 import { MOCK_KNOWLEDGE_DOCUMENTS } from '@/lib/mock/knowledge-documents'
@@ -15,7 +16,13 @@ export const metadata: Metadata = {
  * Access is still gated by the dashboard layout's auth check; a proper admin
  * role check belongs here once roles exist.
  */
+/**
+ * Reserved for a future admin tool. It renders illustrative mock documents,
+ * so it is only available in local development — never in a production
+ * deployment, where it could be mistaken for real data.
+ */
 export default function KnowledgePage() {
+  if (process.env.NODE_ENV === 'production') notFound()
   return (
     <div className="animate-fade-in mx-auto flex w-full max-w-4xl flex-col gap-8">
       <PageHeader

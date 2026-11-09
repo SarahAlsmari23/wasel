@@ -1,6 +1,15 @@
+'use client'
+
 import Link from 'next/link'
 import type { ReactNode } from 'react'
 import { WaselLogo } from '@/components/brand/wasel-logo'
+import { useCopy } from '@/components/i18n/locale-provider'
+import { defineCopy } from '@/lib/i18n/config'
+
+const COPY = defineCopy({
+  ar: { homeAria: 'واصل — الصفحة الرئيسية', or: 'أو' },
+  en: { homeAria: 'Wasel — home', or: 'or' },
+})
 
 type AuthCardProps = {
   title: string
@@ -10,9 +19,10 @@ type AuthCardProps = {
 }
 
 export function AuthCard({ title, subtitle, children, footer }: AuthCardProps) {
+  const copy = useCopy(COPY)
   return (
     <div className="animate-fade-up w-full max-w-md">
-      <Link href="/" className="mb-6 flex justify-center" aria-label="واصل — الصفحة الرئيسية">
+      <Link href="/" className="mb-6 flex justify-center" aria-label={copy.homeAria}>
         <WaselLogo size="lg" />
       </Link>
 
@@ -30,10 +40,11 @@ export function AuthCard({ title, subtitle, children, footer }: AuthCardProps) {
 }
 
 export function AuthDivider() {
+  const copy = useCopy(COPY)
   return (
     <div className="text-muted-foreground my-5 flex items-center gap-3 text-xs">
       <span className="bg-border h-px flex-1" />
-      أو
+      {copy.or}
       <span className="bg-border h-px flex-1" />
     </div>
   )

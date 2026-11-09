@@ -1529,7 +1529,7 @@ export function WasalChat({
     setCreateComplaintError(null)
     try {
       const result = await withTimeout(
-        createComplaintAction(conversationId, collectedFields),
+        createComplaintAction(conversationId, collectedFields, locale),
         CREATE_COMPLAINT_TIMEOUT_MS,
       )
       if (result.success) {
@@ -1559,7 +1559,7 @@ export function WasalChat({
 
     setIsMarkingSubmitted(true)
     try {
-      const result = await markComplaintSubmittedAction(complaintResult.id)
+      const result = await markComplaintSubmittedAction(complaintResult.id, locale)
       if (result.success) {
         setComplaintResult((previous) =>
           previous
@@ -1745,13 +1745,24 @@ export function WasalChat({
                   complaint={complaintResult}
                   onMarkSubmitted={handleMarkSubmitted}
                   isMarkingSubmitted={isMarkingSubmitted}
+                  onComplaintUpdated={(update) =>
+                    setComplaintResult((previous) =>
+                      previous
+                        ? {
+                            ...previous,
+                            subject: update.subject,
+                            complaintText: update.complaintText,
+                            updatedAt: update.updatedAt,
+                          }
+                        : previous,
+                    )
+                  }
                 />
               ) : analysis ? (
                 <>
                   <ProgressTimeline currentStage={isComplaintReady ? 'ready' : 'summary'} />
                   <RecommendationCard
                     analysis={analysis}
-                    letter={analysis.summary}
                     onSave={handleCreateComplaint}
                     isSaving={isCreatingComplaint}
                     saveDisabledNotice={

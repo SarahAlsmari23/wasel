@@ -59,9 +59,9 @@ export type DisplayTitleInput = {
  *    already known but no complaint exists yet.
  * 4. A generic, last-resort fallback.
  */
-export function getDisplayTitle(input: DisplayTitleInput): string {
+export function getDisplayTitle(input: DisplayTitleInput, locale: 'ar' | 'en' = 'ar'): string {
   const title = input.title.trim()
-  if (isMeaningfulTitle(title)) return title
+  if (isMeaningfulTitle(title) && title !== GENERIC_TITLE_FALLBACK) return title
 
   const subject = input.complaintSubject?.trim()
   if (subject) return subject
@@ -69,7 +69,24 @@ export function getDisplayTitle(input: DisplayTitleInput): string {
   const description = input.problemDescription?.trim()
   if (description) return truncateAtWordBoundary(description, MAX_FALLBACK_TITLE_LENGTH)
 
-  return GENERIC_TITLE_FALLBACK
+  return locale === 'en' ? 'Untitled conversation' : GENERIC_TITLE_FALLBACK
+}
+
+/**
+ * Stored placeholder titles are Arabic (they are persisted data, shared by
+ * both languages); English readers see the equivalent English placeholder.
+ * Real, user- or content-derived titles are always shown as written.
+ */
+const ENGLISH_PLACEHOLDER_TITLES: Record<string, string> = {
+  [DEFAULT_CONVERSATION_TITLE]: 'New complaint',
+  'محادثة جديدة': 'New conversation',
+  'بلاغ جديد': 'New complaint',
+  [GENERIC_TITLE_FALLBACK]: 'Untitled conversation',
+}
+
+export function localizeTitle(title: string, locale: 'ar' | 'en'): string {
+  if (locale === 'ar') return title
+  return ENGLISH_PLACEHOLDER_TITLES[title.trim()] ?? title
 }
 
 export type ComplaintStatusPresentation = {
@@ -83,17 +100,24 @@ export type ComplaintStatusPresentation = {
  * the labels a user should see — never a 'submitted' status value, which
  * doesn't exist in the schema.
  */
+const STATUS_LABELS = {
+  ar: { completed: 'مكتمل', submitted: 'تم التقديم', ready: 'جاهز للتقديم', draft: 'مسودة' },
+  en: { completed: 'Completed', submitted: 'Submitted', ready: 'Ready to submit', draft: 'Draft' },
+} as const
+
 export function getComplaintStatusPresentation(
   status: string,
   submittedAt: string | null,
+  locale: 'ar' | 'en' = 'ar',
 ): ComplaintStatusPresentation {
+  const labels = STATUS_LABELS[locale]
   if (status === 'completed') {
-    return { label: 'مكتمل', badgeVariant: 'completed' }
+    return { label: labels.completed, badgeVariant: 'completed' }
   }
   if (status === 'generated') {
     return submittedAt
-      ? { label: 'تم التقديم', badgeVariant: 'submitted' }
-      : { label: 'تم الإنشاء', badgeVariant: 'ready' }
+      ? { label: labels.submitted, badgeVariant: 'submitted' }
+      : { label: labels.ready, badgeVariant: 'ready' }
   }
-  return { label: 'مسودة', badgeVariant: 'draft' }
+  return { label: labels.draft, badgeVariant: 'draft' }
 }
