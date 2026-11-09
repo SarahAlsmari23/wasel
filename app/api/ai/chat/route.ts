@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { validateChatRequest } from '@/lib/ai/contracts'
 import { AiProviderError } from '@/lib/ai/generation-shared'
 import { generateAnswer } from '@/lib/ai/provider'
+import { describesProblem } from '@/lib/ai/problem-signal'
 import {
   localizedFieldQuestion,
   SERVER_COPY,
@@ -156,7 +157,7 @@ export async function POST(request: Request) {
     return errorResponse(SERVER_COPY[cookieLocale].errors.invalidRequest, 400)
   }
 
-  const validation = validateChatRequest(payload)
+  const validation = validateChatRequest(payload, cookieLocale)
   if (!validation.valid) {
     return errorResponse(validation.error, 400)
   }
@@ -332,11 +333,20 @@ export async function POST(request: Request) {
   // unambiguous keyword naming a *different* supported sector. The hint is
   // only honoured for one of the known supported authorities and is always
   // re-resolved from the database — never trusted as an id.
+  //
+  // A bare mention of another sector is not new information: "can I follow
+  // my request up via the internet?" names the telecom keyword "الإنترنت"
+  // while still being about the same water complaint — exactly the
+  // production case that switched to CST. A different sector only wins when
+  // the message also describes a problem (grievance / complaint signal).
   if (activeEntityName && ENTITY_NAME_TO_SECTOR[activeEntityName]) {
     const keywordEntityName = keywordSector ? getEntityNameForSector(keywordSector) : null
+    const describesNewProblemElsewhere =
+      keywordEntityName !== null &&
+      keywordEntityName !== activeEntityName &&
+      describesProblem(sanitizedMessage)
     const newInformationJustifiesChange =
-      isExplicitRoutingChange(sanitizedMessage) ||
-      (keywordEntityName !== null && keywordEntityName !== activeEntityName)
+      isExplicitRoutingChange(sanitizedMessage) || describesNewProblemElsewhere
     if (!newInformationJustifiesChange && routing?.entityName !== activeEntityName) {
       try {
         const continuedRouting = await resolveRoutingByEntityName(supabase, activeEntityName)
@@ -883,7 +893,7 @@ export async function POST(request: Request) {
     const informationalFallback =
       isInformationalIntent(finalIntent) && retrievedDocuments.length === 0
         ? routing?.officialUrl
-          ? `${sc.noVerifiedInfo}\n\n${routing.officialUrl}`
+          ? `${sc.noVerifiedInfo}\n\n${sc.officialSiteLabel}: ${routing.officialUrl}`
           : sc.noVerifiedInfo
         : null
 
@@ -966,6 +976,15 @@ export async function POST(request: Request) {
     // provider outage never actually stalls or resets a complaint in
     // progress. A genuinely open-ended informational question that fails
     // still has no deterministic answer to give, so that case is unchanged.
+    //
+    // The degraded, server-authored question is only appropriate inside an
+    // active complaint flow (the client sends complaintContext). Outside it —
+    // e.g. "what are the water company's working hours?", which merely names
+    // a sector — answering a failed question with "describe the problem?"
+    // would misrepresent what happened, so the honest error is returned.
+    if (error instanceof AiProviderError && !hasActiveComplaintContext) {
+      return errorResponse(sc.errors.unavailable, 502)
+    }
     if (error instanceof AiProviderError) {
       if (duplicateInvariantViolated) {
         return NextResponse.json<ChatSuccessResponse>(

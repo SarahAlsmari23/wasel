@@ -1,4 +1,4 @@
-import { resolveLocale, type Locale } from '@/lib/i18n/config'
+import { isLocale, type Locale } from '@/lib/i18n/config'
 import type {
   ChatComplaintContext,
   ChatConfidence,
@@ -137,9 +137,12 @@ const REQUEST_ERRORS = {
  * localized error message on failure — never a description of what
  * specifically was malformed in a way that could leak internal structure.
  */
-export function validateChatRequest(payload: unknown): ValidationResult<ChatRequest> {
+export function validateChatRequest(
+  payload: unknown,
+  fallbackLocale: Locale = 'ar',
+): ValidationResult<ChatRequest> {
   if (!isPlainObject(payload)) {
-    return { valid: false, error: REQUEST_ERRORS.ar.invalid }
+    return { valid: false, error: REQUEST_ERRORS[fallbackLocale].invalid }
   }
 
   const {
@@ -152,7 +155,9 @@ export function validateChatRequest(payload: unknown): ValidationResult<ChatRequ
     activeEntityName,
     locale: rawLocale,
   } = payload
-  const locale = resolveLocale(rawLocale)
+  // An explicit, valid locale in the body wins; otherwise the caller's
+  // fallback (the interface-language cookie) applies.
+  const locale: Locale = isLocale(rawLocale) ? rawLocale : fallbackLocale
   const errors = REQUEST_ERRORS[locale]
 
   if (!isNonEmptyString(conversationId)) {
