@@ -140,10 +140,6 @@ export default async function WasalPage({ searchParams }: { searchParams: Promis
     data: { user },
   } = await supabase.auth.getUser()
 
-  // TEMPORARY DIAGNOSTIC — structural only (boolean, no user id/email).
-  // Remove once Phase 1 persistence is confirmed working end-to-end.
-  console.log(`[wasal-page] isAuthenticated=${Boolean(user)}`)
-
   const conversationId = parseConversationId(params.conversationId)
 
   if (conversationId) {

@@ -61,10 +61,29 @@ const SECTOR_TO_ENTITY_NAME = Object.fromEntries(
  * nothing in the fixed keyword lists appears in the message at all (the
  * normal case for most messages, which continue to rely on RAG as before).
  */
+/*
+ * English equivalents, so an English-language conversation gets the same
+ * deterministic sector fallback as an Arabic one when retrieval is weak.
+ * Word-boundary anchored and limited to unambiguous terms.
+ */
+const ENGLISH_SECTOR_KEYWORD_PATTERNS: Record<Sector, RegExp> = {
+  water: /\b(water|sewage|sewer|nwc)\b/i,
+  telecom: /\b(internet|telecom|mobile network|network coverage|signal|broadband|fiber|fibre|sim card|cst)\b/i,
+  commerce: /\b(store|shop|merchant|seller|refund|retailer|online order)\b/i,
+  municipality: /\b(municipality|pothole|sidewalk|pavement|garbage|rubbish|street ?light|balady)\b/i,
+  electricity: /\b(electricity|electric|power outage|power cut|blackout|electricity meter)\b/i,
+}
+
 export function detectSectorByKeyword(message: string): Sector | null {
   const normalized = normalizeArabicInput(message)
   for (const [sector, pattern] of Object.entries(SECTOR_KEYWORD_PATTERNS) as [Sector, RegExp][]) {
     if (pattern.test(normalized)) return sector
+  }
+  for (const [sector, pattern] of Object.entries(ENGLISH_SECTOR_KEYWORD_PATTERNS) as [
+    Sector,
+    RegExp,
+  ][]) {
+    if (pattern.test(message)) return sector
   }
   return null
 }

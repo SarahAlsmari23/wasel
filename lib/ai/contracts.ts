@@ -1,3 +1,4 @@
+import { resolveLocale, type Locale } from '@/lib/i18n/config'
 import type {
   ChatComplaintContext,
   ChatConfidence,
@@ -107,45 +108,92 @@ function isValidComplaintContext(value: unknown): value is ChatComplaintContext 
   return true
 }
 
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+const MAX_ENTITY_NAME_LENGTH = 120
+
+const REQUEST_ERRORS = {
+  ar: {
+    invalid: 'الطلب غير صالح.',
+    conversationId: 'معرف المحادثة مطلوب.',
+    dbConversationId: 'معرف محادثة قاعدة البيانات غير صالح.',
+    message: 'الرسالة مطلوبة ويجب ألا تتجاوز الحد المسموح به.',
+    history: 'سجل المحادثة غير صالح.',
+    intent: 'نوع الطلب غير معروف.',
+    complaintContext: 'بيانات الشكوى المرسلة غير صالحة.',
+  },
+  en: {
+    invalid: 'Invalid request.',
+    conversationId: 'A conversation id is required.',
+    dbConversationId: 'Invalid conversation reference.',
+    message: 'A message is required and must not exceed the allowed length.',
+    history: 'Invalid conversation history.',
+    intent: 'Unknown request type.',
+    complaintContext: 'Invalid complaint details.',
+  },
+} satisfies Record<Locale, Record<string, string>>
+
 /**
- * Validates the shape of an incoming chat request. Returns a generic Arabic
- * error message on failure — never a description of what specifically was
- * malformed in a way that could leak internal structure.
+ * Validates the shape of an incoming chat request. Returns a generic,
+ * localized error message on failure — never a description of what
+ * specifically was malformed in a way that could leak internal structure.
  */
 export function validateChatRequest(payload: unknown): ValidationResult<ChatRequest> {
   if (!isPlainObject(payload)) {
-    return { valid: false, error: 'الطلب غير صالح.' }
+    return { valid: false, error: REQUEST_ERRORS.ar.invalid }
   }
 
-  const { conversationId, dbConversationId, message, history, intent, complaintContext } = payload
+  const {
+    conversationId,
+    dbConversationId,
+    message,
+    history,
+    intent,
+    complaintContext,
+    activeEntityName,
+    locale: rawLocale,
+  } = payload
+  const locale = resolveLocale(rawLocale)
+  const errors = REQUEST_ERRORS[locale]
 
   if (!isNonEmptyString(conversationId)) {
-    return { valid: false, error: 'معرف المحادثة مطلوب.' }
+    return { valid: false, error: errors.conversationId }
   }
 
-  if (dbConversationId !== undefined && !isNonEmptyString(dbConversationId)) {
-    return { valid: false, error: 'معرف محادثة قاعدة البيانات غير صالح.' }
+  // Must be a real row id shape — anything else is rejected rather than
+  // being passed through to database lookups.
+  if (
+    dbConversationId !== undefined &&
+    (typeof dbConversationId !== 'string' || !UUID_PATTERN.test(dbConversationId))
+  ) {
+    return { valid: false, error: errors.dbConversationId }
   }
 
   if (!isNonEmptyString(message) || message.length > MAX_MESSAGE_LENGTH) {
-    return { valid: false, error: 'الرسالة مطلوبة ويجب ألا تتجاوز الحد المسموح به.' }
+    return { valid: false, error: errors.message }
   }
 
   if (history !== undefined) {
     if (!Array.isArray(history) || history.length > MAX_HISTORY_ITEMS) {
-      return { valid: false, error: 'سجل المحادثة غير صالح.' }
+      return { valid: false, error: errors.history }
     }
     if (!history.every(isValidHistoryItem)) {
-      return { valid: false, error: 'سجل المحادثة غير صالح.' }
+      return { valid: false, error: errors.history }
     }
   }
 
   if (intent !== undefined && !VALID_INTENTS.includes(intent as ChatIntent)) {
-    return { valid: false, error: 'نوع الطلب غير معروف.' }
+    return { valid: false, error: errors.intent }
   }
 
   if (!isValidComplaintContext(complaintContext)) {
-    return { valid: false, error: 'بيانات الشكوى المرسلة غير صالحة.' }
+    return { valid: false, error: errors.complaintContext }
+  }
+
+  if (
+    activeEntityName !== undefined &&
+    (typeof activeEntityName !== 'string' || activeEntityName.length > MAX_ENTITY_NAME_LENGTH)
+  ) {
+    return { valid: false, error: errors.invalid }
   }
 
   return {
@@ -157,6 +205,8 @@ export function validateChatRequest(payload: unknown): ValidationResult<ChatRequ
       history: history as ChatHistoryItem[] | undefined,
       intent: intent as ChatIntent | undefined,
       complaintContext: complaintContext as ChatComplaintContext | undefined,
+      activeEntityName: (activeEntityName as string | undefined)?.trim() || undefined,
+      locale,
     },
   }
 }

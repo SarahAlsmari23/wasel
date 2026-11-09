@@ -81,6 +81,14 @@ export type ChatRequest = {
   history?: ChatHistoryItem[]
   intent?: ChatIntent
   complaintContext?: ChatComplaintContext
+  /**
+   * The authority already shown to the user in this conversation, if any.
+   * Only ever a hint: the server accepts it solely when it names one of the
+   * known supported authorities and re-resolves it from the database itself.
+   */
+  activeEntityName?: string
+  /** Interface language — the assistant answers in this language. */
+  locale?: 'ar' | 'en'
 }
 // No userId field, ever — identity is derived from the server session only.
 

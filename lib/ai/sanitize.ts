@@ -33,15 +33,23 @@ function stripSensitiveKeys<T extends Record<string, unknown>>(value: T): Partia
   return result
 }
 
+/** The prompt's own data-boundary tags (see lib/ai/prompts.ts). User text
+ * may never contain them, so it can't close a fence and pose as instructions. */
+const PROMPT_BOUNDARY_TAG = /<\/?\s*(user_message|conversation_history|retrieved_context)\b[^>]*>/gi
+
+function stripBoundaryTags(text: string): string {
+  return text.replace(PROMPT_BOUNDARY_TAG, ' ')
+}
+
 export function sanitizeMessage(message: string): string {
-  return message.trim().slice(0, MAX_MESSAGE_LENGTH)
+  return stripBoundaryTags(message).trim().slice(0, MAX_MESSAGE_LENGTH)
 }
 
 export function sanitizeHistory(history: ChatHistoryItem[] | undefined): ChatHistoryItem[] {
   if (!history || history.length === 0) return []
   return history.slice(-MAX_HISTORY_ITEMS).map((item) => ({
     role: item.role,
-    content: item.content.trim().slice(0, MAX_MESSAGE_LENGTH),
+    content: stripBoundaryTags(item.content).trim().slice(0, MAX_MESSAGE_LENGTH),
   }))
 }
 
