@@ -924,7 +924,7 @@ export function WasalChat({
       // classified this turn as a genuine complaint/grievance. The server's
       // own routing is preferred over any client-side guess, so the modal
       // always names the same authority the card shows.
-      if (result.intent === 'complaint_guidance') {
+      if (result.intent === 'complaint_guidance' || result.intent === 'create_complaint') {
         const entityName =
           (result.routing && result.routing.confidence !== 'low'
             ? result.routing.entityName

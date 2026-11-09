@@ -26,6 +26,7 @@ import {
   getComplaintByConversationId,
   getComplaintById,
   getCurrentComplaintVersion,
+  getCurrentComplaintVersionData,
   markComplaintGenerated,
   markComplaintSubmitted,
 } from '@/lib/db/complaints'
@@ -86,6 +87,34 @@ function buildLetter(
   if (locale === 'en') return buildEnglishFormalComplaintLetter(input)
   const letter = buildFormalComplaintLetter(input)
   return { ...letter, generatedFromData: { language: 'ar', ...letter.generatedFromData } }
+}
+
+/**
+ * The complaint's known details: collected_information, with the problem
+ * description recovered from the letter's own version data when it was never
+ * stored as a field (complaints created from a resumed guest conversation
+ * before details were persisted at creation time).
+ */
+async function loadComplaintDetails(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  complaintId: string,
+  conversationId: string,
+): Promise<Record<string, string>> {
+  const values = await getCollectedInformationForConversation(supabase, conversationId)
+  if (!values.problem_description?.trim()) {
+    const versionData = await getCurrentComplaintVersionData(supabase, complaintId)
+    const recorded = versionData?.problemDescription
+    if (typeof recorded === 'string' && recorded.trim()) {
+      values.problem_description = recorded.trim()
+    }
+  }
+  if (!values.city?.trim()) {
+    const versionData = await getCurrentComplaintVersionData(supabase, complaintId)
+    if (typeof versionData?.city === 'string' && versionData.city.trim()) {
+      values.city = versionData.city.trim()
+    }
+  }
+  return values
 }
 
 export type ComplaintPayload = {
@@ -250,6 +279,16 @@ export async function createComplaintAction(
       return { success: false, error: errors.generationFailed }
     }
 
+    // Keep the conversation's stored details identical to what the letter was
+    // built from, so later edits start from the same facts. Ownership was
+    // established above (owned-title read); best-effort — the complaint
+    // itself already exists either way.
+    await Promise.all(
+      Object.entries(sanitizedFields).map(([fieldKey, fieldValue]) =>
+        saveCollectedFieldAsServiceRole(dbConversationId, { fieldKey, fieldValue }).catch(() => {}),
+      ),
+    )
+
     return {
       success: true,
       complaint: {
@@ -309,7 +348,7 @@ export async function getComplaintEditDataAction(
 
     const [requiredFields, values, versionCount] = await Promise.all([
       getRequiredFieldsForComplaintType(supabase, savedRouting.complaintTypeId),
-      getCollectedInformationForConversation(supabase, complaint.conversationId),
+      loadComplaintDetails(supabase, complaintId, complaint.conversationId),
       countComplaintVersions(supabase, complaintId),
     ])
 
@@ -374,7 +413,7 @@ export async function updateComplaintAction(
       await Promise.all([
         hydrateSavedRouting(supabase, savedRouting),
         getRequiredFieldsForComplaintType(supabase, savedRouting.complaintTypeId),
-        getCollectedInformationForConversation(supabase, conversationId),
+        loadComplaintDetails(supabase, complaintId, conversationId),
         getProfileFullName(supabase, user.id),
         getOwnedConversationTitle(supabase, conversationId, user.id),
         getUserMessageContents(supabase, conversationId),
@@ -405,7 +444,13 @@ export async function updateComplaintAction(
 
     // Persist corrected details first, so the conversation's record matches
     // the letter. Ownership was verified above (RLS read of the complaint).
-    for (const [fieldKey, fieldValue] of Object.entries(changes)) {
+    // Includes any detail recovered from the letter's version data, so the
+    // stored record is complete from now on.
+    const toPersist = { ...changes }
+    for (const key of allowedKeys) {
+      if (!(key in toPersist) && mergedValues[key]?.trim()) toPersist[key] = mergedValues[key]
+    }
+    for (const [fieldKey, fieldValue] of Object.entries(toPersist)) {
       await saveCollectedFieldAsServiceRole(conversationId, { fieldKey, fieldValue })
     }
 

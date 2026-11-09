@@ -453,3 +453,19 @@ export async function countComplaintVersions(
   if (error) return 0
   return count ?? 0
 }
+
+/** The current version's `generated_from_data` (the inputs the letter was
+ * built from), read through the caller's RLS-scoped client. */
+export async function getCurrentComplaintVersionData(
+  supabase: SupabaseServerClient,
+  complaintId: string,
+): Promise<Record<string, unknown> | null> {
+  const { data, error } = await supabase
+    .from('complaint_versions')
+    .select('generated_from_data')
+    .eq('complaint_id', complaintId)
+    .eq('is_current', true)
+    .maybeSingle()
+  if (error || !data) return null
+  return (data.generated_from_data as Record<string, unknown> | null) ?? null
+}
