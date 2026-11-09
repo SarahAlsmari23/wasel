@@ -4,7 +4,11 @@ import { AnimatePresence, motion } from 'motion/react'
 import { X } from 'lucide-react'
 import { useEffect, useId, useRef, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
+import { useCopy } from '@/components/i18n/locale-provider'
+import { defineCopy } from '@/lib/i18n/config'
 import { cn } from '@/lib/utils/cn'
+
+const COPY = defineCopy({ ar: { close: 'إغلاق' }, en: { close: 'Close' } })
 
 const FOCUSABLE_SELECTOR =
   'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])'
@@ -28,6 +32,7 @@ export function Modal({
   footer,
   className = '',
 }: ModalProps) {
+  const copy = useCopy(COPY)
   const panelRef = useRef<HTMLDivElement>(null)
   const titleId = useId()
   const descriptionId = useId()
@@ -94,7 +99,7 @@ export function Modal({
             exit={{ opacity: 0 }}
             transition={{ duration: 0.18 }}
             onClick={onClose}
-            className="absolute inset-0 bg-[#12355B]/35 backdrop-blur-[2px]"
+            className="bg-overlay absolute inset-0 backdrop-blur-[2px]"
             aria-hidden="true"
           />
 
@@ -109,20 +114,20 @@ export function Modal({
             exit={{ opacity: 0, scale: 0.97, y: 8 }}
             transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
             className={cn(
-              'bg-surface border-border shadow-lift relative w-full max-w-md rounded-t-3xl border p-6 sm:rounded-3xl',
+              'bg-surface border-border shadow-lift relative max-h-[92dvh] w-full max-w-md overflow-y-auto overscroll-contain rounded-t-3xl border p-6 sm:rounded-3xl',
               className,
             )}
           >
             <button
               type="button"
               onClick={onClose}
-              aria-label="إغلاق"
-              className="text-muted-foreground hover:bg-primary/6 hover:text-foreground absolute top-4 left-4 rounded-lg p-1.5 transition-colors"
+              aria-label={copy.close}
+              className="text-muted-foreground hover:bg-primary/6 hover:text-foreground absolute end-4 top-4 rounded-lg p-1.5 transition-colors"
             >
               <X className="h-4 w-4" aria-hidden="true" />
             </button>
 
-            <h2 id={titleId} className="text-heading pl-8 text-lg font-semibold">
+            <h2 id={titleId} className="text-heading pe-8 text-lg font-semibold">
               {title}
             </h2>
             {description ? (

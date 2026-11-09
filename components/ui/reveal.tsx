@@ -1,27 +1,29 @@
 'use client'
 
-import { motion } from 'motion/react'
+import { motion, useReducedMotion } from 'motion/react'
 import type { ReactNode } from 'react'
 
 type RevealProps = {
   children: ReactNode
-  /** Stagger sibling sections by passing an increasing delay. */
   delay?: number
   className?: string
 }
 
-/**
- * Fades a section up the first time it scrolls into view. Deliberately subtle
- * and one-shot — the Phase 1 brief asks for calm motion, not a scroll show.
- */
+/** Gentle fade-up on first scroll into view; static when reduced motion is requested. */
 export function Reveal({ children, delay = 0, className = '' }: RevealProps) {
+  const prefersReducedMotion = useReducedMotion()
+
+  if (prefersReducedMotion) {
+    return <div className={className}>{children}</div>
+  }
+
   return (
     <motion.div
       className={className}
-      initial={{ opacity: 0, y: 16 }}
+      initial={{ opacity: 0, y: 12 }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, amount: 0.15 }}
-      transition={{ duration: 0.5, delay, ease: [0.22, 1, 0.36, 1] }}
+      transition={{ duration: 0.4, delay, ease: [0.22, 1, 0.36, 1] }}
     >
       {children}
     </motion.div>

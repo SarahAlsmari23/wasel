@@ -15,8 +15,8 @@ import {
 } from '@/app/wasal/actions'
 import { createComplaintAction, markComplaintSubmittedAction } from '@/app/wasal/complaint-actions'
 import { AuthorityModal } from '@/components/wasal/authority-modal'
-import { ChatComposer, type PendingAttachment } from '@/components/wasal/chat-composer'
-import { ChatEmptyState, CHAT_GREETING } from '@/components/wasal/chat-empty-state'
+import { ChatComposer } from '@/components/wasal/chat-composer'
+import { ChatEmptyState } from '@/components/wasal/chat-empty-state'
 import { ASSISTANT_SUGGESTIONS } from '@/components/wasal/suggestion-chips'
 import { ChatMessage } from '@/components/wasal/chat-message'
 import { ComplaintResultCard, type ComplaintResult } from '@/components/wasal/complaint-result-card'
@@ -36,8 +36,14 @@ import {
   isObviousOutOfScope,
   parseBooleanAnswer,
 } from '@/lib/ai/intent-guards'
+import { useCopy, useLocale } from '@/components/i18n/locale-provider'
+import { defineCopy } from '@/lib/i18n/config'
 import { getGovernmentEntityByName, type GovernmentEntity } from '@/lib/mock/government-entities'
-import { requestAssistantAnswer } from '@/lib/wasal/chat-client'
+import {
+  AssistantRequestError,
+  requestAssistantAnswer,
+  type AssistantFailureKind,
+} from '@/lib/wasal/chat-client'
 import { isComplaintContinuationFiller, wantsToCreateComplaint } from '@/lib/wasal/complaint-intent'
 import {
   clearConversation,
@@ -58,6 +64,84 @@ const MAX_HISTORY_ITEMS = 10
 // running regardless — a retry after this fires safely recovers the same
 // complaint via createComplaintAction's own ComplaintAlreadyExistsError path.
 const CREATE_COMPLAINT_TIMEOUT_MS = 25_000
+
+const CHAT_COPY = defineCopy({
+  ar: {
+    complaintOpening:
+      'سأساعدك في إعداد بلاغ احترافي جاهز للتقديم.\n\nصف لي المشكلة التي تواجهها بالتفصيل، وسأحدد الجهة المختصة وأكمل معك بقية التفاصيل.',
+    starterHowToKnowAuthority:
+      'إذا لم تكن تعرف الجهة المختصة، فقط صف المشكلة بلغتك الطبيعية، وسيقوم واصل بتحليلها وتحديد الجهة الحكومية المناسبة، ثم يوضح لك سبب الاختيار وخطوات التقديم.',
+    starterGovernmentServiceProblem:
+      'أخبرني بتفاصيل المشكلة أو اسم الجهة أو الخدمة، وسأساعدك في تحديد الجهة المختصة أو تجهيز الشكوى إذا لزم الأمر.',
+    duplicatePrefix: 'لم أستلم إجابة واضحة على سؤالي السابق.',
+    signedInResume: 'تم تسجيل الدخول — لنكمل إعداد بلاغك.',
+    complaintAlreadyGenerated:
+      'تم إنشاء البلاغ بالفعل لهذه المحادثة — يمكنك نسخه أو تعديله من البطاقة.',
+    unexpectedError: 'حدث خطأ غير متوقع. حاول مرة أخرى.',
+    complaintCreated: 'تم إنشاء البلاغ بنجاح.',
+    createTimeout: 'استغرق إنشاء البلاغ وقتاً أطول من المتوقع. حاول مرة أخرى.',
+    statusUpdated: 'تم تحديث حالة البلاغ.',
+    assistantLabel: 'واصل',
+    preparingComplaint: 'جارٍ إعداد البلاغ',
+    createComplaint: 'إنشاء بلاغ',
+    newConversation: 'محادثة جديدة',
+    newConversationAria: 'بدء محادثة جديدة',
+    analyzing: 'واصل يحلل الشكوى...',
+    typing: 'واصل يكتب...',
+    failure: {
+      rate_limited: 'تجاوزت الحد المسموح من الرسائل مؤقتاً. انتظر دقيقة ثم أعد المحاولة.',
+      unavailable: 'المساعد الذكي غير متاح حالياً، ولم يتم توليد أي إجابة. رسالتك محفوظة — أعد المحاولة بعد قليل.',
+      timeout: 'استغرق الرد وقتاً أطول من المعتاد ولم يكتمل. رسالتك محفوظة — أعد المحاولة.',
+      network: 'تعذر الاتصال بالخادم. تحقق من اتصالك بالإنترنت ثم أعد المحاولة.',
+      invalid: 'تعذر معالجة هذه الرسالة. عدّل صياغتها ثم أعد المحاولة.',
+    } satisfies Record<AssistantFailureKind, string>,
+    retry: 'إعادة المحاولة',
+    stillMissing: 'لا تزال بعض المعلومات مطلوبة لإكمال البلاغ...',
+    pinningAuthority: 'جارٍ تثبيت بيانات الجهة المختصة...',
+    placeholderReady: 'اكتملت المعلومات — راجع البلاغ وأنشئه من البطاقة.',
+    placeholderAnswer: 'اكتب إجابتك...',
+    placeholderDefault: 'مرحبًا، كيف يمكنني مساعدتك اليوم؟',
+  },
+  en: {
+    complaintOpening:
+      "I'll help you prepare a professional complaint that's ready to submit.\n\nDescribe the problem you're facing in detail, and I'll identify the responsible authority and collect the remaining details with you.",
+    starterHowToKnowAuthority:
+      "If you don't know the responsible authority, just describe the problem in your own words. Wasel will analyse it, identify the right government authority, and explain why it was chosen and how to submit.",
+    starterGovernmentServiceProblem:
+      "Tell me the details of the problem, or the name of the authority or service, and I'll help you identify the responsible authority or prepare a complaint if needed.",
+    duplicatePrefix: "I didn't receive a clear answer to my previous question.",
+    signedInResume: "You're signed in — let's continue preparing your complaint.",
+    complaintAlreadyGenerated:
+      'A complaint has already been created for this conversation — you can copy or edit it from the card.',
+    unexpectedError: 'Something went wrong. Please try again.',
+    complaintCreated: 'Your complaint was created.',
+    createTimeout: 'Creating the complaint took longer than expected. Please try again.',
+    statusUpdated: 'Complaint status updated.',
+    assistantLabel: 'Wasel',
+    preparingComplaint: 'Preparing complaint',
+    createComplaint: 'Create complaint',
+    newConversation: 'New conversation',
+    newConversationAria: 'Start a new conversation',
+    analyzing: 'Wasel is analysing your complaint...',
+    typing: 'Wasel is typing...',
+    failure: {
+      rate_limited: "You've reached the temporary message limit. Wait a minute, then try again.",
+      unavailable:
+        'The AI assistant is unavailable right now, and no answer was generated. Your message is kept — please try again shortly.',
+      timeout: 'The response took longer than usual and did not complete. Your message is kept — please try again.',
+      network: "Couldn't reach the server. Check your internet connection and try again.",
+      invalid: "This message couldn't be processed. Please rephrase it and try again.",
+    } satisfies Record<AssistantFailureKind, string>,
+    retry: 'Try again',
+    stillMissing: 'Some information is still needed to complete the complaint...',
+    pinningAuthority: 'Confirming the responsible authority...',
+    placeholderReady: 'All details collected — review and create the complaint from the card.',
+    placeholderAnswer: 'Type your answer...',
+    placeholderDefault: 'Hello, how can I help you today?',
+  },
+})
+
+type ChatCopy = (typeof CHAT_COPY)['ar']
 
 class ActionTimeoutError extends Error {}
 
@@ -102,12 +186,9 @@ function createMessage(
 // deterministically before the real state machine has anything to work with
 // — every question after this one is always computed dynamically from
 // complaint_types.required_fields (see lib/wasal/conversation-state.ts).
-const COMPLAINT_OPENING_MESSAGE =
-  'سأساعدك في إعداد بلاغ احترافي جاهز للتقديم.\n\nصف لي المشكلة التي تواجهها بالتفصيل، وسأحدد الجهة المختصة وأكمل معك بقية التفاصيل.'
-
 /** The first complaint-builder prompt, appended to the ongoing conversation. */
-function buildComplaintOpeningMessage(): MockMessage {
-  return createMessage('assistant', COMPLAINT_OPENING_MESSAGE, {
+function buildComplaintOpeningMessage(copy: ChatCopy): MockMessage {
+  return createMessage('assistant', copy.complaintOpening, {
     kind: 'complaint_opening',
   })
 }
@@ -122,15 +203,17 @@ function buildComplaintOpeningMessage(): MockMessage {
 // already starts the complaint builder for them via `wantsToCreateComplaint`
 // (for the commerce one) or the general assistant/RAG pipeline (for the
 // telecom one), identically to typing them by hand.
-const FIXED_STARTER_ANSWERS: Record<string, string> = {
-  [normalizeArabicInput('كيف أعرف الجهة المختصة؟')]:
-    'إذا لم تكن تعرف الجهة المختصة، فقط صف المشكلة بلغتك الطبيعية، وسيقوم واصل بتحليلها وتحديد الجهة الحكومية المناسبة، ثم يوضح لك سبب الاختيار وخطوات التقديم.',
-  [normalizeArabicInput('لدي مشكلة في خدمة حكومية')]:
-    'أخبرني بتفاصيل المشكلة أو اسم الجهة أو الخدمة، وسأساعدك في تحديد الجهة المختصة أو تجهيز الشكوى إذا لزم الأمر.',
+const FIXED_STARTER_ANSWER_KEYS: Record<
+  string,
+  'starterHowToKnowAuthority' | 'starterGovernmentServiceProblem'
+> = {
+  [normalizeArabicInput('كيف أعرف الجهة المختصة؟')]: 'starterHowToKnowAuthority',
+  [normalizeArabicInput('لدي مشكلة في خدمة حكومية')]: 'starterGovernmentServiceProblem',
 }
 
-function getFixedStarterAnswer(content: string): string | null {
-  return FIXED_STARTER_ANSWERS[normalizeArabicInput(content)] ?? null
+function getFixedStarterAnswer(content: string, copy: ChatCopy): string | null {
+  const key = FIXED_STARTER_ANSWER_KEYS[normalizeArabicInput(content)]
+  return key ? copy[key] : null
 }
 
 // Emergency Fix #2, Parts 1/3/4 — the two starters that lock a sector
@@ -175,12 +258,16 @@ const GENERIC_SECTOR_STARTER_MESSAGES = new Set([
 // instead, a genuinely identical candidate is deterministically varied with a
 // short, honest clarifying prefix. Only ever compares against the single
 // most recent ASSISTANT bubble (never a user message, never further back).
-function avoidConsecutiveDuplicate(candidate: string, previousMessages: MockMessage[]): string {
+function avoidConsecutiveDuplicate(
+  candidate: string,
+  previousMessages: MockMessage[],
+  copy: ChatCopy,
+): string {
   const lastAssistant = [...previousMessages]
     .reverse()
     .find((message) => message.role === 'assistant')
   if (lastAssistant?.content !== candidate) return candidate
-  return `لم أستلم إجابة واضحة على سؤالي السابق. ${candidate}`
+  return `${copy.duplicatePrefix} ${candidate}`
 }
 
 function deriveComplaintResumeState(
@@ -265,15 +352,24 @@ export function WasalChat({
 }: WasalChatProps) {
   const router = useRouter()
   const { showToast } = useToast()
+  const locale = useLocale()
+  const copy = useCopy(CHAT_COPY)
 
   // 'assistant' is the default and only entry point — there is no mode picker.
   // 'complaint' is entered later, from the conversation itself.
   const [mode, setMode] = useState<WasalMode>('assistant')
   const [messages, setMessages] = useState<MockMessage[]>([])
   const [inputValue, setInputValue] = useState('')
-  const [attachment, setAttachment] = useState<PendingAttachment | null>(null)
   const [status, setStatus] = useState<ChatStatus>('idle')
   const [failedMessage, setFailedMessage] = useState<string | null>(null)
+  const [failureKind, setFailureKind] = useState<AssistantFailureKind>('unavailable')
+
+  /** Records a genuinely failed turn: the user's message is kept for retry and
+   * an honest, localized explanation is shown — never a substitute answer. */
+  function recordFailure(content: string, error: unknown) {
+    setFailedMessage(content)
+    setFailureKind(error instanceof AssistantRequestError ? error.kind : 'unavailable')
+  }
 
   const [analysis, setAnalysis] = useState<ComplaintAnalysis | null>(null)
   /** Emergency release fix, Part 7/8 — the TRUE completion signal
@@ -430,7 +526,7 @@ export function WasalChat({
         resumeTriggerConsumedRef.current = false
         setPendingResumeTrigger(resumeTriggerContent)
       } else {
-        const openingMessage = buildComplaintOpeningMessage()
+        const openingMessage = buildComplaintOpeningMessage(copy)
         setMessages([...existing, openingMessage])
         openingMessageRef.current = openingMessage.content
         // Deliberately left empty rather than seeded with the opening
@@ -445,7 +541,7 @@ export function WasalChat({
         // reply) take over correctly until a genuine real turn populates it.
       }
     },
-    [],
+    [copy],
   )
 
   /**
@@ -541,7 +637,7 @@ export function WasalChat({
         )
         startComplaintBuilder(genuineMessages, resumedFields, resumeTriggerContent)
 
-        showToast('تم تسجيل الدخول — لنكمل إعداد بلاغك.', 'success')
+        showToast(copy.signedInResume, 'success')
       } else {
         setMessages(genuineMessages)
         setIsLoginModalOpen(true)
@@ -797,25 +893,20 @@ export function WasalChat({
         conversationId: conversationIdRef.current,
         message: content,
         history,
+        activeEntityName: analysis?.entityName,
+        locale,
         signal: controller.signal,
       })
       if (controller.signal.aborted) return
 
       // Phase 8, Part 13 — never let the exact same reply appear twice in a
       // row (see avoidConsecutiveDuplicate's own doc comment).
-      const displayAnswer = avoidConsecutiveDuplicate(result.answer, messages)
+      const displayAnswer = avoidConsecutiveDuplicate(result.answer, messages, copy)
       setMessages((previous) => [...previous, createMessage('assistant', displayAnswer)])
 
-      // Phase 7.7, Part 6 — every reply actually shown to the user is
-      // persisted, whether it came from the real AI provider or the local
-      // mocked fallback (`result.isMocked`). Previously the mocked fallback's
-      // text was deliberately never saved, on the reasoning that it wasn't a
-      // "genuine AI answer" — but that left a silent gap in conversation
-      // history: the user's own next message would still be saved, so a
-      // later resume showed a question with no visible reply in between.
-      // From the conversation-history point of view, this text genuinely was
-      // the assistant's turn; omitting it, not the fact that it came from a
-      // fallback, was the actual bug.
+      // Every reply actually shown to the user is persisted (Phase 7.7, Part
+      // 6). Only genuine server responses reach this point — a failed request
+      // throws instead of producing a substitute answer.
       if (persistUserTurnPromise) {
         void persistUserTurnPromise
           .then(() => {
@@ -830,15 +921,16 @@ export function WasalChat({
       // only — it must never interrupt a purely informational answer (e.g.
       // "كيف أتواصل مع هيئة الاتصالات؟") just because that entity happens to
       // be mentioned or matched. Only offered when the server itself
-      // classified this turn as a genuine complaint/grievance — or, same as
-      // before this phase, for the degraded local-fallback path (isMocked),
-      // which never carries a server-classified intent at all.
-      if (result.isMocked || result.intent === 'complaint_guidance') {
-        // Prefer the entity the assistant itself identified. When the
-        // response carries none, fall back to the existing keyword matcher
-        // rather than adding any new inference — same helper the mocked
-        // engine already uses.
-        const entityName = result.suggestedEntityName ?? matchEntity(content)?.entity.name
+      // classified this turn as a genuine complaint/grievance. The server's
+      // own routing is preferred over any client-side guess, so the modal
+      // always names the same authority the card shows.
+      if (result.intent === 'complaint_guidance') {
+        const entityName =
+          (result.routing && result.routing.confidence !== 'low'
+            ? result.routing.entityName
+            : undefined) ??
+          result.suggestedEntityName ??
+          matchEntity(content)?.entity.name
         announceEntity(entityName, result.suggestedEntityReason)
       }
 
@@ -854,7 +946,7 @@ export function WasalChat({
       }
     } catch (error) {
       if (error instanceof DOMException && error.name === 'AbortError') return
-      setFailedMessage(content)
+      recordFailure(content, error)
     } finally {
       if (abortRef.current === controller) {
         setStatus('idle')
@@ -876,8 +968,6 @@ export function WasalChat({
   // (never reaching the server at all) as a residual case, handled by
   // showing a short retry notice below instead of jumping into a whole
   // second, disconnected question flow.
-  const RETRY_NOTICE = 'تعذر معالجة طلبك حالياً. حاول مرة أخرى بعد قليل.'
-
   /**
    * Live complaint-flow orchestrator — calls the real /api/ai/chat pipeline
    * (routing from Phase 4B, missing-fields from Phase 4C).
@@ -1179,41 +1269,11 @@ export function WasalChat({
           collectedFields: updatedFields,
           answeredFieldKey: answeredFieldKeyForRequest,
         },
+        activeEntityName: analysis?.entityName,
+        locale,
         signal: controller.signal,
       })
       if (controller.signal.aborted) return
-
-      if (result.isMocked) {
-        if (complaintAlreadyGenerated) {
-          // A complaint already exists for this conversation — never let the
-          // fallback replace its ComplaintResultCard, re-ask legacy
-          // questions, or touch collected_information again.
-          const notice =
-            'تم إنشاء البلاغ بالفعل لهذه المحادثة — يمكنك نسخه أو تقديمه من البطاقة أعلاه.'
-          setMessages((previous) => [
-            ...previous,
-            createMessage('assistant', notice, { kind: 'system' }),
-          ])
-          // Phase 7.7, Part 6 — persisted like every other displayed reply,
-          // so a resume never shows the user's message with no visible
-          // response after it.
-          if (conversationId) {
-            void saveAssistantMessageAction(conversationId, notice).catch(() => {})
-          }
-          return
-        }
-
-        // Real API path failed to even reach the server (network/timeout) —
-        // route.ts itself already degrades a reachable-but-generation-failed
-        // turn to the deterministic next question (see the comment on
-        // RETRY_NOTICE above), so this residual case is a genuine connection
-        // failure with no state to fall back on.
-        setMessages((previous) => [...previous, createMessage('assistant', RETRY_NOTICE)])
-        if (conversationId) {
-          void saveAssistantMessageAction(conversationId, RETRY_NOTICE).catch(() => {})
-        }
-        return
-      }
 
       // Part 1 (Phase 6.10B): client-side duplicate-question guard —
       // defense-in-depth only (Part 5's server-side merge of
@@ -1236,7 +1296,7 @@ export function WasalChat({
       // legitimately deserves the same fixed answer twice, that is not a bug.
       const displayContent = isInterruption
         ? rawDisplayContent
-        : avoidConsecutiveDuplicate(rawDisplayContent, messages)
+        : avoidConsecutiveDuplicate(rawDisplayContent, messages, copy)
       setMessages((previous) => [...previous, createMessage('assistant', displayContent)])
 
       // Phase 7.4B, Part 2/3: any genuine forward-moving turn (not an
@@ -1329,7 +1389,7 @@ export function WasalChat({
       }
     } catch (error) {
       if (error instanceof DOMException && error.name === 'AbortError') return
-      setFailedMessage(content)
+      recordFailure(content, error)
     } finally {
       if (abortRef.current === controller) {
         setStatus('idle')
@@ -1343,10 +1403,9 @@ export function WasalChat({
     if (content === '' || status !== 'idle') return
 
     setFailedMessage(null)
-    const userMessage = createMessage('user', content, { attachment: attachment ?? undefined })
+    const userMessage = createMessage('user', content)
     setMessages((previous) => [...previous, userMessage])
     setInputValue('')
-    setAttachment(null)
 
     abortRef.current?.abort()
     const controller = new AbortController()
@@ -1362,7 +1421,7 @@ export function WasalChat({
     // deterministic reply, no AI/backend call. Checked before every other
     // branch below since neither text matches `wantsToCreateComplaint`
     // anyway, but this keeps the fixed answer authoritative regardless.
-    const fixedAnswer = getFixedStarterAnswer(content)
+    const fixedAnswer = getFixedStarterAnswer(content, copy)
     if (fixedAnswer) {
       await runFixedAnswerTurn(content, fixedAnswer)
       return
@@ -1386,7 +1445,14 @@ export function WasalChat({
     // mentions telecom keywords, which would incorrectly force complaint
     // mode onto a purely informational question ("كيف أتواصل مع هيئة
     // الاتصالات؟").
-    if (GENERIC_SECTOR_STARTER_MESSAGES.has(content) || wantsToCreateComplaint(content)) {
+    //
+    // Guests are the exception for free-text requests: they first get a
+    // genuine answer — including the responsible authority and its card —
+    // and are only asked to sign in when they actually choose to create the
+    // complaint (from the authority dialog, the card, or the header button).
+    // The conversation is preserved across sign-in either way.
+    const isGenericStarter = GENERIC_SECTOR_STARTER_MESSAGES.has(content)
+    if (isGenericStarter || (isAuthenticated && wantsToCreateComplaint(content))) {
       requestComplaintCreation(userMessage)
       return
     }
@@ -1421,7 +1487,6 @@ export function WasalChat({
     setMode('assistant')
     setMessages([])
     setInputValue('')
-    setAttachment(null)
     setStatus('idle')
     setFailedMessage(null)
     setCollectedFields({})
@@ -1456,7 +1521,7 @@ export function WasalChat({
     if (isCreatingComplaint || complaintResult || !isRoutingPersisted || !isComplaintReady) return
     const conversationId = dbComplaintConversationIdRef.current
     if (!conversationId) {
-      setCreateComplaintError('حدث خطأ غير متوقع. حاول مرة أخرى.')
+      setCreateComplaintError(copy.unexpectedError)
       return
     }
 
@@ -1469,7 +1534,7 @@ export function WasalChat({
       )
       if (result.success) {
         setComplaintResult(result.complaint)
-        showToast('تم إنشاء البلاغ بنجاح.')
+        showToast(copy.complaintCreated)
       } else {
         setCreateComplaintError(result.error)
       }
@@ -1478,8 +1543,8 @@ export function WasalChat({
       // touched here — a retry (below) simply calls this same function again.
       setCreateComplaintError(
         error instanceof ActionTimeoutError
-          ? 'استغرق إنشاء البلاغ وقتاً أطول من المتوقع. حاول مرة أخرى.'
-          : 'حدث خطأ غير متوقع. حاول مرة أخرى.',
+          ? copy.createTimeout
+          : copy.unexpectedError,
       )
     } finally {
       setIsCreatingComplaint(false)
@@ -1501,12 +1566,12 @@ export function WasalChat({
             ? { ...previous, submittedAt: result.submittedAt, updatedAt: result.updatedAt }
             : previous,
         )
-        showToast('تم تحديث حالة البلاغ.')
+        showToast(copy.statusUpdated)
       } else {
         showToast(result.error, 'error')
       }
     } catch {
-      showToast('حدث خطأ غير متوقع. حاول مرة أخرى.', 'error')
+      showToast(copy.unexpectedError, 'error')
     } finally {
       setIsMarkingSubmitted(false)
     }
@@ -1571,10 +1636,10 @@ export function WasalChat({
             {isComplaintMode ? (
               <span className="bg-primary/8 text-primary inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium">
                 <FileSignature className="h-3.5 w-3.5" aria-hidden="true" />
-                جارٍ إعداد البلاغ
+                {copy.preparingComplaint}
               </span>
             ) : (
-              <span className="text-muted-foreground text-sm font-medium">واصل</span>
+              <span className="text-muted-foreground text-sm font-medium">{copy.assistantLabel}</span>
             )}
           </div>
 
@@ -1588,7 +1653,7 @@ export function WasalChat({
                 className="hidden sm:inline-flex"
               >
                 <FileSignature className="h-3.5 w-3.5" aria-hidden="true" />
-                إنشاء بلاغ
+                {copy.createComplaint}
               </Button>
             )}
 
@@ -1597,11 +1662,11 @@ export function WasalChat({
               variant="ghost"
               size="sm"
               onClick={handleNewConversation}
-              aria-label="بدء محادثة جديدة"
-              title="بدء محادثة جديدة"
+              aria-label={copy.newConversationAria}
+              title={copy.newConversationAria}
             >
               <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />
-              <span className="hidden sm:inline">محادثة جديدة</span>
+              <span className="hidden sm:inline">{copy.newConversation}</span>
             </Button>
           </div>
         </div>
@@ -1631,21 +1696,20 @@ export function WasalChat({
             {status !== 'idle' ? (
               <TypingIndicator
                 key="typing"
-                label={status === 'analyzing' ? 'واصل يحلل الشكوى...' : 'واصل يكتب...'}
+                label={status === 'analyzing' ? copy.analyzing : copy.typing}
               />
             ) : null}
           </AnimatePresence>
 
           {failedMessage ? (
-            <div className="border-danger/25 bg-danger/5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border px-4 py-3">
-              <p className="text-danger text-sm">
-                {isComplaintMode
-                  ? 'تعذر تحليل الشكوى. يرجى المحاولة مرة أخرى.'
-                  : 'تعذر إرسال رسالتك حالياً. حاول مرة أخرى.'}
-              </p>
+            <div
+              role="alert"
+              className="border-danger/25 bg-danger/5 animate-fade-in flex flex-wrap items-center justify-between gap-3 rounded-2xl border px-4 py-3"
+            >
+              <p className="text-danger text-sm leading-relaxed">{copy.failure[failureKind]}</p>
               <Button type="button" variant="outline" size="sm" onClick={handleRetry}>
                 <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />
-                {isComplaintMode ? 'إعادة التحليل' : 'إعادة المحاولة'}
+                {copy.retry}
               </Button>
             </div>
           ) : null}
@@ -1692,9 +1756,9 @@ export function WasalChat({
                     isSaving={isCreatingComplaint}
                     saveDisabledNotice={
                       !isComplaintReady
-                        ? 'لا تزال بعض المعلومات مطلوبة لإكمال البلاغ...'
+                        ? copy.stillMissing
                         : !isRoutingPersisted
-                          ? 'جارٍ تثبيت بيانات الجهة المختصة...'
+                          ? copy.pinningAuthority
                           : undefined
                     }
                   />
@@ -1708,7 +1772,7 @@ export function WasalChat({
                         onClick={handleCreateComplaint}
                       >
                         <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />
-                        إعادة المحاولة
+                        {copy.retry}
                       </Button>
                     </div>
                   ) : null}
@@ -1732,15 +1796,13 @@ export function WasalChat({
           value={inputValue}
           onChange={setInputValue}
           onSend={() => void handleSend()}
-          attachment={attachment}
-          onAttachmentChange={setAttachment}
           disabled={isComposerDisabled}
           placeholder={
             isComplaintMode && analysis
-              ? 'اكتمل البلاغ — احفظه أو انسخ الملخص من البطاقة.'
+              ? copy.placeholderReady
               : isComplaintMode
-                ? 'اكتب إجابتك...'
-                : CHAT_GREETING
+                ? copy.placeholderAnswer
+                : copy.placeholderDefault
           }
         />
       </div>

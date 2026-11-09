@@ -2,14 +2,38 @@ import type { Metadata } from 'next'
 import { AuthorityCard } from '@/components/marketing/authority-card'
 import { SectionHeading } from '@/components/marketing/section-heading'
 import { Reveal } from '@/components/ui/reveal'
+import { defineCopy } from '@/lib/i18n/config'
+import { getLocale } from '@/lib/i18n/server'
 import { GOVERNMENT_ENTITIES } from '@/lib/mock/government-entities'
 
-export const metadata: Metadata = {
-  title: 'الجهات الحكومية',
-  description: 'الجهات الحكومية التي يدعمها واصل حالياً وخدماتها.',
+const COPY = defineCopy({
+  ar: {
+    metaTitle: 'الجهات الحكومية',
+    metaDescription: 'الجهات الحكومية التي يدعمها واصل حالياً وخدماتها.',
+    eyebrow: 'التغطية',
+    title: 'الجهات الحكومية',
+    description:
+      'هذه هي الجهات التي يستطيع واصل تحليل شكواك وتوجيهها إليها اليوم، مع روابط بواباتها الرسمية.',
+  },
+  en: {
+    metaTitle: 'Government authorities',
+    metaDescription: 'The government authorities Wasel currently supports, and their services.',
+    eyebrow: 'Coverage',
+    title: 'Government authorities',
+    description:
+      'These are the authorities Wasel can analyse and direct your complaint to today, with links to their official portals.',
+  },
+})
+
+export async function generateMetadata(): Promise<Metadata> {
+  const copy = COPY[await getLocale()]
+  return { title: copy.metaTitle, description: copy.metaDescription }
 }
 
-export default function EntitiesPage() {
+export default async function EntitiesPage() {
+  const locale = await getLocale()
+  const copy = COPY[locale]
+
   return (
     <div
       id="entities-page-content"
@@ -46,15 +70,16 @@ export default function EntitiesPage() {
         }
       `}</style>
       <SectionHeading
-        eyebrow="التغطية"
-        title="الجهات الحكومية"
-        description="هذه هي الجهات التي يستطيع واصل تحليل شكواك وتوجيهها إليها اليوم، مع روابط بواباتها الرسمية."
+        as="h1"
+        eyebrow={copy.eyebrow}
+        title={copy.title}
+        description={copy.description}
       />
 
       <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
         {GOVERNMENT_ENTITIES.map((entity, index) => (
           <Reveal key={entity.id} delay={index * 0.06}>
-            <AuthorityCard entity={entity} showLink />
+            <AuthorityCard entity={entity} locale={locale} showLink />
           </Reveal>
         ))}
       </div>

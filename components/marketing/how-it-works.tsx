@@ -6,32 +6,59 @@ import { useState } from 'react'
 import { WaselLogo } from '@/components/brand/wasel-logo'
 import { cn } from '@/lib/utils/cn'
 import { useMediaQuery } from '@/lib/utils/use-media-query'
+import { useCopy } from '@/components/i18n/locale-provider'
+import { defineCopy } from '@/lib/i18n/config'
 
 /**
  * Step 02 is Wasel doing the work, so it carries the official logo mark rather
  * than a stand-in glyph.
  */
+const STEP_COPY = defineCopy({
+  ar: {
+    stepLabel: 'الخطوة',
+    steps: [
+      {
+        title: 'صف مشكلتك',
+        description: 'ابدأ محادثة طبيعية مع واصل واشرح المشكلة كما لو كنت تتحدث مع شخص يساعدك.',
+      },
+      {
+        title: 'واصل يحلل الحالة',
+        description:
+          'يقوم واصل بتحليل المشكلة وتحديد الجهة الحكومية المناسبة مع اقتراح أفضل طريقة لمعالجة البلاغ.',
+      },
+      {
+        title: 'أنشئ البلاغ',
+        description: 'بعد التأكد من الجهة المناسبة يمكنك تسجيل الدخول وإنشاء البلاغ خلال ثوانٍ.',
+      },
+    ],
+  },
+  en: {
+    stepLabel: 'Step',
+    steps: [
+      {
+        title: 'Describe your problem',
+        description:
+          'Start a natural conversation with Wasel and explain the problem as if you were talking to someone helping you.',
+      },
+      {
+        title: 'Wasel analyses it',
+        description:
+          'Wasel analyses the problem, identifies the right government authority, and suggests the best way to handle your complaint.',
+      },
+      {
+        title: 'Create the complaint',
+        description:
+          'Once the authority is confirmed, sign in and create your formal complaint in seconds.',
+      },
+    ],
+  },
+})
+
 const STEPS = [
-  {
-    number: '01',
-    icon: MessageSquareText,
-    title: 'صف مشكلتك',
-    description: 'ابدأ محادثة طبيعية مع واصل واشرح المشكلة كما لو كنت تتحدث مع شخص يساعدك.',
-  },
-  {
-    number: '02',
-    icon: null,
-    title: 'واصل يحلل الحالة',
-    description:
-      'يقوم واصل بتحليل المشكلة وتحديد الجهة الحكومية المناسبة مع اقتراح أفضل طريقة لمعالجة البلاغ.',
-  },
-  {
-    number: '03',
-    icon: FileSignature,
-    title: 'أنشئ البلاغ',
-    description: 'بعد التأكد من الجهة المناسبة يمكنك تسجيل الدخول وإنشاء البلاغ خلال ثوانٍ.',
-  },
-]
+  { number: '01', icon: MessageSquareText },
+  { number: '02', icon: null },
+  { number: '03', icon: FileSignature },
+] as const
 
 /** Resting fan: each card sits a little further back and a little more rotated. */
 const BASE_ROTATION = [-1.5, 2.5, 6]
@@ -94,6 +121,7 @@ function getGeometry(index: number, activeIndex: number | null, isStacked: boole
 export function HowItWorks() {
   const [activeIndex, setActiveIndex] = useState<number | null>(null)
   const prefersReducedMotion = useReducedMotion()
+  const copy = useCopy(STEP_COPY)
 
   // The server snapshot is `false`, so the mobile stack is the safe default and
   // the deck engages once the real viewport is known. The section sits well
@@ -117,9 +145,11 @@ export function HowItWorks() {
       )}
       style={isStacked ? undefined : { width: deckWidth, maxWidth: '100%' }}
       onMouseLeave={() => setActiveIndex(null)}
+      role="list"
     >
       {STEPS.map((stepItem, index) => {
         const Icon = stepItem.icon
+        const text = copy.steps[index]
         const geometry = getGeometry(index, activeIndex, isStacked)
         const isActive = activeIndex === index
 
@@ -205,11 +235,13 @@ export function HowItWorks() {
 
               <div className="mt-auto flex flex-col gap-2.5 pt-8">
                 <h4 className="text-heading text-lg font-semibold sm:text-xl">
-                  <span className="sr-only">الخطوة {stepItem.number}: </span>
-                  {stepItem.title}
+                  <span className="sr-only">
+                    {copy.stepLabel} {stepItem.number}:{' '}
+                  </span>
+                  {text.title}
                 </h4>
                 <p className="text-muted-foreground text-sm leading-relaxed text-pretty">
-                  {stepItem.description}
+                  {text.description}
                 </p>
               </div>
             </div>

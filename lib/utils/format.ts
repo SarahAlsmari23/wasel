@@ -1,21 +1,24 @@
-const DATE_LOCALE = 'ar-SA'
+import { intlLocaleFor, type Locale } from '@/lib/i18n/config'
 
-/** e.g. "٢٣ يوليو ٢٠٢٦" — used on cards and detail headers. */
-export function formatDate(iso: string): string {
+/*
+ * Every formatter takes the active locale (Arabic by default) so dates and
+ * numbers follow the interface language: ar-SA for Arabic, en-GB for English.
+ */
+
+export function formatDate(iso: string, locale: Locale = 'ar'): string {
   const date = new Date(iso)
   if (Number.isNaN(date.getTime())) return ''
-  return date.toLocaleDateString(DATE_LOCALE, {
+  return date.toLocaleDateString(intlLocaleFor(locale), {
     day: 'numeric',
     month: 'long',
     year: 'numeric',
   })
 }
 
-/** e.g. "١٠:١٥" — message timestamps. */
-export function formatTime(iso: string): string {
+export function formatTime(iso: string, locale: Locale = 'ar'): string {
   const date = new Date(iso)
   if (Number.isNaN(date.getTime())) return ''
-  return date.toLocaleTimeString(DATE_LOCALE, { hour: '2-digit', minute: '2-digit' })
+  return date.toLocaleTimeString(intlLocaleFor(locale), { hour: '2-digit', minute: '2-digit' })
 }
 
 const RELATIVE_UNITS: { limitMs: number; divisorMs: number; unit: Intl.RelativeTimeFormatUnit }[] =
@@ -28,18 +31,17 @@ const RELATIVE_UNITS: { limitMs: number; divisorMs: number; unit: Intl.RelativeT
     { limitMs: Infinity, divisorMs: 31_536_000_000, unit: 'year' },
   ]
 
-/**
- * e.g. "قبل ساعتين". Rendered client-side only (see <RelativeTime />) because
- * it depends on the current clock and would otherwise cause hydration
- * mismatches between the server render and the browser.
- */
-export function formatRelativeTime(iso: string, now: number = Date.now()): string {
+export function formatRelativeTime(
+  iso: string,
+  locale: Locale = 'ar',
+  now: number = Date.now(),
+): string {
   const date = new Date(iso)
   if (Number.isNaN(date.getTime())) return ''
 
   const deltaMs = date.getTime() - now
   const absoluteMs = Math.abs(deltaMs)
-  const formatter = new Intl.RelativeTimeFormat(DATE_LOCALE, { numeric: 'auto' })
+  const formatter = new Intl.RelativeTimeFormat(intlLocaleFor(locale), { numeric: 'auto' })
 
   for (const { limitMs, divisorMs, unit } of RELATIVE_UNITS) {
     if (absoluteMs < limitMs) {
@@ -47,10 +49,9 @@ export function formatRelativeTime(iso: string, now: number = Date.now()): strin
     }
   }
 
-  return formatDate(iso)
+  return formatDate(iso, locale)
 }
 
-/** Arabic-Indic digits for statistics, so numerals match the surrounding text. */
-export function formatNumber(value: number): string {
-  return new Intl.NumberFormat(DATE_LOCALE).format(value)
+export function formatNumber(value: number, locale: Locale = 'ar'): string {
+  return new Intl.NumberFormat(intlLocaleFor(locale)).format(value)
 }

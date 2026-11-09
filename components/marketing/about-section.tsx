@@ -3,48 +3,68 @@ import { HowItWorks } from '@/components/marketing/how-it-works'
 import { SectionHeading } from '@/components/marketing/section-heading'
 import { Card } from '@/components/ui/card'
 import { Reveal } from '@/components/ui/reveal'
+import { defineCopy } from '@/lib/i18n/config'
+import { getLocale } from '@/lib/i18n/server'
 
-const PURPOSES = [
-  {
-    icon: MessageSquareText,
-    title: 'مساعد ذكي للأسئلة',
+const COPY = defineCopy({
+  ar: {
+    title: 'عن واصل',
     description:
-      'اسأل عن أي شيء يخص البلاغات الحكومية: الجهة المختصة، الإجراءات، المستندات المطلوبة، ومدة المعالجة.',
+      'واصل منصة ذكية تقف بين المستفيد والجهة الحكومية، لتحوّل شكوى مكتوبة بلغة عادية إلى بلاغ واضح موجّه إلى الجهة الصحيحة.',
+    howTitle: 'كيف يعمل واصل؟',
+    purposes: [
+      {
+        title: 'مساعد ذكي للأسئلة',
+        description:
+          'اسأل عن أي شيء يخص البلاغات الحكومية: الجهة المختصة، الإجراءات، المستندات المطلوبة، ومدة المعالجة.',
+      },
+      {
+        title: 'منشئ بلاغات احترافي',
+        description:
+          'يجمع واصل تفاصيل شكواك عبر حوار بسيط، ثم يصيغ بلاغاً واضحاً ومهنياً جاهزاً لتقديمه إلى الجهة المناسبة.',
+      },
+    ],
   },
-  {
-    icon: FileSignature,
-    title: 'منشئ بلاغات احترافي',
+  en: {
+    title: 'About Wasel',
     description:
-      'يجمع واصل تفاصيل شكواك عبر حوار بسيط، ثم يصيغ بلاغاً واضحاً ومهنياً جاهزاً لتقديمه إلى الجهة المناسبة.',
+      'Wasel is an AI platform that sits between you and the government authority, turning a complaint written in everyday language into a clear complaint directed to the right authority.',
+    howTitle: 'How does Wasel work?',
+    purposes: [
+      {
+        title: 'An AI assistant for your questions',
+        description:
+          'Ask anything about government complaints: the responsible authority, the procedure, required documents, and expected handling time.',
+      },
+      {
+        title: 'A professional complaint builder',
+        description:
+          'Wasel collects your complaint details through a simple conversation, then drafts a clear, professional complaint ready to submit to the right authority.',
+      },
+    ],
   },
-]
+})
+
+const PURPOSE_ICONS = [MessageSquareText, FileSignature] as const
 
 type AboutSectionProps = {
-  // /about already has its own "عن واصل" heading + description right above
-  // where this section is rendered — showing this section's own heading
-  // there too would just repeat it verbatim. The homepage has no such
-  // heading before this section, so it keeps showing this one (default).
   showHeading?: boolean
-  // /about (Phase 8.3) reorders its sections so a different section sits
-  // between the purpose cards and "كيف يعمل واصل؟" — it renders that part
-  // itself, separately, further down the page. The homepage keeps both
-  // bundled together in one section, exactly as before (default).
   showHowItWorks?: boolean
 }
 
-export function AboutSection({ showHeading = true, showHowItWorks = true }: AboutSectionProps = {}) {
+export async function AboutSection({
+  showHeading = true,
+  showHowItWorks = true,
+}: AboutSectionProps = {}) {
+  const copy = COPY[await getLocale()]
+
   return (
     <section id="how-it-works" className="mx-auto w-full max-w-6xl px-5 md:px-6">
-      {showHeading ? (
-        <SectionHeading
-          title="عن واصل"
-          description="واصل منصة ذكية تقف بين المستفيد والجهة الحكومية، لتحوّل شكوى مكتوبة بلغة عادية إلى بلاغ واضح موجّه إلى الجهة الصحيحة."
-        />
-      ) : null}
+      {showHeading ? <SectionHeading title={copy.title} description={copy.description} /> : null}
 
       <div className="mt-10 grid gap-5 md:grid-cols-2">
-        {PURPOSES.map((purpose, index) => {
-          const Icon = purpose.icon
+        {copy.purposes.map((purpose, index) => {
+          const Icon = PURPOSE_ICONS[index]
           return (
             <Reveal key={purpose.title} delay={index * 0.08}>
               <Card className="flex h-full flex-col gap-4">
@@ -64,7 +84,7 @@ export function AboutSection({ showHeading = true, showHowItWorks = true }: Abou
       {showHowItWorks ? (
         <>
           <h3 className="text-heading mt-16 text-center text-xl font-semibold sm:text-2xl">
-            كيف يعمل واصل؟
+            {copy.howTitle}
           </h3>
 
           <Reveal className="mt-8">

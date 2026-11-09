@@ -28,7 +28,7 @@ export function Sidebar({ isOpen, onClose, onSignOutClick }: SidebarProps) {
             transition={{ duration: 0.2 }}
             onClick={onClose}
             aria-hidden="true"
-            className="fixed inset-0 z-40 bg-[#12355B]/35 backdrop-blur-[2px] lg:hidden"
+            className="bg-overlay fixed inset-0 z-40 backdrop-blur-[2px] lg:hidden"
           />
         ) : null}
       </AnimatePresence>
