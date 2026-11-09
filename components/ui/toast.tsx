@@ -123,7 +123,7 @@ function ToastViewport({
     <div
       role="region"
       aria-label={toastCopy.region}
-      className="pointer-events-none fixed inset-x-0 bottom-4 z-[60] flex flex-col items-center gap-2 px-4 sm:inset-x-auto sm:bottom-6 sm:left-6 sm:items-start sm:px-0"
+      className="pointer-events-none fixed inset-x-0 bottom-4 z-[60] flex flex-col items-center gap-2 px-4 sm:inset-x-auto sm:end-6 sm:bottom-6 sm:items-end sm:px-0"
     >
       <AnimatePresence initial={false}>
         {toasts.map((toast) => {

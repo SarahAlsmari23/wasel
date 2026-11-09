@@ -2,14 +2,21 @@ import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
 import { PageHeader } from '@/components/dashboard/page-header'
 import { SettingsView } from '@/components/dashboard/settings-view'
-import { getUserProfile } from '@/lib/auth/user-profile'
+import { defineCopy } from '@/lib/i18n/config'
+import { getLocale } from '@/lib/i18n/server'
 import { createClient } from '@/lib/supabase/server'
 
-export const metadata: Metadata = {
-  title: 'الإعدادات',
+const COPY = defineCopy({
+  ar: { title: 'الإعدادات', description: 'تحكّم في تفضيلاتك وخصوصية حسابك.' },
+  en: { title: 'Settings', description: 'Manage your preferences and account privacy.' },
+})
+
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: COPY[await getLocale()].title }
 }
 
 export default async function SettingsPage() {
+  const copy = COPY[await getLocale()]
   const supabase = await createClient()
   const {
     data: { user },
@@ -21,8 +28,8 @@ export default async function SettingsPage() {
 
   return (
     <div className="animate-fade-in mx-auto flex w-full max-w-2xl flex-col gap-6">
-      <PageHeader title="الإعدادات" description="تحكّم في تفضيلاتك وخصوصية حسابك." />
-      <SettingsView profile={getUserProfile(user)} />
+      <PageHeader title={copy.title} description={copy.description} />
+      <SettingsView />
     </div>
   )
 }

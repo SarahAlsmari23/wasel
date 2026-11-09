@@ -7,6 +7,29 @@ import { deleteConversationAction } from '@/app/wasal/conversation-actions'
 import { Button, buttonClasses } from '@/components/ui/button'
 import { Modal } from '@/components/ui/modal'
 import { useToast } from '@/components/ui/toast'
+import { useCopy } from '@/components/i18n/locale-provider'
+import { defineCopy } from '@/lib/i18n/config'
+
+const COPY = defineCopy({
+  ar: {
+    deleted: 'تم حذف المحادثة',
+    deleteFailed: 'حدث خطأ غير متوقع أثناء الحذف. حاول مرة أخرى.',
+    button: 'حذف المحادثة',
+    confirm: (title: string) =>
+      `سيتم حذف «${title}» نهائياً مع رسائلها وأي بلاغ مرتبط بها. لا يمكن التراجع عن هذا الإجراء.`,
+    delete: 'حذف',
+    cancel: 'إلغاء',
+  },
+  en: {
+    deleted: 'Conversation deleted',
+    deleteFailed: 'Something went wrong while deleting. Please try again.',
+    button: 'Delete conversation',
+    confirm: (title: string) =>
+      `“${title}” will be permanently deleted, along with its messages and any linked complaint. This can't be undone.`,
+    delete: 'Delete',
+    cancel: 'Cancel',
+  },
+})
 
 type ConversationDeleteButtonProps = {
   conversationId: string
@@ -20,6 +43,7 @@ type ConversationDeleteButtonProps = {
 export function ConversationDeleteButton({ conversationId, title }: ConversationDeleteButtonProps) {
   const router = useRouter()
   const { showToast } = useToast()
+  const copy = useCopy(COPY)
   const [isConfirmOpen, setIsConfirmOpen] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
 
@@ -29,7 +53,7 @@ export function ConversationDeleteButton({ conversationId, title }: Conversation
     try {
       const result = await deleteConversationAction(conversationId)
       if (result.success) {
-        showToast('تم حذف المحادثة')
+        showToast(copy.deleted)
         router.push('/dashboard/conversations')
       } else {
         setIsConfirmOpen(false)
@@ -37,7 +61,7 @@ export function ConversationDeleteButton({ conversationId, title }: Conversation
       }
     } catch {
       setIsConfirmOpen(false)
-      showToast('حدث خطأ غير متوقع أثناء الحذف. حاول مرة أخرى.', 'error')
+      showToast(copy.deleteFailed, 'error')
     } finally {
       setIsDeleting(false)
     }
@@ -51,7 +75,7 @@ export function ConversationDeleteButton({ conversationId, title }: Conversation
         className={buttonClasses('outline', 'md', 'text-danger w-full sm:w-auto')}
       >
         <Trash2 className="h-4 w-4" aria-hidden="true" />
-        حذف المحادثة
+        {copy.button}
       </button>
 
       <Modal
@@ -59,8 +83,8 @@ export function ConversationDeleteButton({ conversationId, title }: Conversation
         onClose={() => {
           if (!isDeleting) setIsConfirmOpen(false)
         }}
-        title="حذف المحادثة"
-        description={`سيتم حذف «${title}» نهائياً. لا يمكن التراجع عن هذا الإجراء.`}
+        title={copy.button}
+        description={copy.confirm(title)}
         footer={
           <>
             <Button
@@ -70,7 +94,7 @@ export function ConversationDeleteButton({ conversationId, title }: Conversation
               isLoading={isDeleting}
               className="w-full sm:flex-1"
             >
-              حذف
+              {copy.delete}
             </Button>
             <Button
               type="button"
@@ -79,7 +103,7 @@ export function ConversationDeleteButton({ conversationId, title }: Conversation
               disabled={isDeleting}
               className="w-full sm:flex-1"
             >
-              إلغاء
+              {copy.cancel}
             </Button>
           </>
         }

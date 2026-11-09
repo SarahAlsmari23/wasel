@@ -6,11 +6,17 @@ type PageHeaderProps = {
   action?: ReactNode
 }
 
+/**
+ * Page title band for the authenticated area. Carries a quiet slice of the
+ * landing page's network artwork (`wasel-brand-band`) so every dashboard page
+ * reads as part of the same product — behind the heading only, never behind
+ * data.
+ */
 export function PageHeader({ title, description, action }: PageHeaderProps) {
   return (
-    <div className="flex flex-wrap items-start justify-between gap-4">
-      <div>
-        <h1 className="text-heading text-2xl font-semibold">{title}</h1>
+    <div className="wasel-brand-band border-border shadow-soft flex flex-wrap items-center justify-between gap-4 rounded-2xl border px-5 py-5 sm:px-6">
+      <div className="min-w-0">
+        <h1 className="text-heading text-2xl font-semibold text-balance">{title}</h1>
         {description ? (
           <p className="text-muted-foreground mt-1 text-sm leading-relaxed">{description}</p>
         ) : null}

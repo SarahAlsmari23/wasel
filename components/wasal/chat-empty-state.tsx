@@ -18,17 +18,12 @@ const COPY = defineCopy({
   },
 })
 
-type ChatEmptyStateProps = {
-  onSelectSuggestion: (suggestion: string) => void
-}
-
 /**
  * The centred landing screen shown before the first message. Suggested
  * starter chips were removed deliberately (they seeded generic text as a
- * complaint description — see wasal-chat.tsx); `onSelectSuggestion` is kept
- * so the chips can return without changing the parent.
+ * complaint description — see wasal-chat.tsx).
  */
-export function ChatEmptyState({ onSelectSuggestion: _onSelectSuggestion }: ChatEmptyStateProps) {
+export function ChatEmptyState() {
   const copy = useCopy(COPY)
   const prefersReducedMotion = useReducedMotion()
 

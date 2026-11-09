@@ -1,6 +1,6 @@
 'use client'
 
-import { ArrowLeft, FolderClock, Trash2 } from 'lucide-react'
+import { ArrowLeft, ArrowRight, FolderClock, Trash2 } from 'lucide-react'
 import Link from 'next/link'
 import { useState } from 'react'
 import { deleteConversationAction } from '@/app/wasal/conversation-actions'
@@ -11,14 +11,49 @@ import { EmptyState } from '@/components/ui/empty-state'
 import { Modal } from '@/components/ui/modal'
 import { RelativeTime } from '@/components/ui/relative-time'
 import { useToast } from '@/components/ui/toast'
+import { useCopy, useLocale } from '@/components/i18n/locale-provider'
+import { defineCopy } from '@/lib/i18n/config'
 import type { DraftRecord } from '@/lib/db/conversations'
-import { getGovernmentEntityByName } from '@/lib/mock/government-entities'
+import { entityDisplayName, getGovernmentEntityByName } from '@/lib/mock/government-entities'
+import { localizeTitle } from '@/lib/complaints/display'
+
+const COPY = defineCopy({
+  ar: {
+    deleted: 'تم حذف المسودة',
+    deleteFailed: 'حدث خطأ غير متوقع أثناء الحذف. حاول مرة أخرى.',
+    emptyTitle: 'لا توجد مسودات محفوظة.',
+    emptyBody: 'المسودات هي بلاغات لم تكتمل بعد — يمكنك العودة إليها في أي وقت.',
+    start: 'ابدأ بلاغاً جديداً',
+    lastEdited: 'آخر تعديل',
+    continue: 'متابعة',
+    delete: 'حذف',
+    deleteTitle: 'حذف المسودة',
+    deleteConfirm: (title: string) =>
+      `سيتم حذف «${title}» نهائياً. لا يمكن التراجع عن هذا الإجراء.`,
+    cancel: 'إلغاء',
+  },
+  en: {
+    deleted: 'Draft deleted',
+    deleteFailed: 'Something went wrong while deleting. Please try again.',
+    emptyTitle: 'No saved drafts.',
+    emptyBody: "Drafts are complaints you haven't finished yet — you can come back to them at any time.",
+    start: 'Start a new complaint',
+    lastEdited: 'Last edited',
+    continue: 'Continue',
+    delete: 'Delete',
+    deleteTitle: 'Delete draft',
+    deleteConfirm: (title: string) => `“${title}” will be permanently deleted. This can't be undone.`,
+    cancel: 'Cancel',
+  },
+})
 
 type DraftsListProps = {
   drafts: DraftRecord[]
 }
 
 export function DraftsList({ drafts }: DraftsListProps) {
+  const copy = useCopy(COPY)
+  const locale = useLocale()
   const { showToast } = useToast()
   const [items, setItems] = useState(drafts)
   const [pendingDelete, setPendingDelete] = useState<DraftRecord | null>(null)
@@ -36,14 +71,14 @@ export function DraftsList({ drafts }: DraftsListProps) {
         // it back (Phase 6.8, Part 1).
         setItems((current) => current.filter((item) => item.id !== target.id))
         setPendingDelete(null)
-        showToast('تم حذف المسودة')
+        showToast(copy.deleted)
       } else {
         setPendingDelete(null)
         showToast(result.error, 'error')
       }
     } catch {
       setPendingDelete(null)
-      showToast('حدث خطأ غير متوقع أثناء الحذف. حاول مرة أخرى.', 'error')
+      showToast(copy.deleteFailed, 'error')
     } finally {
       setIsDeleting(false)
     }
@@ -53,11 +88,11 @@ export function DraftsList({ drafts }: DraftsListProps) {
     return (
       <EmptyState
         icon={FolderClock}
-        title="لا توجد مسودات محفوظة."
-        description="المسودات هي بلاغات لم تكتمل بعد — يمكنك العودة إليها في أي وقت."
+        title={copy.emptyTitle}
+        description={copy.emptyBody}
         action={
           <Link href="/wasal?mode=complaint" className={buttonClasses('primary', 'md')}>
-            ابدأ بلاغاً جديداً
+            {copy.start}
           </Link>
         }
       />
@@ -78,9 +113,12 @@ export function DraftsList({ drafts }: DraftsListProps) {
               <GovernmentLogo iconKey={entity?.iconKey} size="sm" />
 
               <div className="min-w-0 flex-1">
-                <h3 className="text-heading text-sm font-semibold text-balance">{draft.title}</h3>
+                <h3 dir="auto" className="text-heading text-sm font-semibold text-balance">
+                  {localizeTitle(draft.title, locale)}
+                </h3>
                 <p className="text-muted-foreground mt-1 text-xs">
-                  {draft.entityName ?? ''} · آخر تعديل <RelativeTime iso={draft.updatedAt} />
+                  {entityDisplayName(draft.entityName, locale)} · {copy.lastEdited}{' '}
+                  <RelativeTime iso={draft.updatedAt} />
                 </p>
               </div>
 
@@ -89,8 +127,12 @@ export function DraftsList({ drafts }: DraftsListProps) {
                   href={`/wasal?conversationId=${draft.id}`}
                   className="text-foreground hover:bg-primary/6 inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium transition-colors"
                 >
-                  متابعة
-                  <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
+                  {copy.continue}
+                  {locale === 'ar' ? (
+                    <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
+                  ) : (
+                    <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+                  )}
                 </Link>
                 <button
                   type="button"
@@ -98,7 +140,7 @@ export function DraftsList({ drafts }: DraftsListProps) {
                   className="text-danger hover:bg-danger/6 inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium transition-colors"
                 >
                   <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
-                  حذف
+                  {copy.delete}
                 </button>
               </div>
             </Card>
@@ -111,10 +153,10 @@ export function DraftsList({ drafts }: DraftsListProps) {
         onClose={() => {
           if (!isDeleting) setPendingDelete(null)
         }}
-        title="حذف المسودة"
+        title={copy.deleteTitle}
         description={
           pendingDelete
-            ? `سيتم حذف «${pendingDelete.title}» نهائياً. لا يمكن التراجع عن هذا الإجراء.`
+            ? copy.deleteConfirm(localizeTitle(pendingDelete.title, locale))
             : undefined
         }
         footer={
@@ -126,7 +168,7 @@ export function DraftsList({ drafts }: DraftsListProps) {
               isLoading={isDeleting}
               className="w-full sm:flex-1"
             >
-              حذف
+              {copy.delete}
             </Button>
             <Button
               type="button"
@@ -135,7 +177,7 @@ export function DraftsList({ drafts }: DraftsListProps) {
               disabled={isDeleting}
               className="w-full sm:flex-1"
             >
-              إلغاء
+              {copy.cancel}
             </Button>
           </>
         }

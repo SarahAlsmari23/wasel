@@ -1,166 +1,244 @@
 'use client'
 
-import { Download, KeyRound, Monitor, Moon, ShieldCheck, Sun, Trash2 } from 'lucide-react'
-import { useState } from 'react'
+import { Download, KeyRound, Languages, Monitor, Moon, ShieldCheck, Sun, Trash2 } from 'lucide-react'
+import Link from 'next/link'
+import { useRouter } from 'next/navigation'
+import { useState, useTransition } from 'react'
+import { exportMyDataAction } from '@/app/wasal/account-actions'
 import { ChangePasswordModal } from '@/components/dashboard/profile-view'
+import { useCopy, useLocale } from '@/components/i18n/locale-provider'
 import { useTheme, type ThemePreference } from '@/components/theme/theme-provider'
-import { Button } from '@/components/ui/button'
+import { Button, buttonClasses } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Field, Select } from '@/components/ui/field'
 import { Modal } from '@/components/ui/modal'
-import { ToggleSwitch } from '@/components/ui/toggle-switch'
 import { useToast } from '@/components/ui/toast'
+import {
+  defineCopy,
+  directionFor,
+  htmlLangFor,
+  LOCALE_COOKIE,
+  LOCALE_COOKIE_MAX_AGE,
+  type Locale,
+} from '@/lib/i18n/config'
 import { cn } from '@/lib/utils/cn'
-import type { UserProfile } from '@/lib/auth/user-profile'
 
-type SettingsViewProps = {
-  profile: UserProfile
-}
+const COPY = defineCopy({
+  ar: {
+    general: 'اللغة',
+    generalDescription: 'لغة واجهة واصل وردود المساعد.',
+    language: 'لغة الواجهة',
+    appearance: 'المظهر',
+    appearanceDescription: 'مظهر واجهة واصل.',
+    themes: { light: 'الوضع الفاتح', dark: 'الوضع الداكن', system: 'حسب النظام' },
+    followsDevice: (mode: string) => `يتبع جهازك (${mode})`,
+    darkWord: 'داكن',
+    lightWord: 'فاتح',
+    themeApplied: (label: string) => `تم تفعيل ${label}.`,
+    security: 'الأمان',
+    securityDescription: 'حماية حسابك.',
+    changePassword: 'تغيير كلمة المرور',
+    changePasswordDescription: 'حدّث كلمة المرور الخاصة بحسابك.',
+    change: 'تغيير',
+    twoFactor: 'التحقق بخطوتين',
+    twoFactorDescription: 'طبقة حماية إضافية عند تسجيل الدخول.',
+    notAvailable: 'غير متاح حالياً',
+    privacy: 'الخصوصية',
+    privacyDescription: 'إدارة بياناتك الشخصية.',
+    download: 'تنزيل بياناتي',
+    downloadDescription: 'نسخة من حسابك ومحادثاتك وبلاغاتك بصيغة JSON.',
+    downloadAction: 'تنزيل',
+    downloaded: 'تم تنزيل بياناتك.',
+    downloadFailed: 'تعذر تجهيز بياناتك. حاول مرة أخرى.',
+    deleteAccount: 'حذف الحساب',
+    deleteAccountDescription: 'حذف حسابك وجميع بياناتك نهائياً.',
+    deleteTitle: 'حذف الحساب غير متاح بعد',
+    deleteBody:
+      'حذف الحساب بالكامل ذاتياً غير متاح بعد في المنصة. يمكنك الآن حذف أي محادثة — مع رسائلها وتفاصيلها والبلاغ المرتبط بها — نهائياً من صفحة المحادثات.',
+    goToConversations: 'الذهاب إلى المحادثات',
+    close: 'إغلاق',
+    privacyPolicy: 'سياسة الخصوصية',
+  },
+  en: {
+    general: 'Language',
+    generalDescription: "The language of Wasel's interface and assistant replies.",
+    language: 'Interface language',
+    appearance: 'Appearance',
+    appearanceDescription: "How Wasel's interface looks.",
+    themes: { light: 'Light mode', dark: 'Dark mode', system: 'Match system' },
+    followsDevice: (mode: string) => `Follows your device (${mode})`,
+    darkWord: 'dark',
+    lightWord: 'light',
+    themeApplied: (label: string) => `${label} on.`,
+    security: 'Security',
+    securityDescription: 'Protect your account.',
+    changePassword: 'Change password',
+    changePasswordDescription: "Update your account's password.",
+    change: 'Change',
+    twoFactor: 'Two-step verification',
+    twoFactorDescription: 'An extra layer of protection when signing in.',
+    notAvailable: 'Not available yet',
+    privacy: 'Privacy',
+    privacyDescription: 'Manage your personal data.',
+    download: 'Download my data',
+    downloadDescription: 'A copy of your account, conversations and complaints as JSON.',
+    downloadAction: 'Download',
+    downloaded: 'Your data was downloaded.',
+    downloadFailed: "Your data couldn't be prepared. Please try again.",
+    deleteAccount: 'Delete account',
+    deleteAccountDescription: 'Permanently delete your account and all your data.',
+    deleteTitle: "Account deletion isn't available yet",
+    deleteBody:
+      "Full self-service account deletion isn't available in the platform yet. You can already permanently delete any conversation — with its messages, details and linked complaint — from the Conversations page.",
+    goToConversations: 'Go to conversations',
+    close: 'Close',
+    privacyPolicy: 'Privacy policy',
+  },
+})
 
-const THEME_OPTIONS: { value: ThemePreference; label: string; icon: typeof Sun }[] = [
-  { value: 'light', label: 'الوضع الفاتح', icon: Sun },
-  { value: 'dark', label: 'الوضع الداكن', icon: Moon },
-  { value: 'system', label: 'حسب النظام', icon: Monitor },
-]
+const THEME_ICONS: Record<ThemePreference, typeof Sun> = { light: Sun, dark: Moon, system: Monitor }
 
-export function SettingsView({ profile }: SettingsViewProps) {
+export function SettingsView() {
+  const copy = useCopy(COPY)
+  const locale = useLocale()
+  const router = useRouter()
   const { showToast } = useToast()
   const { preference, resolved, setPreference } = useTheme()
-  const resolvedLabel = resolved === 'dark' ? 'داكن' : 'فاتح'
-  const [language, setLanguage] = useState('ar')
-  const [emailUpdates, setEmailUpdates] = useState(true)
   const [isPasswordOpen, setIsPasswordOpen] = useState(false)
   const [isDeleteOpen, setIsDeleteOpen] = useState(false)
+  const [isExporting, setIsExporting] = useState(false)
+  const [isSwitching, startTransition] = useTransition()
 
-  function handleDownloadData() {
-    // Exports what the app actually holds about the user in this phase: their
-    // account profile. No complaint data is persisted yet, so none is claimed.
-    const payload = {
-      exportedAt: new Date().toISOString(),
-      profile: {
-        name: profile.name,
-        email: profile.email,
-        phone: profile.phone,
-        accountCreatedAt: profile.createdAt,
-        preferredLanguage: profile.preferredLanguage,
-      },
-      note: 'لا يتم حفظ البلاغات والمحادثات في قاعدة بيانات في هذه المرحلة.',
+  function changeLanguage(next: Locale) {
+    if (next === locale) return
+    document.cookie = `${LOCALE_COOKIE}=${next}; path=/; max-age=${LOCALE_COOKIE_MAX_AGE}; samesite=lax`
+    document.documentElement.lang = htmlLangFor(next)
+    document.documentElement.dir = directionFor(next)
+    startTransition(() => router.refresh())
+  }
+
+  async function handleDownloadData() {
+    if (isExporting) return
+    setIsExporting(true)
+    try {
+      const result = await exportMyDataAction()
+      if (!result.success) {
+        showToast(copy.downloadFailed, 'error')
+        return
+      }
+      const blob = new Blob([JSON.stringify(result.data, null, 2)], { type: 'application/json' })
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = 'wasel-my-data.json'
+      link.click()
+      URL.revokeObjectURL(url)
+      showToast(copy.downloaded)
+    } catch {
+      showToast(copy.downloadFailed, 'error')
+    } finally {
+      setIsExporting(false)
     }
-
-    const blob = new Blob([JSON.stringify(payload, null, 2)], {
-      type: 'application/json',
-    })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = 'wasal-account-data.json'
-    link.click()
-    URL.revokeObjectURL(url)
-
-    showToast('تم تنزيل بياناتك.')
   }
 
   return (
     <>
-      <SettingsSection title="عام" description="تفضيلات اللغة والإشعارات.">
-        <Field htmlFor="settings-language" label="اللغة">
-          <Select
-            id="settings-language"
-            value={language}
-            onChange={(event) => {
-              setLanguage(event.target.value)
-              showToast(
-                event.target.value === 'ar'
-                  ? 'اللغة المحددة: العربية.'
-                  : 'الواجهة الإنجليزية ستتوفر قريباً.',
-                event.target.value === 'ar' ? 'success' : 'info',
-              )
-            }}
-          >
-            <option value="ar">العربية</option>
-            <option value="en">English (قريباً)</option>
-          </Select>
+      <SettingsSection title={copy.general} description={copy.generalDescription}>
+        <Field htmlFor="settings-language" label={copy.language}>
+          <div className="flex items-center gap-3">
+            <Languages className="text-muted-foreground h-4 w-4 shrink-0" aria-hidden="true" />
+            <Select
+              id="settings-language"
+              value={locale}
+              disabled={isSwitching}
+              onChange={(event) => changeLanguage(event.target.value as Locale)}
+            >
+              <option value="ar">العربية</option>
+              <option value="en">English</option>
+            </Select>
+          </div>
         </Field>
-
-        <ToggleSwitch
-          checked={emailUpdates}
-          onChange={(checked) => {
-            setEmailUpdates(checked)
-            showToast(checked ? 'تم تفعيل إشعارات البريد.' : 'تم إيقاف إشعارات البريد.', 'info')
-          }}
-          label="إشعارات البريد الإلكتروني"
-          description="تنبيهات عند تحديث حالة بلاغاتك."
-        />
       </SettingsSection>
 
-      <SettingsSection title="المظهر" description="مظهر واجهة واصل.">
+      <SettingsSection title={copy.appearance} description={copy.appearanceDescription}>
         <div className="grid gap-3 sm:grid-cols-3">
-          {THEME_OPTIONS.map((option) => (
+          {(Object.keys(copy.themes) as ThemePreference[]).map((value) => (
             <ThemeOption
-              key={option.value}
-              icon={option.icon}
-              label={option.label}
-              note={option.value === 'system' ? `يتبع جهازك (${resolvedLabel})` : undefined}
-              isActive={preference === option.value}
+              key={value}
+              icon={THEME_ICONS[value]}
+              label={copy.themes[value]}
+              note={
+                value === 'system'
+                  ? copy.followsDevice(resolved === 'dark' ? copy.darkWord : copy.lightWord)
+                  : undefined
+              }
+              isActive={preference === value}
               onSelect={() => {
-                setPreference(option.value)
-                showToast(`تم تفعيل ${option.label}.`, 'info')
+                setPreference(value)
+                showToast(copy.themeApplied(copy.themes[value]), 'info')
               }}
             />
           ))}
         </div>
       </SettingsSection>
 
-      <SettingsSection title="الأمان" description="حماية حسابك.">
+      <SettingsSection title={copy.security} description={copy.securityDescription}>
         <SettingsRow
           icon={KeyRound}
-          title="تغيير كلمة المرور"
-          description="حدّث كلمة المرور الخاصة بحسابك."
+          title={copy.changePassword}
+          description={copy.changePasswordDescription}
           action={
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => setIsPasswordOpen(true)}
-            >
-              تغيير
+            <Button type="button" variant="outline" size="sm" onClick={() => setIsPasswordOpen(true)}>
+              {copy.change}
             </Button>
           }
         />
         <SettingsRow
           icon={ShieldCheck}
-          title="التحقق بخطوتين"
-          description="طبقة حماية إضافية عند تسجيل الدخول."
+          title={copy.twoFactor}
+          description={copy.twoFactorDescription}
           action={
-            <span className="bg-primary/6 text-muted-foreground rounded-full px-2.5 py-1 text-xs font-medium">
-              قريباً
+            <span className="bg-surface-muted text-muted-foreground rounded-full px-2.5 py-1 text-xs font-medium">
+              {copy.notAvailable}
             </span>
           }
         />
       </SettingsSection>
 
-      <SettingsSection title="الخصوصية" description="إدارة بياناتك الشخصية.">
+      <SettingsSection title={copy.privacy} description={copy.privacyDescription}>
         <SettingsRow
           icon={Download}
-          title="تنزيل بياناتي"
-          description="احصل على نسخة من بيانات حسابك بصيغة JSON."
+          title={copy.download}
+          description={copy.downloadDescription}
           action={
-            <Button type="button" variant="outline" size="sm" onClick={handleDownloadData}>
-              تنزيل
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleDownloadData}
+              isLoading={isExporting}
+            >
+              {copy.downloadAction}
             </Button>
           }
         />
         <SettingsRow
           icon={Trash2}
-          title="حذف الحساب"
-          description="حذف حسابك وجميع بياناتك نهائياً."
+          title={copy.deleteAccount}
+          description={copy.deleteAccountDescription}
           isDanger
           action={
-            <Button type="button" variant="danger" size="sm" onClick={() => setIsDeleteOpen(true)}>
-              حذف
+            <Button type="button" variant="outline" size="sm" onClick={() => setIsDeleteOpen(true)}>
+              {copy.deleteAccount}
             </Button>
           }
         />
+        <Link
+          href="/privacy"
+          className="text-primary hover:text-primary-hover w-fit text-xs font-medium transition-colors"
+        >
+          {copy.privacyPolicy}
+        </Link>
       </SettingsSection>
 
       <ChangePasswordModal isOpen={isPasswordOpen} onClose={() => setIsPasswordOpen(false)} />
@@ -168,23 +246,23 @@ export function SettingsView({ profile }: SettingsViewProps) {
       <Modal
         isOpen={isDeleteOpen}
         onClose={() => setIsDeleteOpen(false)}
-        title="حذف الحساب"
-        description="حذف الحساب إجراء نهائي لا يمكن التراجع عنه. هذه الميزة قيد التطوير حالياً — تواصل معنا لطلب حذف حسابك."
+        title={copy.deleteTitle}
+        description={copy.deleteBody}
         footer={
           <>
-            <a
-              href="mailto:support@wasal.sa?subject=%D8%B7%D9%84%D8%A8%20%D8%AD%D8%B0%D9%81%20%D8%A7%D9%84%D8%AD%D8%B3%D8%A7%D8%A8"
-              className="bg-danger text-danger-foreground hover:bg-danger/90 inline-flex h-11 w-full items-center justify-center rounded-xl px-5 text-sm font-medium transition-colors sm:flex-1"
+            <Link
+              href="/dashboard/conversations"
+              className={buttonClasses('primary', 'md', 'w-full sm:flex-1')}
             >
-              مراسلة الدعم
-            </a>
+              {copy.goToConversations}
+            </Link>
             <Button
               type="button"
               variant="outline"
               onClick={() => setIsDeleteOpen(false)}
               className="w-full sm:flex-1"
             >
-              إلغاء
+              {copy.close}
             </Button>
           </>
         }
@@ -227,12 +305,12 @@ function SettingsRow({
   isDanger?: boolean
 }) {
   return (
-    <div className="flex items-center justify-between gap-4">
-      <div className="flex min-w-0 items-start gap-3">
+    <div className="flex flex-wrap items-center justify-between gap-4">
+      <div className="flex min-w-0 flex-1 items-start gap-3">
         <span
           className={cn(
             'flex h-9 w-9 shrink-0 items-center justify-center rounded-xl',
-            isDanger ? 'bg-danger/8 text-danger' : 'bg-secondary/12 text-secondary',
+            isDanger ? 'bg-danger/8 text-danger' : 'bg-surface-tint text-primary',
           )}
         >
           <Icon className="h-4 w-4" aria-hidden="true" />
@@ -266,7 +344,7 @@ function ThemeOption({
       onClick={onSelect}
       aria-pressed={isActive}
       className={cn(
-        'flex items-center gap-3 rounded-xl border p-3.5 text-start transition-colors',
+        'flex items-center gap-3 rounded-xl border p-3.5 text-start transition-colors duration-200',
         isActive
           ? 'border-primary bg-surface-tint'
           : 'border-border hover:border-primary/30 hover:bg-surface-tint/60',

@@ -39,7 +39,7 @@ export function ToggleSwitch({
           className={cn(
             'bg-surface shadow-soft absolute top-1 h-4 w-4 rounded-full transition-all duration-200',
             // RTL layout: "on" sits at the left edge of the track.
-            checked ? 'left-1' : 'right-1',
+            checked ? 'end-1' : 'start-1',
           )}
         />
       </button>

@@ -1681,7 +1681,7 @@ export function WasalChat({
       <div className="flex-1 px-4 py-6 sm:px-6 lg:col-start-1 lg:row-start-2 lg:min-h-0 lg:overflow-y-auto">
         <div className="mx-auto flex w-full max-w-3xl flex-col gap-5">
           {isEmpty && status === 'idle' ? (
-            <ChatEmptyState onSelectSuggestion={(suggestion) => void handleSend(suggestion)} />
+            <ChatEmptyState />
           ) : null}
 
           {messages.map((message) => (
@@ -1736,7 +1736,7 @@ export function WasalChat({
           // the header/messages/composer column, scrolling independently via
           // `lg:overflow-y-auto` exactly as before. No fixed/absolute/sticky
           // positioning anywhere at any breakpoint.
-          <aside className="border-border w-full max-w-full shrink-0 border-t p-4 sm:p-6 lg:col-start-2 lg:row-span-3 lg:row-start-1 lg:w-96 lg:overflow-y-auto lg:border-t-0 lg:border-l">
+          <aside className="border-border w-full max-w-full shrink-0 border-t p-4 sm:p-6 lg:col-start-2 lg:row-span-3 lg:row-start-1 lg:w-96 lg:overflow-y-auto lg:border-t-0 lg:border-s">
             <div className="flex flex-col gap-4">
               {status === 'analyzing' ? (
                 <RecommendationSkeleton />
