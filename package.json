@@ -11,7 +11,8 @@
     "format:check": "prettier --check .",
     "ingest:knowledge": "node --env-file=.env.local --import tsx scripts/ingest-knowledge.ts",
     "test": "node --import tsx --test \"tests/unit/**/*.test.ts\"",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "eval:ai": "node scripts/eval-ai.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.3",
