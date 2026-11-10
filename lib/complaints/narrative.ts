@@ -97,8 +97,9 @@ const SECTOR_ISSUE_CLAUSES: Record<Sector, IssueRule[]> = {
       clause: 'انقطاع خدمة الإنترنت',
     },
     { keywords: BILL_DISPUTE_KEYWORDS, clause: 'احتساب فاتورة اتصالات غير صحيحة' },
+    { keywords: ['بطيء', 'بطء', 'بطيئة', 'بطيئ'], clause: 'بطء خدمة الإنترنت' },
     {
-      keywords: ['ضعيف', 'ضعف', 'بطيء', 'بطء', 'سيئ', 'سيئة'],
+      keywords: ['ضعيف', 'ضعف', 'سيئ', 'سيئة', 'تغطية'],
       clause: 'ضعف تغطية خدمة الإنترنت',
     },
   ],
@@ -217,9 +218,26 @@ const NO_PRIOR_CONTACT_PHRASE = 'لم يسبق لي التواصل مع مزود
  * omits the sentence entirely rather than guessing.
  */
 function derivePreviousContactSentence(priorContactRaw: string): string | null {
-  const parsed = parseBooleanAnswer(normalizeWhitespace(priorContactRaw))
-  if (parsed === true) return PRIOR_CONTACT_PHRASE
-  if (parsed === false) return NO_PRIOR_CONTACT_PHRASE
+  const raw = normalizeWhitespace(priorContactRaw)
+  // "نعم، بلاغان دون حل" is still a yes: when the whole answer is not a bare
+  // yes/no, its leading word is classified (by the same parser) instead of
+  // dropping the sentence (evaluation case CST-040).
+  const wholeAnswer = parseBooleanAnswer(raw)
+  const firstWord = raw.split(/[\s،,.:؛-]+/)[0] ?? ''
+  const parsed = wholeAnswer ?? parseBooleanAnswer(firstWord)
+  // The yes/no decision stays with parseBooleanAnswer; any further detail the
+  // user gave ("نعم، بلاغان دون حل") is appended verbatim, never dropped.
+  // (Arabic has no \b word boundary in JS, so the leading word is sliced off.)
+  const rest =
+    wholeAnswer === null && parsed !== null
+      ? raw
+          .slice(firstWord.length)
+          .replace(/^[\s،,.:؛-]+/, '')
+          .trim()
+      : ''
+  const detail = rest ? ` (${rest})` : ''
+  if (parsed === true) return PRIOR_CONTACT_PHRASE.replace(/\.$/, `${detail}.`)
+  if (parsed === false) return NO_PRIOR_CONTACT_PHRASE.replace(/\.$/, `${detail}.`)
   return null
 }
 
@@ -227,11 +245,21 @@ type ResolutionRule = { pattern: RegExp; phrase: string }
 
 const RESOLUTION_RULES: ResolutionRule[] = [
   { pattern: /استرداد|استرجاع|إرجاع المبلغ|استعادة المبلغ/, phrase: 'استرداد المبلغ المدفوع' },
+  // A bill or meter-reading dispute asks for the bill to be reviewed — never
+  // for "power to be restored" (evaluation: the old sector default asked a
+  // meter/bill complaint to restore an electricity supply that never failed).
+  {
+    pattern: /فاتور|قراء[ةه]|عداد|مبلغ|خصم|bill/,
+    phrase: 'مراجعة الفاتورة أو المبلغ محل الاعتراض وتصحيحه عند ثبوت الخطأ',
+  },
   { pattern: /تعويض/, phrase: 'تعويضي عن الأضرار الناتجة' },
   { pattern: /استبدال/, phrase: 'استبدال المنتج أو الخدمة' },
   { pattern: /إصلاح|صيانة/, phrase: 'إصلاح العطل في أقرب وقت ممكن' },
   { pattern: /إعادة الخدمة|استعادة الخدمة/, phrase: 'إعادة تشغيل الخدمة في أقرب وقت ممكن' },
 ]
+
+/** Restoring a supply is only requested when the user reported losing it. */
+const OUTAGE_PATTERN = /انقطاع|انقطع|انقطعت|مقطوع|طاف|تطفي|ينقطع|ضعيف|ضعف|لا يعمل|ما يشتغل|توقف/
 
 const SECTOR_DEFAULT_RESOLUTION: Record<Sector, string> = {
   water: 'إصلاح العطل وإعادة تشغيل الخدمة في أقرب وقت ممكن',
@@ -245,19 +273,44 @@ function deriveExpectedResolution(sector: Sector | null, corpus: string): string
   for (const rule of RESOLUTION_RULES) {
     if (rule.pattern.test(corpus)) return rule.phrase
   }
-  return sector ? SECTOR_DEFAULT_RESOLUTION[sector] : 'اتخاذ الإجراء المناسب لمعالجة هذه الشكوى'
+  if (
+    sector &&
+    (sector === 'commerce' || sector === 'municipality' || OUTAGE_PATTERN.test(corpus))
+  ) {
+    return SECTOR_DEFAULT_RESOLUTION[sector]
+  }
+  return 'معالجة المشكلة واتخاذ الإجراء اللازم في أقرب وقت ممكن'
 }
 
-const SECTOR_DEFAULT_IMPACT: Record<Sector, string> = {
-  water: 'تعذر الاستفادة من خدمة المياه بشكل طبيعي',
-  electricity: 'تعذر الاستفادة من التيار الكهربائي بشكل طبيعي',
-  telecom: 'تعذر الاستفادة من الخدمة',
-  commerce: 'وقوع ضرر مادي دون وجه حق',
-  municipality: 'تأثر السلامة العامة وجودة الخدمة في المنطقة',
-}
+/*
+ * An impact clause is only stated when the user's own words support it — the
+ * evaluation found the previous fixed per-sector clauses asserting things the
+ * user never said ("تعذر الاستفادة من التيار" for a bill dispute, "ضرر مادي
+ * دون وجه حق" for a late delivery). No supported impact → no clause.
+ */
+const IMPACT_RULES: { sectors: Sector[]; pattern: RegExp; phrase: string }[] = [
+  {
+    sectors: ['electricity'],
+    pattern: OUTAGE_PATTERN,
+    phrase: 'تعذر الاستفادة من التيار الكهربائي بشكل طبيعي',
+  },
+  {
+    sectors: ['water'],
+    pattern: OUTAGE_PATTERN,
+    phrase: 'تعذر الاستفادة من خدمة المياه بشكل طبيعي',
+  },
+  { sectors: ['telecom'], pattern: OUTAGE_PATTERN, phrase: 'تعذر الاستفادة من الخدمة بشكل طبيعي' },
+  {
+    sectors: ['municipality'],
+    pattern: /خطر|سلامه|سلامة|أضرار|ضرر|حادث|إصاب|انجرح/,
+    phrase: 'تأثر السلامة العامة في المنطقة',
+  },
+]
 
-function deriveImpactClause(sector: Sector | null): string {
-  return sector ? SECTOR_DEFAULT_IMPACT[sector] : 'تأثري بشكل مباشر من استمرار هذه المشكلة'
+function deriveImpactClause(sector: Sector | null, corpus: string): string | null {
+  if (!sector) return null
+  const rule = IMPACT_RULES.find((r) => r.sectors.includes(sector) && r.pattern.test(corpus))
+  return rule ? rule.phrase : null
 }
 
 export type NarrativeInput = {
@@ -296,7 +349,7 @@ export function renderComplaintBody(input: NarrativeInput): ComplaintBody {
   const ongoing = deriveOngoing(corpus, timelinePhrase)
   const previousContactSentence = derivePreviousContactSentence(input.priorContactRaw)
   const expectedResolution = deriveExpectedResolution(input.sector, corpus)
-  const impactClause = deriveImpactClause(input.sector)
+  const impactClause = deriveImpactClause(input.sector, corpus)
 
   let introduction = `أتقدم بهذه الشكوى بشأن ${issueClause}${providerClause}`
   if (noOutstandingDues) {
@@ -304,19 +357,36 @@ export function renderComplaintBody(input: NarrativeInput): ComplaintBody {
   }
   introduction += '.'
 
-  let explanation: string
+  // The user's own description, quoted as given, so every fact they
+  // supplied (amounts, dates, readings, places) reaches the authority
+  // unchanged — the classified clauses above summarise, they never replace.
+  const details =
+    normalizeWhitespace(input.problemDescription) !== ''
+      ? `وتفاصيل المشكلة كما أفدتُ بها: «${normalizeWhitespace(input.problemDescription)}».`
+      : ''
+
+  // Only what is known is stated: no "حدثت هذه المشكلة" placeholder when no
+  // time reference exists, and no impact the user did not describe.
+  const explanationParts: string[] = []
   if (timelinePhrase) {
-    explanation = `بدأت المشكلة ${timelinePhrase}`
-    explanation += ongoing ? ' وما زالت مستمرة حتى وقت تقديم الشكوى' : ''
+    explanationParts.push(
+      `بدأت المشكلة ${timelinePhrase}${ongoing ? ' وما زالت مستمرة حتى وقت تقديم الشكوى' : ''}`,
+    )
   } else if (ongoing) {
-    explanation = 'ما زالت المشكلة مستمرة حتى وقت تقديم الشكوى'
-  } else {
-    explanation = 'حدثت هذه المشكلة'
+    explanationParts.push('ما زالت المشكلة مستمرة حتى وقت تقديم الشكوى')
   }
-  explanation += `، الأمر الذي تسبب في ${impactClause}.`
+  let explanation =
+    explanationParts.length > 0
+      ? `${explanationParts[0]}${impactClause ? `، الأمر الذي تسبب في ${impactClause}` : ''}.`
+      : impactClause
+        ? `وقد تسببت هذه المشكلة في ${impactClause}.`
+        : ''
   if (previousContactSentence) {
-    explanation += ` ${previousContactSentence}`
+    explanation = explanation
+      ? `${explanation} ${previousContactSentence}`
+      : previousContactSentence
   }
+  explanation = [details, explanation].filter(Boolean).join('\n\n')
 
   let resolution = `آمل من الجهة المختصة ${expectedResolution}`
   if (city !== '') {

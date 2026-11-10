@@ -12,7 +12,10 @@
     "ingest:knowledge": "node --env-file=.env.local --import tsx scripts/ingest-knowledge.ts",
     "test": "node --import tsx --test \"tests/unit/**/*.test.ts\"",
     "typecheck": "tsc --noEmit",
-    "eval:ai": "node scripts/eval-ai.mjs"
+    "eval:ai": "node scripts/eval-ai.mjs",
+    "eval:build": "node evals/build-dataset.mjs",
+    "eval:offline": "tsx evals/offline-eval.ts",
+    "eval:live": "node evals/live-eval.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.3",

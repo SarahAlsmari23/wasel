@@ -7,7 +7,7 @@ import {
   generateWithLlama,
 } from '@/lib/ai/cloudflare'
 import { AiProviderError } from '@/lib/ai/generation-shared'
-import { configuredProviderChain } from '@/lib/ai/provider'
+import { configuredProviderChain, generateAnswer } from '@/lib/ai/provider'
 
 const realFetch = globalThis.fetch
 const ENV_KEYS = [
@@ -18,6 +18,7 @@ const ENV_KEYS = [
   'AI_PRIMARY_PROVIDER',
   'AI_FALLBACK_PROVIDER',
   'AI_PROVIDER',
+  'GEMINI_API_KEY',
 ]
 const saved: Record<string, string | undefined> = {}
 
@@ -101,6 +102,50 @@ describe('Llama provider', () => {
   it('throws AiProviderError (never a fabricated answer) when every model fails', async () => {
     globalThis.fetch = (async () => new Response('nope', { status: 400 })) as typeof fetch
     await assert.rejects(generateWithLlama({ prompt: 'p' }), AiProviderError)
+  })
+
+  it('falls back to Llama 3.3 when Scout times out', async () => {
+    const models: string[] = []
+    globalThis.fetch = (async (_url: unknown, init?: RequestInit) => {
+      const model = JSON.parse(String(init?.body)).model
+      models.push(model)
+      if (model === DEFAULT_LLAMA_MODEL) {
+        const error = new Error('aborted')
+        error.name = 'AbortError'
+        throw error
+      }
+      return completion(VALID)
+    }) as typeof fetch
+    const result = await generateWithLlama({ prompt: 'p' })
+    assert.equal(result.model, DEFAULT_LLAMA_FALLBACK_MODEL)
+    assert.deepEqual(models, [DEFAULT_LLAMA_MODEL, DEFAULT_LLAMA_FALLBACK_MODEL])
+  })
+
+  it('never calls Gemini when Llama fails, even with Gemini credentials present', async () => {
+    process.env.GEMINI_API_KEY = 'present-but-unused'
+    process.env.AI_PROVIDER = 'gemini'
+    const hosts: string[] = []
+    globalThis.fetch = (async (url: unknown) => {
+      hosts.push(new URL(String(url)).host)
+      return new Response('down', { status: 500 })
+    }) as typeof fetch
+    await assert.rejects(generateAnswer({ prompt: 'p' }), AiProviderError)
+    assert.ok(hosts.length > 0)
+    assert.ok(
+      hosts.every((host) => host === 'api.cloudflare.com'),
+      hosts.join(','),
+    )
+  })
+
+  it('makes no fallback call when LLAMA_FALLBACK_MODEL is none', async () => {
+    process.env.LLAMA_FALLBACK_MODEL = 'none'
+    const models: string[] = []
+    globalThis.fetch = (async (_url: unknown, init?: RequestInit) => {
+      models.push(JSON.parse(String(init?.body)).model)
+      return completion('garbage')
+    }) as typeof fetch
+    await assert.rejects(generateWithLlama({ prompt: 'p' }), AiProviderError)
+    assert.deepEqual(models, [DEFAULT_LLAMA_MODEL])
   })
 
   it('accepts fenced JSON from the model', async () => {

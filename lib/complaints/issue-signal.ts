@@ -57,10 +57,33 @@ const SECTOR_ISSUE_SIGNAL_PATTERNS: Partial<Record<Sector, RegExp>> = {
  * (telecom/commerce) — a sector with no entry here never triggers the
  * clarification gate at all (route.ts skips it), matching the given spec
  * exactly rather than guessing patterns for the other three sectors. */
+/*
+ * Evaluation (evals/, live baseline): the gate asked "what exactly is the
+ * problem?" after users had already said it — "خدمة الإنترنت بطيئة جداً"
+ * ("بطيئة" normalises to "بطييه", which "بطيء" never matched), "النت فاصل",
+ * and every English complaint (these patterns were Arabic-only). Added the
+ * missing Arabic stems and an English equivalent per sector.
+ */
+const EXTRA_ARABIC_ISSUE_SIGNALS: Partial<Record<Sector, RegExp>> = {
+  telecom: /بطي|فاصل|فصل|طافي|ما\s*يجيب|ما\s*تشتغل|خلصت|مسحوب|خصم|رصيد|الغاء|اشتراك|تحولني/,
+  commerce: /وصل|غش|مقلد|نصب|نصاب|ضمان|سعر|تخفيض|وهمي|ما\s*رد|حظر|بلوك|غلط|ركبوه|تركيب|يصلح|صيانه/,
+}
+const ENGLISH_ISSUE_SIGNALS: Partial<Record<Sector, RegExp>> = {
+  telecom:
+    /\b(slow|outages?|down|cut|cutting|drop\w*|dead|died|no (signal|internet|service)|coverage|signal|bill\w*|charged|deducted|cancel\w*|subscription|not working)\b/i,
+  commerce:
+    /\b(refund\w*|deliver\w*|arriv\w*|defect\w*|faulty|fake|counterfeit|broken|damaged|charged|return\w*|warranty|exchange|order|scam\w*|blocked|overcharg\w*|price)\b/i,
+}
+
 export function hasSectorIssueSignal(sector: Sector, message: string): boolean {
   const pattern = SECTOR_ISSUE_SIGNAL_PATTERNS[sector]
   if (!pattern) return true
-  return pattern.test(normalizeArabicInput(message))
+  const normalized = normalizeArabicInput(message)
+  return (
+    pattern.test(normalized) ||
+    (EXTRA_ARABIC_ISSUE_SIGNALS[sector]?.test(normalized) ?? false) ||
+    (ENGLISH_ISSUE_SIGNALS[sector]?.test(message) ?? false)
+  )
 }
 
 /** Exact, fixed clarifying questions — asked deterministically (no model
