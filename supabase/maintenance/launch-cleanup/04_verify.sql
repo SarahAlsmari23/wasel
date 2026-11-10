@@ -36,6 +36,19 @@ select check_name, ok, detail from (
     exists (select 1 from pg_trigger where tgname = 'on_auth_user_created'), ''
   union all select 11, 'retrieval function present',
     exists (select 1 from pg_proc where proname = 'match_knowledge_documents'), ''
+  union all select 12, 'knowledge documents unreachable by clients (RLS on, no policies)',
+    (select relrowsecurity from pg_class where oid = 'public.knowledge_documents'::regclass)
+    and not exists (select 1 from pg_policies where schemaname = 'public' and tablename = 'knowledge_documents'), ''
+  union all select 13, 'no orphan auth rows (refresh tokens, flow state, identities)',
+    not exists (select 1 from auth.refresh_tokens r where r.user_id is not null and not exists (select 1 from auth.users u where u.id::text = r.user_id))
+    and not exists (select 1 from auth.flow_state f where f.user_id is not null and not exists (select 1 from auth.users u where u.id = f.user_id))
+    and not exists (select 1 from auth.identities i where not exists (select 1 from auth.users u where u.id = i.user_id)), ''
+  union all select 14, 'full reset only: no accounts or user data remain',
+    (select count(*) from auth.users) + (select count(*) from public.profiles) + (select count(*) from public.conversations)
+    + (select count(*) from public.messages) + (select count(*) from public.collected_information)
+    + (select count(*) from public.complaints) + (select count(*) from public.complaint_versions)
+    + (select count(*) from public.attachments) + (select count(*) from public.retrieval_logs) = 0,
+    (select count(*) || ' accounts' from auth.users)
 ) checks
 order by ord;
 

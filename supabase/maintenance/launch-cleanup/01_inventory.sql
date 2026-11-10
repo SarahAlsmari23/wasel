@@ -19,6 +19,9 @@ with
 user_counts as (
   select 'user_data' as section, 'profiles' as item, count(*)::text as value from public.profiles
   union all select 'user_data', 'conversations', count(*)::text from public.conversations
+  union all select 'user_data', 'drafts (complaint conversations without a complaint)', count(*)::text
+    from public.conversations c where c.conversation_type = 'complaint'
+      and not exists (select 1 from public.complaints k where k.conversation_id = c.id)
   union all select 'user_data', 'messages', count(*)::text from public.messages
   union all select 'user_data', 'collected_information', count(*)::text from public.collected_information
   union all select 'user_data', 'complaints', count(*)::text from public.complaints
@@ -46,6 +49,9 @@ auth_counts as (
   union all select 'auth', 'auth.sessions', count(*)::text from auth.sessions
   union all select 'auth', 'auth.refresh_tokens', count(*)::text from auth.refresh_tokens
   union all select 'auth', 'auth.audit_log_entries', count(*)::text from auth.audit_log_entries
+  union all select 'auth', 'auth.one_time_tokens', count(*)::text from auth.one_time_tokens
+  union all select 'auth', 'auth.flow_state', count(*)::text from auth.flow_state
+  union all select 'auth', 'auth.mfa_factors', count(*)::text from auth.mfa_factors
   union all select 'auth', 'storage.objects', count(*)::text from storage.objects
 ),
 fingerprint as (
@@ -60,7 +66,7 @@ fingerprint as (
   ) parts
   union all
   select 'fingerprint', 'rls policies',
-    count(*) || ' / ' || md5(coalesce(string_agg(schemaname || '.' || tablename || '.' || policyname || ':' || cmd || ':' || coalesce(qual, '') || ':' || coalesce(with_check, ''), ',' order by schemaname, tablename, policyname), ''))
+    count(*) || ' / ' || md5(coalesce(string_agg(schemaname || '.' || tablename || '.' || policyname || ':' || cmd || ':' || array_to_string(roles, ',') || ':' || coalesce(qual, '') || ':' || coalesce(with_check, ''), ',' order by schemaname, tablename, policyname), ''))
   from pg_policies where schemaname in ('public', 'storage')
   union all
   select 'fingerprint', 'rls enabled (public tables)',
@@ -80,6 +86,29 @@ fingerprint as (
   select 'fingerprint', 'public columns',
     count(*) || ' / ' || md5(coalesce(string_agg(table_name || '.' || column_name || ':' || data_type, ',' order by table_name, column_name), ''))
   from information_schema.columns where table_schema = 'public'
+  union all
+  select 'fingerprint', 'public indexes',
+    count(*) || ' / ' || md5(coalesce(string_agg(indexname || ':' || indexdef, ',' order by indexname), ''))
+  from pg_indexes where schemaname = 'public'
+  union all
+  select 'fingerprint', 'public constraints',
+    count(*) || ' / ' || md5(coalesce(string_agg(conrelid::regclass::text || '.' || conname || ':' || contype::text || ':' || confdeltype::text, ',' order by conrelid::regclass::text, conname), ''))
+  from pg_constraint where connamespace = 'public'::regnamespace
+  union all
+  select 'fingerprint', 'grants to anon/authenticated/service_role',
+    count(*) || ' / ' || md5(coalesce(string_agg(c.relname || ':' || a.grantee::regrole::text || ':' || a.privilege_type, ',' order by c.relname, a.grantee::regrole::text, a.privilege_type), ''))
+  from pg_class c cross join lateral aclexplode(c.relacl) a
+  where c.relnamespace = 'public'::regnamespace and c.relkind in ('r', 'v', 'S') and a.grantee <> 0
+    and a.grantee::regrole::text in ('anon', 'authenticated', 'service_role')
+  union all
+  select 'fingerprint', 'knowledge_documents client grants / policies (RLS on + 0 policies = no API access)',
+    coalesce((select string_agg(a.grantee::regrole::text || ':' || a.privilege_type, ',' order by a.grantee::regrole::text, a.privilege_type)
+              from pg_class c cross join lateral aclexplode(c.relacl) a
+              where c.oid = 'public.knowledge_documents'::regclass and a.grantee <> 0
+                and a.grantee::regrole::text in ('anon', 'authenticated')), 'none')
+    || ' / policies ' || (select count(*) from pg_policies where schemaname = 'public' and tablename = 'knowledge_documents')
+  union all
+  select 'fingerprint', 'storage buckets', count(*)::text from storage.buckets
 ),
 drift as (
   select 'drift' as section, 'UNKNOWN public table: ' || c.relname as item, 'review before cleanup' as value
