@@ -23,6 +23,7 @@ import {
   isTrivialMessage,
   norm,
   isSuperseded,
+  stripInstructions,
   supersededValues,
   type AmountFact,
 } from '@/lib/complaints/drafting/text'
@@ -90,7 +91,10 @@ export function buildSources(
   fieldLabels: Record<string, string>,
 ): SourceEntry[] {
   const messages = userMessages
-    .map((text, index) => ({ index, text: cleanSpaces(text).slice(0, MAX_MESSAGE_CHARS) }))
+    .map((text, index) => ({
+      index,
+      text: cleanSpaces(stripInstructions(text)).slice(0, MAX_MESSAGE_CHARS),
+    }))
     .filter((m) => m.text !== '' && !isTrivialMessage(m.text))
   let kept = messages.slice(-MAX_MESSAGES)
   while (kept.length > 1 && kept.reduce((n, m) => n + m.text.length, 0) > MAX_TOTAL_CHARS) {
@@ -103,7 +107,7 @@ export function buildSources(
   }))
   for (const [key, raw] of Object.entries(fields)) {
     if (SENSITIVE_KEY.test(key)) continue
-    const text = cleanSpaces(raw ?? '').slice(0, MAX_MESSAGE_CHARS)
+    const text = cleanSpaces(stripInstructions(raw ?? '')).slice(0, MAX_MESSAGE_CHARS)
     if (!text) continue
     // The description is usually a copy of a message already numbered.
     if (key === 'problem_description' && entries.some((e) => norm(e.text) === norm(text))) continue

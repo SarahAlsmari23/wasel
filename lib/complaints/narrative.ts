@@ -21,6 +21,7 @@ import {
   extractReferences,
   norm,
   isSuperseded,
+  stripInstructions,
   supersededValues,
 } from '@/lib/complaints/drafting/text'
 
@@ -36,7 +37,8 @@ function buildCorpus(problemDescription: string, userMessages: string[]): string
   const seen = new Set<string>()
   const parts: string[] = []
   for (const raw of [problemDescription, ...userMessages]) {
-    const text = normalizeWhitespace(raw)
+    // Instructions about what to write are not reported facts.
+    const text = normalizeWhitespace(stripInstructions(raw))
     if (text === '' || seen.has(text)) continue
     seen.add(text)
     parts.push(text)
@@ -139,7 +141,12 @@ const SECTOR_ISSUE_CLAUSES: Record<Sector, IssueRule[]> = {
   municipality: [
     { keywords: ['حفرة', 'حفر', 'الطريق', 'الشارع'], clause: 'وجود حفرة أو تلف في الطريق' },
     { keywords: ['رصيف', 'الأرصفة'], clause: 'تلف في الرصيف' },
-    { keywords: ['نظافة', 'قمامة', 'نفايات'], clause: 'تراكم النفايات وتدهور النظافة العامة' },
+    {
+      keywords: ['نظافة', 'قمامة', 'نفايات', 'زبالة', 'الزبالة'],
+      clause: 'تراكم النفايات وتدهور النظافة العامة',
+    },
+    { keywords: ['إنارة', 'اناره', 'إضاءة'], clause: 'تعطل إنارة الشارع' },
+    { keywords: ['أنقاض', 'مخلفات بناء', 'مخلفات البناء'], clause: 'وجود مخلفات بناء في موقع عام' },
   ],
   electricity: [
     { keywords: ['انقطاع', 'انقطعت', 'منقطعة'], clause: 'انقطاع التيار الكهربائي' },
@@ -345,7 +352,7 @@ const SECTOR_DEFAULT_RESOLUTION: Record<Sector, string> = {
   // Never compensation unless the user asked for it (RESOLUTION_RULES).
   telecom: 'استعادة الخدمة ومعالجة سبب الانقطاع في أقرب وقت ممكن',
   commerce: 'استرداد المبلغ المدفوع أو استبدال المنتج أو الخدمة',
-  municipality: 'معالجة المشكلة واتخاذ الإجراء اللازم من الجهة المختصة',
+  municipality: 'معالجة المشكلة واتخاذ الإجراء اللازم',
 }
 
 function deriveExpectedResolution(sector: Sector | null, corpus: string): string {

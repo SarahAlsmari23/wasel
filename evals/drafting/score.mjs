@@ -106,7 +106,8 @@ export function scoreLetter(c, letterText) {
   add('no-wrong-authority', !WRONG_AUTHORITIES.test(letterNorm), 'critical')
 
   // Numbers
-  const superseded = new Set(c.superseded.filter((s) => /^\d+$/.test(s)))
+  // Numbers inside a corrected value ("3 نوفمبر") are superseded too.
+  const superseded = new Set(c.superseded.flatMap(numbersIn))
   const forbidNumbers = new Set(c.forbid.flatMap(numbersIn))
   const userNums = new Set(numbersIn(userText))
   const nums = userNums
@@ -128,7 +129,9 @@ export function scoreLetter(c, letterText) {
   )
   add('no-superseded', stale.length === 0, 'critical', stale.join(','))
   // Forbidden (never-said) claims
-  const forbidden = c.forbid.filter((f) => !/^\d+$/.test(f) && bodyNorm.includes(normalize(f)))
+  const forbidden = c.forbid.filter((f) =>
+    /^\d+$/.test(f) ? letterNums.includes(f) : bodyNorm.includes(normalize(f)),
+  )
   add('no-unsupported-claims', forbidden.length === 0, 'critical', forbidden.join(','))
 
   // Form

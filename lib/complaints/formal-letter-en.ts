@@ -10,6 +10,7 @@ import {
   extractReferences,
   informalEnglish,
   isSuperseded,
+  stripInstructions,
   supersededValues,
   norm,
 } from '@/lib/complaints/drafting/text'
@@ -213,7 +214,9 @@ export function buildEnglishFormalComplaintLetter(
   const city = clean(fields.city)
   const provider = clean(fields.service_provider) || clean(fields.merchant_name)
   const sector = ENTITY_NAME_TO_SECTOR[entityNameArabic]
-  const corpusRaw = [problemDescription, ...(input.userMessages ?? [])].join('\n')
+  const corpusRaw = [problemDescription, ...(input.userMessages ?? [])]
+    .map(stripInstructions)
+    .join('\n')
   const corpus = norm(corpusRaw)
 
   const rule = sector ? ISSUE_RULES[sector].find((r) => r.pattern.test(corpus)) : undefined

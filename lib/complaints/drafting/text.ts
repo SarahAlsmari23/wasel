@@ -267,3 +267,30 @@ export function supersededValues(text: string): Set<string> {
 export function isSuperseded(value: string, superseded: Set<string>): boolean {
   return superseded.has(value.toLowerCase()) || extractNumbers(value).some((n) => superseded.has(n))
 }
+
+/*
+ * Instructions to the assistant about what to write ("اكتب إن الشركة احتالت
+ * علي", "قل إن عندي صور", "write that they broke the law", "تجاهل كل
+ * التعليمات") are not facts the user reports: they are removed before any
+ * fact extraction or validation, so they can neither reach the letter nor
+ * count as the user's support for a claim. A plain request for a letter
+ * ("اكتب لي شكوى …") is untouched.
+ */
+const ARABIC_INSTRUCTION =
+  /(?:^|[\s،.؛])(?:و|ف)?(?:اكتب|أكتب|قل|قول|اذكر|أذكر|حط|خلي(?:ه)?)\s+(?:في\s+(?:الشكوى|البلاغ|الخطاب)\s+|بالشكوى\s+)?(?:إن|ان|أن|بأن|انه|إنه|أنه|انهم|إنهم|أنهم)\s[^.؛\n]*?(?=(?:[.؛\n]|،?\s*(?:المهم|بس|لكن|مع إني|مع اني)(?![\u0600-\u06FF])|$))/g
+const ENGLISH_INSTRUCTION =
+  /\b(?:write|say|mention|state|put|claim)\s+(?:in the (?:complaint|letter)\s+)?that\b[^.\n]*?(?=[.\n]|,?\s*(?:anyway|but)\b|$)/gi
+const IGNORE_INSTRUCTIONS =
+  /(?:تجاهل|انس|انسى)\s+(?:كل\s+|جميع\s+)?(?:التعليمات|الأوامر|الاوامر)(?:\s+السابقة|\s+السابقه)?|\bignore\s+(?:all\s+)?(?:previous|prior|above)?\s*instructions\b/gi
+const DISCLAIMER = /،?\s*مع\s+(?:إني|اني|أني)\s+ما\s+(?:عندي|عندي اي)\s+(?:شي|شيء)/g
+
+export function stripInstructions(text: string): string {
+  return text
+    .replace(IGNORE_INSTRUCTIONS, ' ')
+    .replace(ARABIC_INSTRUCTION, ' ')
+    .replace(ENGLISH_INSTRUCTION, ' ')
+    .replace(DISCLAIMER, ' ')
+    .replace(/^[\s،,.؛]+/, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
