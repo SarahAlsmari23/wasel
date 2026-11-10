@@ -63,8 +63,8 @@
   /*
    * Dashboard sidebar — the brand navy, in both themes, so the authenticated
    * area carries the identity instead of a generic white admin rail.
-   * Muted text on it is 6.0:1; the call-to-action uses the lifted emerald
-   * with deep text (7.1:1) so it reads clearly on navy.
+   * Muted text on it is 6.9:1; the call-to-action uses the lifted emerald
+   * with deep text (6.7:1) so it reads clearly on navy.
    */
   --sidebar: #12355b;
   --sidebar-foreground: #f2f6fa;
