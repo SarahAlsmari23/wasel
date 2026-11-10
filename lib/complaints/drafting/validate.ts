@@ -70,8 +70,10 @@ const CLAIM_RULES: { code: string; claim: RegExp; support: RegExp }[] = [
   },
   {
     code: 'unsupported-formal-complaint-claim',
+    // Claims of *earlier* formal complaints — not the letter itself ("I am
+    // writing to submit a formal complaint").
     claim:
-      /(?:شكاوي رسميه|شكوي رسميه|بلاغات رسميه|بلاغ رسمي|formal complaints?|official complaints?|filed (?:a |several |multiple )?(?:complaint|report))/,
+      /(?:شكاوي رسميه|بلاغات رسميه|سبق ان قدمت (?:شكوي|بلاغا)|formal complaints|official complaints|(?:filed|lodged|submitted) (?:a |several |multiple |two |three )?(?:formal |official )?(?:complaints?|reports?) (?:before|previously|already)|previously (?:filed|lodged|submitted))/,
     support: /(?:شكوي|شكاوي|بلاغ|اشتكيت|رفعت|سجلت|complain|report|ticket)/,
   },
   {

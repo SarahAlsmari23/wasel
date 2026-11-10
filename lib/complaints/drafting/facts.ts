@@ -22,6 +22,8 @@ import {
   extractReferences,
   isTrivialMessage,
   norm,
+  isSuperseded,
+  supersededValues,
   type AmountFact,
 } from '@/lib/complaints/drafting/text'
 
@@ -299,6 +301,16 @@ export function deterministicFacts(sources: SourceEntry[], sector: Sector | null
       }
     }
     if (s.source.kind === 'field') fields[s.source.key] = s.text
+  }
+  // Explicit corrections ("لا قصدي 950 مو 900") supersede earlier values,
+  // even before (or without) the model's own reading of the corrections.
+  const superseded = supersededValues(sources.map((s) => s.text).join('\n'))
+  for (const amount of amounts) if (superseded.has(amount.value)) amount.superseded = true
+  for (let i = dates.length - 1; i >= 0; i--) {
+    if (isSuperseded(dates[i].text, superseded)) dates.splice(i, 1)
+  }
+  for (let i = references.length - 1; i >= 0; i--) {
+    if (superseded.has(references[i].text)) references.splice(i, 1)
   }
   const contactField = fields.prior_provider_contact
   const contactSource = sources.find(

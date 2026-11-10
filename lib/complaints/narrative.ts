@@ -17,8 +17,11 @@ import type { Sector } from '@/lib/complaints/sectors'
 import {
   extractAmounts,
   extractDates,
+  extractQuantities,
   extractReferences,
   norm,
+  isSuperseded,
+  supersededValues,
 } from '@/lib/complaints/drafting/text'
 
 function normalizeWhitespace(value: string): string {
@@ -289,9 +292,16 @@ function deriveContactFromCorpus(corpus: string): string | null {
 /** Amounts, explicit dates and reference numbers the user gave, stated once
  * in formal wording — never the user's informal sentence itself. */
 function deriveFactsSentence(corpus: string): string {
-  const amounts = extractAmounts(corpus).map((a) => (a.currency ? `${a.value} ريال` : a.value))
-  const dates = extractDates(corpus)
-  const references = extractReferences(corpus).filter((r) => !amounts.some((a) => a.startsWith(r)))
+  // Values the user explicitly corrected ("لا قصدي 950 مو 900") are dropped.
+  const superseded = supersededValues(corpus)
+  const amounts = extractAmounts(corpus)
+    .filter((a) => !superseded.has(a.value))
+    .map((a) => (a.currency ? `${a.value} ريال` : a.value))
+  const dates = extractDates(corpus).filter((d) => !isSuperseded(d, superseded))
+  const references = extractReferences(corpus).filter(
+    (r) => !amounts.some((a) => a.startsWith(r)) && !superseded.has(r),
+  )
+  const quantities = extractQuantities(corpus).filter((q) => !isSuperseded(q, superseded))
   const parts: string[] = []
   if (amounts.length > 0) {
     parts.push(
@@ -305,6 +315,7 @@ function deriveFactsSentence(corpus: string): string {
       `${references.length > 1 ? 'الأرقام المرجعية' : 'الرقم المرجعي'}: ${references.join(' و')}`,
     )
   }
+  if (quantities.length > 0) parts.push(`المدد والقيم المذكورة: ${quantities.join('، ')}`)
   return parts.length > 0 ? `وفيما يلي البيانات ذات الصلة: ${parts.join('؛ ')}.` : ''
 }
 
@@ -331,7 +342,8 @@ const OUTAGE_PATTERN = /انقطاع|انقطع|انقطعت|مقطوع|طاف|�
 const SECTOR_DEFAULT_RESOLUTION: Record<Sector, string> = {
   water: 'إصلاح العطل وإعادة تشغيل الخدمة في أقرب وقت ممكن',
   electricity: 'إصلاح العطل وإعادة التيار الكهربائي في أقرب وقت ممكن',
-  telecom: 'استعادة الخدمة وتعويضي عن فترة الانقطاع إن أمكن ذلك',
+  // Never compensation unless the user asked for it (RESOLUTION_RULES).
+  telecom: 'استعادة الخدمة ومعالجة سبب الانقطاع في أقرب وقت ممكن',
   commerce: 'استرداد المبلغ المدفوع أو استبدال المنتج أو الخدمة',
   municipality: 'معالجة المشكلة واتخاذ الإجراء اللازم من الجهة المختصة',
 }

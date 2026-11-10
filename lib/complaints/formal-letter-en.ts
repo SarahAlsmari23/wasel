@@ -6,8 +6,11 @@ import {
   arabicRatio,
   extractAmounts,
   extractDates,
+  extractQuantities,
   extractReferences,
   informalEnglish,
+  isSuperseded,
+  supersededValues,
   norm,
 } from '@/lib/complaints/drafting/text'
 
@@ -55,11 +58,12 @@ function describePriorContact(raw: string): string | null {
       .trim()
     return rest ? ` Details: ${rest.replace(/[.]$/, '')}.` : ''
   }
-  const yes = /^(yes|y|نعم|ايه|إيه|أيوه|ايوه|اي)\b/i
+  // Not \b: JS word boundaries never match after an Arabic letter.
+  const yes = /^(yes|y|نعم|ايه|إيه|أيوه|ايوه|اي)(?![\w\u0600-\u06FF])/i
   if (yes.test(value)) {
     return `I have already contacted the service provider about this matter, but it has not been resolved.${detailAfter(yes)}`
   }
-  const no = /^(no|n|لا)\b/i
+  const no = /^(no|n|لا)(?![\w\u0600-\u06FF])/i
   if (no.test(value)) {
     return `I have not yet contacted the service provider directly about this matter.${detailAfter(no)}`
   }
@@ -175,13 +179,14 @@ const GENERIC_ISSUE: Record<Sector, string> = {
 }
 
 const CONTACT_STATEMENT =
-  /(?:كلمتهم|كلمت|تواصلت|اتصلت|راجعت|بلغت|اشتكيت|رفعت (?:بلاغ|شكوي)|i (?:have )?(?:contacted|called|reported|complained|emailed|spoke)|i've (?:contacted|called|reported|complained))/
+  /(?:كلمتهم|كلمت|تواصلت|اتصلت|راجعت|بلغت|اشتكيت|رفعت (?:بلاغ|شكوي)|i (?:have |ve )?(?:contacted|called|reported|complained|emailed|spoke)|customer (?:service|care|support) (?:keeps|kept|said|told)|they (?:said|told me))/
 const MULTIPLE_CONTACT =
   /(?:اكثر من مره|كذا مره|عده مرات|مرات|several|multiple|many times|a bunch of times|more than once|repeatedly)/
 
 /** The description is reused only when it already reads as formal English. */
 function isCleanEnglish(text: string): boolean {
   return (
+    !/\b\w+'(?:s|t|ve|re|ll|d|m)\b|\bnobody\b|\blike \d/i.test(text) &&
     text.length >= 15 &&
     text.length <= 600 &&
     arabicRatio(text) < 0.05 &&
@@ -211,9 +216,13 @@ export function buildEnglishFormalComplaintLetter(
   const corpusRaw = [problemDescription, ...(input.userMessages ?? [])].join('\n')
   const corpus = norm(corpusRaw)
 
-  const subject = sector ? SECTOR_SUBJECTS[sector] : 'Formal complaint'
   const rule = sector ? ISSUE_RULES[sector].find((r) => r.pattern.test(corpus)) : undefined
   const issue = rule?.issue ?? (sector ? GENERIC_ISSUE[sector] : 'the matter described below')
+  const subject = rule
+    ? `Complaint regarding ${rule.issue.replace(/\bmy\b/g, 'the').replace(/^an? /, '')}`
+    : sector
+      ? SECTOR_SUBJECTS[sector]
+      : 'Formal complaint'
 
   const referenceLines = REFERENCE_FIELD_KEYS.filter((key) => !SENSITIVE_KEY_PATTERN.test(key))
     .map((key) => ({ key, value: clean(fields[key]) }))
@@ -226,12 +235,18 @@ export function buildEnglishFormalComplaintLetter(
 
   const description = isCleanEnglish(problemDescription) ? sentence(problemDescription) : ''
   // Exact facts not already stated in the reused description.
+  const superseded = supersededValues(corpusRaw)
   const amounts = extractAmounts(corpusRaw)
-    .filter((a) => !description.includes(a.value))
+    .filter((a) => !description.includes(a.value) && !superseded.has(a.value))
     .map((a) => (a.currency ? `${a.value} SAR` : a.value))
-  const dates = extractDates(corpusRaw).filter((d) => !description.includes(d))
+  const dates = extractDates(corpusRaw).filter(
+    (d) => !description.includes(d) && !isSuperseded(d, superseded),
+  )
+  const quantities = extractQuantities(corpusRaw).filter(
+    (q) => !description.includes(q.split(/[ %]/)[0]) && !isSuperseded(q, superseded),
+  )
   const references = extractReferences(corpusRaw).filter(
-    (r) => !description.includes(r) && !amounts.some((a) => a.startsWith(r)),
+    (r) => !description.includes(r) && !amounts.some((a) => a.startsWith(r)) && !superseded.has(r),
   )
   const factParts = [
     amounts.length ? `${amounts.length > 1 ? 'amounts' : 'amount'}: ${amounts.join(' and ')}` : '',
@@ -239,6 +254,7 @@ export function buildEnglishFormalComplaintLetter(
     references.length
       ? `${references.length > 1 ? 'references' : 'reference'}: ${references.join(' and ')}`
       : '',
+    quantities.length ? `also stated: ${quantities.join(', ')}` : '',
   ].filter(Boolean)
 
   const contactSentence = fields.prior_provider_contact?.trim()

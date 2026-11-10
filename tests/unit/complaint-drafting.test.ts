@@ -307,3 +307,74 @@ describe('deterministic fallback letters (no model)', () => {
     assert.ok(!/[؀-ۿ]/.test(complaintText.replace(/^To:.*$/m, '')))
   })
 })
+
+describe('evaluation-driven fallback fixes', async () => {
+  const { supersededValues, extractQuantities } = await import('@/lib/complaints/drafting/text')
+  it('detects explicitly corrected values, including "آسف قصدي" and dates', () => {
+    assert.ok(supersededValues('الفاتورة 1400 ريال آسف قصدي 1700 ريال').has('1400'))
+    assert.ok(supersededValues('الفاتورة 900 ريال لا قصدي 950 ريال مو 900').has('900'))
+    assert.ok(supersededValues('الانقطاع صار يوم الخميس لا قصدي يوم الجمعة').has('الخميس'))
+    assert.equal(supersededValues('فاتورتي 900 ريال من 3 مارس').size, 0)
+  })
+  it('keeps durations and other stated quantities', () => {
+    assert.deepEqual(extractQuantities('تنقطع من 10 أيام والسرعة 5 ميجابت وتخفيض 50%'), [
+      '10 أيام',
+      '5 ميجابت',
+      '50%',
+    ])
+  })
+  it('English letter reads an Arabic "نعم" prior-contact answer (\\b bug)', () => {
+    const { complaintText } = buildEnglishFormalComplaintLetter({
+      entityName: 'هيئة الاتصالات والفضاء والتقنية',
+      fullName: 'Test',
+      collectedFields: { problem_description: 'internet down', prior_provider_contact: 'نعم' },
+    })
+    assert.match(complaintText, /I have already contacted the service provider/)
+    assert.ok(!complaintText.includes('نعم'))
+  })
+  it('telecom fallback never asks for compensation the user did not request', () => {
+    const { complaintText } = buildFormalComplaintLetter({
+      entityName: 'هيئة الاتصالات والفضاء والتقنية',
+      fullName: 'مستخدم',
+      collectedFields: { problem_description: 'النت مقطوع من أمس' },
+    })
+    assert.ok(!complaintText.includes('تعويض'))
+  })
+  it('the corrected amount wins in the fallback letter', () => {
+    const { complaintText } = buildFormalComplaintLetter({
+      entityName: WATER,
+      fullName: 'مستخدم',
+      collectedFields: { problem_description: 'الفاتورة طلعت 900 ريال لا قصدي 950 ريال مو 900' },
+    })
+    assert.match(complaintText, /950/)
+    assert.ok(!complaintText.includes('900'))
+  })
+})
+
+describe('complaint readiness and problem descriptions (drafting e2e findings)', async () => {
+  const { isOnlyComplaintRequest, describesProblem } = await import('@/lib/ai/problem-signal')
+  it('a request to complain without the problem is not a description', () => {
+    for (const t of [
+      'وين أشتكي على الموية؟',
+      'أبي أقدم بلاغ على الكهرباء',
+      'تقدر تساعدني أكتب شكوى؟',
+      'where do I complain about water?',
+      'I want to file a complaint against the store',
+    ]) {
+      assert.equal(isOnlyComplaintRequest(t), true, t)
+    }
+  })
+  it('any stated problem is a description, even when it ends with a question', () => {
+    for (const t of [
+      WATER_BILL,
+      'الكهرباء مقطوعة',
+      'My water bill went crazy',
+      'حفرة في الشارع',
+      'المتجر ما رجع فلوسي',
+      'النت بطيء',
+    ]) {
+      assert.equal(isOnlyComplaintRequest(t), false, t)
+    }
+    assert.equal(describesProblem(WATER_BILL), true)
+  })
+})

@@ -65,7 +65,7 @@ export function extractAmounts(text: string): AmountFact[] {
     /(?:فاتور\S*|مبلغ|المبلغ|قيم\S*|سعر\S*|دفعت|سددت|خصم\S*|رصيد\S*|bill|amount|charged|paid|price|cost|refund)\D{0,25}?(\d[\d,]*(?:\.\d+)?)/gi
   // "صارت 900 ريال وكانت 150": a number after was/became, once an amount exists.
   const comparative =
-    /(?:كانت|كان|صارت|صار|اصبحت|أصبحت|بدل|بدلا من|بدلاً من|was|were|used to be|from|instead of)\s+(\d[\d,]*(?:\.\d+)?)(?!\s*(?:يوم|ايام|أيام|شهر|اشهر|أشهر|سن|ساع|دقيق|مر|day|week|month|year|hour|minute|time|[/-]))/gi
+    /(?:كانت|كان|صارت|صار|اصبحت|أصبحت|بدل|بدلا من|بدلاً من|العادة|العاده|عادة|المعتاد|معتاد|متوسط|حسبوه|حسبوها|تتعدى|يتعدى|was|were|used to be|from|instead of|usually|normally|usual)\s+(\d[\d,]*(?:\.\d+)?)(?!\s*(?:يوم|ايام|أيام|شهر|اشهر|أشهر|سن|ساع|دقيق|مر|day|week|month|year|hour|minute|time|[/-]))/gi
   for (const m of source.matchAll(contextual)) {
     const value = canonicalNumber(m[1])
     if (value.length > 7) continue
@@ -119,7 +119,7 @@ export function extractReferences(text: string): string[] {
 
 /** Count words the letter must not invent ("three times", "مرتين"). */
 export const COUNT_WORDS_PATTERN =
-  /(?:مرتين|ثلاث مرات|اربع مرات|خمس مرات|عشر مرات|مره واحده|twice|three times|four times|five times|ten times|once)/g
+  /(?:مرتين|ثلاث مرات|اربع مرات|خمس مرات|عشر مرات|مره واحده|twice|three times|four times|five times|ten times)/g
 
 const DIALECT_WORDS = [
   'وين',
@@ -173,7 +173,7 @@ export function dialectWords(text: string): string[] {
 }
 
 const ENGLISH_INFORMAL =
-  /\b(?:gonna|wanna|gotta|crazy|a bunch|nobody fixed|kinda|sorta|ya|u r|pls|plz|lol|omg|super annoying|ripped off)\b/gi
+  /\b(?:gonna|wanna|gotta|crazy|a bunch|nobody fixed|kinda|sorta|ya|u r|pls|plz|lol|omg|super annoying|super|literally|ghosted|ripped off)\b/gi
 export function informalEnglish(text: string): string[] {
   return [...new Set((text.match(ENGLISH_INFORMAL) ?? []).map((w) => w.toLowerCase()))]
 }
@@ -189,4 +189,81 @@ const TRIVIAL =
   /^(?:شكرا|شكرا لك|مشكور|يعطيك العافيه|تمام|طيب|اوك|اوكي|ok|okay|thanks|thank you|thx|نعم|ايه|اي|لا|yes|no|السلام عليكم|هلا|مرحبا|hi|hello|hey)$/
 export function isTrivialMessage(text: string): boolean {
   return TRIVIAL.test(norm(text))
+}
+
+const QUANTITY_UNITS =
+  'يوم|يوما|يوماً|ايام|أيام|اسبوع|أسبوع|اسابيع|أسابيع|شهر|شهور|اشهر|أشهر|ساعه|ساعة|ساعات|دقيقه|دقيقة|دقائق|مرات|ميجابت|ميقا|جيجا|days?|weeks?|months?|hours?|minutes?|times(?: a day)?|mbps|gb|percent'
+
+/** Durations and other quantities the user gave ("10 أيام", "5 ميجابت",
+ * "50%", "9 days") — excluding amounts (handled separately). */
+export function extractQuantities(text: string): string[] {
+  const source = asciiDigits(text)
+  const out: string[] = []
+  const re = new RegExp(
+    String.raw`(\d[\d,]*(?:\.\d+)?)\s*(?:(${QUANTITY_UNITS})(?![؀-ۿA-Za-z])|(%))`,
+    'gi',
+  )
+  for (const m of source.matchAll(re)) {
+    out.push(m[3] ? `${canonicalNumber(m[1])}%` : `${canonicalNumber(m[1])} ${m[2]}`)
+  }
+  const amounts = new Set(extractAmounts(text).map((a) => a.value))
+  return [...new Set(out)].filter((q) => !amounts.has(q.split(/[ %]/)[0]))
+}
+
+const CORRECTION_MARKER =
+  /(?:قصدي|اقصد|أقصد|بالاصح|بالأصح|المقصود|لا لحظه|لا لحظة|لحظه لا|لحظة لا|آسف|اسف|i mean|i meant|actually|sorry,? i meant|correction)/gi
+const NEGATED_VALUE = /(?:مو|مب|ليس|وليس|not|instead of)\s+(?:يوم\s+|شهر\s+|حي\s+)?(\S+)/gi
+const MONTHS_AND_DAYS = new RegExp(
+  `(?:${AR_MONTHS}|السبت|الاحد|الأحد|الاثنين|الإثنين|الثلاثاء|الاربعاء|الأربعاء|الخميس|الجمعة|الجمعه|${EN_MONTHS}|monday|tuesday|wednesday|thursday|friday|saturday|sunday)`,
+  'gi',
+)
+
+function canonicalOrWord(value: string): string {
+  const v = value.replace(/[.,،؛]+$/, '')
+  return /^\d/.test(v) ? canonicalNumber(v.replace(/[^\d.,]/g, '')) : v.toLowerCase()
+}
+
+/**
+ * Values the user explicitly corrected ("الفاتورة 900 ريال … لا قصدي 950 مو
+ * 900", "يوم الخميس … لا قصدي الجمعة"): a number, month or weekday stated
+ * before a correction marker is superseded when the corrected part gives a
+ * different value of the same kind; "مو 900"/"not 900" after the marker is
+ * superseded too. Deterministic and conservative (other values are kept).
+ */
+export function supersededValues(text: string): Set<string> {
+  const source = asciiDigits(text)
+  const out = new Set<string>()
+  const markers = [...source.matchAll(CORRECTION_MARKER)]
+  markers.forEach((marker, i) => {
+    const at = marker.index ?? 0
+    // Everything said before the correction ("آسف قصدي": both markers share it).
+    const before = source.slice(0, at)
+    const after = source.slice(at + marker[0].length, markers[i + 1]?.index ?? source.length)
+    for (const m of after.matchAll(NEGATED_VALUE)) {
+      if (/\d/.test(m[1]) || new RegExp(MONTHS_AND_DAYS.source, 'i').test(m[1])) {
+        out.add(canonicalOrWord(m[1]))
+      }
+    }
+    const afterClean = after.replace(NEGATED_VALUE, ' ')
+    const kinds: ((t: string) => string[])[] = [
+      (t) => extractNumbers(t),
+      (t) => t.match(MONTHS_AND_DAYS) ?? [],
+    ]
+    for (const of of kinds) {
+      const fresh = of(afterClean).map(canonicalOrWord)
+      if (fresh.length === 0) continue
+      // The correction replaces the most recent value of the same kind only.
+      const previous = of(before)
+        .map(canonicalOrWord)
+        .filter((v) => !fresh.includes(v))
+      const last = previous[previous.length - 1]
+      if (last !== undefined) out.add(last)
+    }
+  })
+  return out
+}
+
+/** A date/quantity phrase whose value the user corrected. */
+export function isSuperseded(value: string, superseded: Set<string>): boolean {
+  return superseded.has(value.toLowerCase()) || extractNumbers(value).some((n) => superseded.has(n))
 }

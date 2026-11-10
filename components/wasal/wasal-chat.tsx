@@ -31,6 +31,7 @@ import { TypingIndicator } from '@/components/wasal/typing-indicator'
 import { buildComplaintAnalysisFromRouting } from '@/lib/complaints/analysis'
 import { deriveComplaintTitleFromFields } from '@/lib/complaints/formal-letter'
 import { normalizeArabicInput } from '@/lib/ai/arabic-normalize'
+import { describesProblem } from '@/lib/ai/problem-signal'
 import {
   inferFieldAnswerShape,
   isGreetingOnly,
@@ -123,7 +124,8 @@ const CHAT_COPY = defineCopy({
       'A complaint has already been created for this conversation — you can copy or edit it from the card.',
     unexpectedError: 'Something went wrong. Please try again.',
     complaintCreated: 'Your complaint was created.',
-    complaintCreatedFallback: 'Smart drafting is temporarily unavailable, so the standard letter was used.',
+    complaintCreatedFallback:
+      'Smart drafting is temporarily unavailable, so the standard letter was used.',
     createTimeout: 'Creating the complaint took longer than expected. Please try again.',
     statusUpdated: 'Complaint status updated.',
     assistantLabel: 'Wasel',
@@ -1045,6 +1047,9 @@ export function WasalChat({
       !isGreetingInterruption &&
       !isIdentityInterruption &&
       !isOutOfScopeInterruption &&
+      // A problem description ending in a question ("… وين أشتكي؟") answers
+      // the pending description; same rule as the chat route.
+      !(pendingKey === 'problem_description' && describesProblem(content)) &&
       isLikelySideQuestion(content, pendingKey)
     const isInterruption =
       isGreetingInterruption ||
@@ -1545,7 +1550,9 @@ export function WasalChat({
       if (result.success) {
         setComplaintResult(result.complaint)
         showToast(
-          result.complaint.aiDraftUnavailable ? copy.complaintCreatedFallback : copy.complaintCreated,
+          result.complaint.aiDraftUnavailable
+            ? copy.complaintCreatedFallback
+            : copy.complaintCreated,
         )
       } else {
         setCreateComplaintError(result.error)
