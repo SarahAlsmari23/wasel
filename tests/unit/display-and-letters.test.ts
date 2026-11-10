@@ -73,7 +73,7 @@ describe('formal letters', () => {
     assert.match(letter.complaintText, /Water has been cut off for three days\./)
     assert.match(letter.complaintText, /Bill number: B-123/)
     assert.match(letter.complaintText, /Name: Sara Ahmed$/)
-    assert.equal(letter.subject, 'Complaint regarding water services')
+    assert.equal(letter.subject, 'Complaint regarding interruption of the water supply')
     assert.equal(letter.generatedFromData.language, 'en')
   })
 

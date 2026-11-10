@@ -14,6 +14,16 @@
 
 import { parseBooleanAnswer } from '@/lib/ai/intent-guards'
 import type { Sector } from '@/lib/complaints/sectors'
+import {
+  extractAmounts,
+  extractDates,
+  extractQuantities,
+  extractReferences,
+  norm,
+  isSuperseded,
+  stripInstructions,
+  supersededValues,
+} from '@/lib/complaints/drafting/text'
 
 function normalizeWhitespace(value: string): string {
   return value.trim().replace(/\s+/g, ' ')
@@ -27,7 +37,8 @@ function buildCorpus(problemDescription: string, userMessages: string[]): string
   const seen = new Set<string>()
   const parts: string[] = []
   for (const raw of [problemDescription, ...userMessages]) {
-    const text = normalizeWhitespace(raw)
+    // Instructions about what to write are not reported facts.
+    const text = normalizeWhitespace(stripInstructions(raw))
     if (text === '' || seen.has(text)) continue
     seen.add(text)
     parts.push(text)
@@ -35,7 +46,16 @@ function buildCorpus(problemDescription: string, userMessages: string[]): string
   return parts.join(' ')
 }
 
-type IssueRule = { keywords: string[]; clause: string }
+/** Either a list of substrings or a pattern over the normalised corpus. */
+type IssueRule = { keywords: string[] | RegExp; clause: string }
+
+/** Any bill mention, checked after outage/meter/dispute rules (so "دفعت
+ * الفاتورة" offered as context for an outage never wins). */
+const ANY_BILL = /فاتور|\bbills?\b/
+
+/** "فاتورة الموية ارتفعت بشكل مو طبيعي", "زادت الفاتورة", "my bill went up". */
+const BILL_RISE =
+  /فاتور\S*(?:\s+\S+){0,4}\s+(?:ارتفع\S*|زاد\S*|زايد\S*|مرتفع\S*|عالي\S*|غالي\S*|خيالي\S*|نار)|(?:ارتفاع|ارتفعت|زياده|زادت|غلاء)\s+(?:\S+\s+){0,2}(?:قيمه\s+)?(?:ال)?فاتور|bill\s+(?:went up|increased|is (?:too |very )?high|doubled|jumped)|(?:high|higher|increased|inflated)\s+(?:\w+\s+)?bill/
 
 /** Mid-sentence noun phrases (not full subject lines — see
  * formal-letter.ts's own SECTOR_SUBJECT_RULES for those) describing *what
@@ -77,7 +97,9 @@ const SECTOR_ISSUE_CLAUSES: Record<Sector, IssueRule[]> = {
   water: [
     { keywords: ['انقطاع', 'انقطعت', 'منقطعة', 'منقطع'], clause: 'انقطاع خدمة المياه' },
     { keywords: ['توصيل', 'تركيب', 'خط مياه'], clause: 'التأخر في توصيل خدمة المياه' },
+    { keywords: BILL_RISE, clause: 'ارتفاع قيمة فاتورة المياه' },
     { keywords: BILL_DISPUTE_KEYWORDS, clause: 'احتساب فاتورة مياه غير صحيحة' },
+    { keywords: ANY_BILL, clause: 'قيمة فاتورة المياه' },
   ],
   telecom: [
     // Emergency release fix — service interruption and weak coverage were
@@ -96,7 +118,9 @@ const SECTOR_ISSUE_CLAUSES: Record<Sector, IssueRule[]> = {
       keywords: ['انقطاع', 'منقطع', 'مقطوع', 'انقطعت', 'توقف', 'توقفت', 'ما يشتغل', 'ما يعمل'],
       clause: 'انقطاع خدمة الإنترنت',
     },
+    { keywords: BILL_RISE, clause: 'ارتفاع قيمة فاتورة الاتصالات' },
     { keywords: BILL_DISPUTE_KEYWORDS, clause: 'احتساب فاتورة اتصالات غير صحيحة' },
+    { keywords: ANY_BILL, clause: 'قيمة فاتورة الاتصالات' },
     { keywords: ['بطيء', 'بطء', 'بطيئة', 'بطيئ'], clause: 'بطء خدمة الإنترنت' },
     {
       keywords: ['ضعيف', 'ضعف', 'سيئ', 'سيئة', 'تغطية'],
@@ -117,12 +141,19 @@ const SECTOR_ISSUE_CLAUSES: Record<Sector, IssueRule[]> = {
   municipality: [
     { keywords: ['حفرة', 'حفر', 'الطريق', 'الشارع'], clause: 'وجود حفرة أو تلف في الطريق' },
     { keywords: ['رصيف', 'الأرصفة'], clause: 'تلف في الرصيف' },
-    { keywords: ['نظافة', 'قمامة', 'نفايات'], clause: 'تراكم النفايات وتدهور النظافة العامة' },
+    {
+      keywords: ['نظافة', 'قمامة', 'نفايات', 'زبالة', 'الزبالة'],
+      clause: 'تراكم النفايات وتدهور النظافة العامة',
+    },
+    { keywords: ['إنارة', 'اناره', 'إضاءة'], clause: 'تعطل إنارة الشارع' },
+    { keywords: ['أنقاض', 'مخلفات بناء', 'مخلفات البناء'], clause: 'وجود مخلفات بناء في موقع عام' },
   ],
   electricity: [
     { keywords: ['انقطاع', 'انقطعت', 'منقطعة'], clause: 'انقطاع التيار الكهربائي' },
     { keywords: ['عداد'], clause: 'خلل في عداد الكهرباء' },
+    { keywords: BILL_RISE, clause: 'ارتفاع قيمة فاتورة الكهرباء' },
     { keywords: BILL_DISPUTE_KEYWORDS, clause: 'احتساب فاتورة كهرباء غير صحيحة' },
+    { keywords: ANY_BILL, clause: 'قيمة فاتورة الكهرباء' },
   ],
 }
 
@@ -136,8 +167,12 @@ const SECTOR_GENERIC_ISSUE_CLAUSE: Record<Sector, string> = {
 
 function deriveIssueClause(sector: Sector | null, corpus: string): string {
   if (!sector) return 'المشكلة المذكورة'
+  const normalized = norm(corpus)
   for (const rule of SECTOR_ISSUE_CLAUSES[sector]) {
-    if (rule.keywords.some((keyword) => corpus.includes(keyword))) return rule.clause
+    const matched = Array.isArray(rule.keywords)
+      ? rule.keywords.some((keyword) => corpus.includes(keyword))
+      : rule.keywords.test(normalized)
+    if (matched) return rule.clause
   }
   return SECTOR_GENERIC_ISSUE_CLAUSE[sector]
 }
@@ -241,6 +276,56 @@ function derivePreviousContactSentence(priorContactRaw: string): string | null {
   return null
 }
 
+/*
+ * When no prior-contact field was collected (only telecom asks for one), the
+ * user's own account of contacting the provider is still a fact the letter
+ * should carry ("كلمتهم أكثر من مرة وما استفدت"). Only a positive, explicit
+ * statement counts; the attempt count is never more specific than the user's
+ * words. The collected field, when present, always wins (see the caller).
+ */
+const CONTACT_STATEMENT =
+  /(?:كلمتهم|كلمت|تواصلت|اتصلت|راجعتهم|راجعت|بلغتهم|بلغت|اشتكيت|رفعت (?:بلاغ|شكوي)|قدمت (?:بلاغ|شكوي)|i (?:have )?(?:contacted|called|reported|complained|emailed|spoke)|i've (?:contacted|called|reported|complained))/
+const MULTIPLE_CONTACT =
+  /(?:اكثر من مره|كذا مره|عده مرات|مرات|مرارا|several|multiple|many times|a bunch of times|more than once|again and again|repeatedly)/
+
+function deriveContactFromCorpus(corpus: string): string | null {
+  const text = norm(corpus)
+  if (!CONTACT_STATEMENT.test(text)) return null
+  return MULTIPLE_CONTACT.test(text)
+    ? 'وقد سبق لي التواصل مع الجهة المعنية أكثر من مرة لمحاولة معالجة المشكلة، إلا أنها لم تُحل حتى الآن.'
+    : 'وقد سبق لي التواصل مع الجهة المعنية بشأن هذه المشكلة، إلا أنها لم تُحل حتى الآن.'
+}
+
+/** Amounts, explicit dates and reference numbers the user gave, stated once
+ * in formal wording — never the user's informal sentence itself. */
+function deriveFactsSentence(corpus: string): string {
+  // Values the user explicitly corrected ("لا قصدي 950 مو 900") are dropped.
+  const superseded = supersededValues(corpus)
+  const amounts = extractAmounts(corpus)
+    .filter((a) => !superseded.has(a.value))
+    .map((a) => (a.currency ? `${a.value} ريال` : a.value))
+  const dates = extractDates(corpus).filter((d) => !isSuperseded(d, superseded))
+  const references = extractReferences(corpus).filter(
+    (r) => !amounts.some((a) => a.startsWith(r)) && !superseded.has(r),
+  )
+  const quantities = extractQuantities(corpus).filter((q) => !isSuperseded(q, superseded))
+  const parts: string[] = []
+  if (amounts.length > 0) {
+    parts.push(
+      `${amounts.length > 1 ? 'المبالغ المذكورة' : 'المبلغ المذكور'}: ${amounts.join(' و')}`,
+    )
+  }
+  if (dates.length > 0)
+    parts.push(`${dates.length > 1 ? 'التواريخ' : 'التاريخ'}: ${dates.join(' و')}`)
+  if (references.length > 0) {
+    parts.push(
+      `${references.length > 1 ? 'الأرقام المرجعية' : 'الرقم المرجعي'}: ${references.join(' و')}`,
+    )
+  }
+  if (quantities.length > 0) parts.push(`المدد والقيم المذكورة: ${quantities.join('، ')}`)
+  return parts.length > 0 ? `وفيما يلي البيانات ذات الصلة: ${parts.join('؛ ')}.` : ''
+}
+
 type ResolutionRule = { pattern: RegExp; phrase: string }
 
 const RESOLUTION_RULES: ResolutionRule[] = [
@@ -250,7 +335,7 @@ const RESOLUTION_RULES: ResolutionRule[] = [
   // meter/bill complaint to restore an electricity supply that never failed).
   {
     pattern: /فاتور|قراء[ةه]|عداد|مبلغ|خصم|bill/,
-    phrase: 'مراجعة الفاتورة أو المبلغ محل الاعتراض وتصحيحه عند ثبوت الخطأ',
+    phrase: 'مراجعة الفاتورة والتحقق من صحة المبلغ المحتسب، واتخاذ الإجراء المناسب في حال وجود خطأ',
   },
   { pattern: /تعويض/, phrase: 'تعويضي عن الأضرار الناتجة' },
   { pattern: /استبدال/, phrase: 'استبدال المنتج أو الخدمة' },
@@ -264,9 +349,10 @@ const OUTAGE_PATTERN = /انقطاع|انقطع|انقطعت|مقطوع|طاف|�
 const SECTOR_DEFAULT_RESOLUTION: Record<Sector, string> = {
   water: 'إصلاح العطل وإعادة تشغيل الخدمة في أقرب وقت ممكن',
   electricity: 'إصلاح العطل وإعادة التيار الكهربائي في أقرب وقت ممكن',
-  telecom: 'استعادة الخدمة وتعويضي عن فترة الانقطاع إن أمكن ذلك',
+  // Never compensation unless the user asked for it (RESOLUTION_RULES).
+  telecom: 'استعادة الخدمة ومعالجة سبب الانقطاع في أقرب وقت ممكن',
   commerce: 'استرداد المبلغ المدفوع أو استبدال المنتج أو الخدمة',
-  municipality: 'معالجة المشكلة واتخاذ الإجراء اللازم من الجهة المختصة',
+  municipality: 'معالجة المشكلة واتخاذ الإجراء اللازم',
 }
 
 function deriveExpectedResolution(sector: Sector | null, corpus: string): string {
@@ -347,7 +433,10 @@ export function renderComplaintBody(input: NarrativeInput): ComplaintBody {
     NO_OUTSTANDING_DUES_PATTERN.test(corpus)
   const timelinePhrase = deriveTimelinePhrase(corpus)
   const ongoing = deriveOngoing(corpus, timelinePhrase)
-  const previousContactSentence = derivePreviousContactSentence(input.priorContactRaw)
+  const previousContactSentence =
+    normalizeWhitespace(input.priorContactRaw) !== ''
+      ? derivePreviousContactSentence(input.priorContactRaw)
+      : deriveContactFromCorpus(corpus)
   const expectedResolution = deriveExpectedResolution(input.sector, corpus)
   const impactClause = deriveImpactClause(input.sector, corpus)
 
@@ -357,13 +446,10 @@ export function renderComplaintBody(input: NarrativeInput): ComplaintBody {
   }
   introduction += '.'
 
-  // The user's own description, quoted as given, so every fact they
-  // supplied (amounts, dates, readings, places) reaches the authority
-  // unchanged — the classified clauses above summarise, they never replace.
-  const details =
-    normalizeWhitespace(input.problemDescription) !== ''
-      ? `وتفاصيل المشكلة كما أفدتُ بها: «${normalizeWhitespace(input.problemDescription)}».`
-      : ''
+  // Every exact fact the user supplied (amounts, dates, reference numbers)
+  // reaches the authority unchanged, in formal wording — the user's informal
+  // sentence itself is never pasted into the letter.
+  const details = deriveFactsSentence(corpus)
 
   // Only what is known is stated: no "حدثت هذه المشكلة" placeholder when no
   // time reference exists, and no impact the user did not describe.
@@ -386,13 +472,13 @@ export function renderComplaintBody(input: NarrativeInput): ComplaintBody {
       ? `${explanation} ${previousContactSentence}`
       : previousContactSentence
   }
-  explanation = [details, explanation].filter(Boolean).join('\n\n')
+  explanation = [explanation, details].filter(Boolean).join('\n\n')
 
   let resolution = `آمل من الجهة المختصة ${expectedResolution}`
   if (city !== '') {
     resolution += `، علماً بأن الموقع في مدينة ${city}`
   }
-  resolution += '، وذلك وفق الأنظمة والإجراءات المعمول بها.'
+  resolution += '.'
 
   return { introduction, explanation, resolution }
 }

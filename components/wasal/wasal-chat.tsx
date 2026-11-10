@@ -31,6 +31,7 @@ import { TypingIndicator } from '@/components/wasal/typing-indicator'
 import { buildComplaintAnalysisFromRouting } from '@/lib/complaints/analysis'
 import { deriveComplaintTitleFromFields } from '@/lib/complaints/formal-letter'
 import { normalizeArabicInput } from '@/lib/ai/arabic-normalize'
+import { describesProblem } from '@/lib/ai/problem-signal'
 import {
   inferFieldAnswerShape,
   isGreetingOnly,
@@ -66,7 +67,10 @@ const MAX_HISTORY_ITEMS = 10
 // leave the create button spinning forever. The server action itself keeps
 // running regardless — a retry after this fires safely recovers the same
 // complaint via createComplaintAction's own ComplaintAlreadyExistsError path.
-const CREATE_COMPLAINT_TIMEOUT_MS = 25_000
+// With AI drafting enabled, creation includes up to three bounded model calls
+// (server budget 32 s, then the deterministic fallback), so the ceiling sits
+// comfortably above that budget.
+const CREATE_COMPLAINT_TIMEOUT_MS = 60_000
 
 const CHAT_COPY = defineCopy({
   ar: {
@@ -82,6 +86,7 @@ const CHAT_COPY = defineCopy({
       'تم إنشاء البلاغ بالفعل لهذه المحادثة — يمكنك نسخه أو تعديله من البطاقة.',
     unexpectedError: 'حدث خطأ غير متوقع. حاول مرة أخرى.',
     complaintCreated: 'تم إنشاء البلاغ بنجاح.',
+    complaintCreatedFallback: 'تعذرت الصياغة الذكية مؤقتاً، فأُنشئ البلاغ بالصيغة القياسية.',
     createTimeout: 'استغرق إنشاء البلاغ وقتاً أطول من المتوقع. حاول مرة أخرى.',
     statusUpdated: 'تم تحديث حالة البلاغ.',
     assistantLabel: 'واصل',
@@ -119,6 +124,8 @@ const CHAT_COPY = defineCopy({
       'A complaint has already been created for this conversation — you can copy or edit it from the card.',
     unexpectedError: 'Something went wrong. Please try again.',
     complaintCreated: 'Your complaint was created.',
+    complaintCreatedFallback:
+      'Smart drafting is temporarily unavailable, so the standard letter was used.',
     createTimeout: 'Creating the complaint took longer than expected. Please try again.',
     statusUpdated: 'Complaint status updated.',
     assistantLabel: 'Wasel',
@@ -1040,6 +1047,9 @@ export function WasalChat({
       !isGreetingInterruption &&
       !isIdentityInterruption &&
       !isOutOfScopeInterruption &&
+      // A problem description ending in a question ("… وين أشتكي؟") answers
+      // the pending description; same rule as the chat route.
+      !(pendingKey === 'problem_description' && describesProblem(content)) &&
       isLikelySideQuestion(content, pendingKey)
     const isInterruption =
       isGreetingInterruption ||
@@ -1539,7 +1549,11 @@ export function WasalChat({
       )
       if (result.success) {
         setComplaintResult(result.complaint)
-        showToast(copy.complaintCreated)
+        showToast(
+          result.complaint.aiDraftUnavailable
+            ? copy.complaintCreatedFallback
+            : copy.complaintCreated,
+        )
       } else {
         setCreateComplaintError(result.error)
       }

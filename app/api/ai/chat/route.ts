@@ -2,7 +2,11 @@ import { NextResponse } from 'next/server'
 import { validateChatRequest } from '@/lib/ai/contracts'
 import { AiProviderError } from '@/lib/ai/generation-shared'
 import { generateAnswer } from '@/lib/ai/provider'
-import { describesProblem, isInformationQuestion } from '@/lib/ai/problem-signal'
+import {
+  describesProblem,
+  isInformationQuestion,
+  isOnlyComplaintRequest,
+} from '@/lib/ai/problem-signal'
 import {
   localizedFieldQuestion,
   SERVER_COPY,
@@ -592,10 +596,16 @@ export async function POST(request: Request) {
             ? 'identity_question'
             : isObviousOutOfScope(sanitizedMessage)
               ? 'out_of_scope'
-              : intent === 'complaint_side_question' ||
-                  isLikelySideQuestion(sanitizedMessage, nextField.key)
-                ? 'complaint_side_question'
-                : null
+              : // A problem description that ends in a question ("الفاتورة
+                // ارتفعت … وين أشتكي؟") answers the pending description — it
+                // is not a side question (otherwise the description is lost
+                // and the next answer, e.g. the city, is stored in its place).
+                nextField.key === 'problem_description' && describesProblem(sanitizedMessage)
+                ? null
+                : intent === 'complaint_side_question' ||
+                    isLikelySideQuestion(sanitizedMessage, nextField.key)
+                  ? 'complaint_side_question'
+                  : null
         : intent === 'identity_question' ||
             intent === 'out_of_scope' ||
             intent === 'greeting' ||
@@ -727,7 +737,17 @@ export async function POST(request: Request) {
   // side question (handled separately above).
   const genericStarterSector = (() => {
     if (complaintInterruption === 'complaint_side_question') return null
-    if (missingFieldsResult?.readyToGenerateComplaint) return null
+    // Readiness is not "every required field has a value": a description
+    // that only asks to complain ("وين أشتكي على الموية؟") plus a city is
+    // not enough to write a letter, so the problem-type question re-opens.
+    // Any other description keeps a ready complaint ready.
+    const readyDescription =
+      sanitizedComplaintContext?.collectedFields?.problem_description ||
+      sanitizedComplaintContext?.description ||
+      ''
+    const descriptionIsOnlyARequest =
+      readyDescription !== '' && isOnlyComplaintRequest(readyDescription)
+    if (missingFieldsResult?.readyToGenerateComplaint && !descriptionIsOnlyARequest) return null
     // A plain information question ("ما رقم بلاغات وزارة التجارة؟") is
     // answered, never met with "what exactly is the problem?" (evals).
     if (!hasActiveComplaintContext && isInformationQuestion(sanitizedMessage)) return null
@@ -738,6 +758,7 @@ export async function POST(request: Request) {
       sanitizedComplaintContext?.collectedFields?.problem_description ||
       sanitizedComplaintContext?.description ||
       sanitizedMessage
+    if (descriptionIsOnlyARequest) return sector
     return hasSectorIssueSignal(sector, problemDescriptionText) ? null : sector
   })()
   if (genericStarterSector) {

@@ -33,6 +33,7 @@ const COPY = defineCopy({
     edit: 'تعديل التفاصيل',
     regenerate: 'إعادة الإنشاء',
     regenerated: 'تمت إعادة إنشاء البلاغ.',
+    fallbackUsed: 'تعذرت الصياغة الذكية مؤقتاً، فأُنشئ البلاغ بالصيغة القياسية.',
     markSubmitted: 'تحديد كمُقدَّم',
     alreadySubmitted: 'تم تقديم البلاغ',
     backToComplaints: 'عرض بلاغاتي في لوحة التحكم',
@@ -56,6 +57,7 @@ const COPY = defineCopy({
     edit: 'Edit details',
     regenerate: 'Regenerate',
     regenerated: 'The complaint was regenerated.',
+    fallbackUsed: 'Smart drafting is temporarily unavailable, so the standard letter was used.',
     markSubmitted: 'Mark as submitted',
     alreadySubmitted: 'Complaint submitted',
     backToComplaints: 'View my complaints in the dashboard',
@@ -141,7 +143,7 @@ export function ComplaintResultCard({
           updatedAt: result.complaint.updatedAt,
           versionNumber: result.versionNumber,
         })
-        showToast(copy.regenerated)
+        showToast(result.aiDraftUnavailable ? copy.fallbackUsed : copy.regenerated)
       } else {
         showToast(result.error, 'error')
       }

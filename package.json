@@ -15,7 +15,8 @@
     "eval:ai": "node scripts/eval-ai.mjs",
     "eval:build": "node evals/build-dataset.mjs",
     "eval:offline": "tsx evals/offline-eval.ts",
-    "eval:live": "node evals/live-eval.mjs"
+    "eval:live": "node evals/live-eval.mjs",
+    "eval:drafting": "tsx evals/drafting/run.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.3",

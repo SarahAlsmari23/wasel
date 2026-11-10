@@ -45,3 +45,28 @@ export function describesProblem(message: string): boolean {
   if (ARABIC_PROBLEM_PATTERN.test(normalizeArabicInput(message))) return true
   return ENGLISH_PROBLEM_PATTERN.test(message)
 }
+
+const COMPLAINT_REQUEST =
+  /(?:وين|فين|كيف|وش|ايش|ماذا|هل)?\s*(?:اقدر|ممكن|تقدر|تقدري|ودي|ابي|ابغي|ابغا|اريد|احتاج|ابيك|ممكن)?\s*(?:ا|ن|ت)?(?:شتكي|اشتكي|قدم|اقدم|ارفع|رفع|اكتب|تكتب|كتابه|تقديم)\s*(?:لي)?\s*(?:شكوي|شكوه|بلاغ|على|عليهم|عليه|ضد)?|(?:شكوي|بلاغ|مساعده|ساعدني|تساعدني|سوال|استفسار)|(?:وش|ايش|ماذا)\s+(?:اسوي|افعل)/g
+const REQUEST_FILLER =
+  /(?<![؀-ۿ])(?:علي|على|عن|في|من|مع|ضد|الي|لي|يا|لو|سمحت|شركه|الشركه|جهه|الجهه|مشكله|عندي|لدي|ابي|ابغي|و|ف|المويه|مويه|المياه|مياه|الكهربا|الكهرباء|كهرباء|النت|الانترنت|الاتصالات|المتجر|متجر|محل|المحل|البلديه|بلديه|الامانه|هييه|وزاره|التجاره|الوطنيه|السعوديه|للطاقه|للمياه|اين|وين|كيف|هل|اقدر|ممكن|تقدر)(?![؀-ۿ])/g
+const ENGLISH_REQUEST =
+  /\b(?:where|how|can|could|do|does|should|i|you|me|we|to|a|an|the|my|about|with|against|for|please|help|want|wanna|need|would|like|complain|complaint|file|submit|make|lodge|report|write|company|provider|water|electricity|power|internet|telecom|store|shop|municipality|ministry|authority|bill|issue|problem)\b/gi
+
+/**
+ * True when the text asks *to* complain without saying what is wrong
+ * ("وين أشتكي على الموية؟", "أبي أقدم بلاغ على الكهرباء", "where do I
+ * complain about water?"). Complaint readiness requires the problem itself.
+ */
+export function isOnlyComplaintRequest(message: string): boolean {
+  const arabic = normalizeArabicInput(message)
+    .replace(/[؟?!.,،]/g, ' ')
+    .replace(COMPLAINT_REQUEST, ' ')
+    .replace(REQUEST_FILLER, ' ')
+  const rest = arabic
+    .replace(ENGLISH_REQUEST, ' ')
+    .replace(/[^؀-ۿA-Za-z0-9]+/g, ' ')
+    .trim()
+  const words = rest.split(' ').filter((w) => w.length > 1)
+  return words.length === 0 && /[؀-ۿA-Za-z]/.test(message)
+}
