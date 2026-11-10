@@ -5,7 +5,7 @@ import { ProfileView } from '@/components/dashboard/profile-view'
 import { getUserProfile } from '@/lib/auth/user-profile'
 import { defineCopy } from '@/lib/i18n/config'
 import { getLocale } from '@/lib/i18n/server'
-import { createClient } from '@/lib/supabase/server'
+import { getCurrentUser } from '@/lib/auth/current-user'
 
 const COPY = defineCopy({
   ar: { title: 'الملف الشخصي', description: 'بيانات حسابك في واصل.' },
@@ -18,10 +18,7 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function ProfilePage() {
   const copy = COPY[await getLocale()]
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  const user = await getCurrentUser()
 
   if (!user) {
     redirect(`/auth/sign-in?next=${encodeURIComponent('/dashboard/profile')}`)

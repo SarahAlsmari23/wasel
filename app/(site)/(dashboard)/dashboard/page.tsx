@@ -9,6 +9,7 @@ import { getUserComplaints } from '@/lib/db/complaints'
 import { countUserConversations, getUserDrafts } from '@/lib/db/conversations'
 import { defineCopy } from '@/lib/i18n/config'
 import { getLocale } from '@/lib/i18n/server'
+import { getCurrentUser } from '@/lib/auth/current-user'
 import { createClient } from '@/lib/supabase/server'
 
 const COPY = defineCopy({
@@ -44,9 +45,7 @@ export default async function DashboardPage() {
   const locale = await getLocale()
   const copy = COPY[locale]
   const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  const user = await getCurrentUser()
 
   // The middleware and the layout both redirect unauthenticated visitors, so
   // reaching here without a user means an unexpected state — render a neutral

@@ -16,7 +16,7 @@ const COPY = defineCopy({
     new: 'بلاغ جديد',
   },
   en: {
-    title: 'My complaints',
+    title: 'Previous complaints',
     description:
       "Every complaint you've prepared with Wasel, with its status and responsible authority.",
     new: 'New complaint',

@@ -1,18 +1,10 @@
 import type { ReactNode } from 'react'
 import { SiteFooter } from '@/components/marketing/site-footer'
-import { SiteHeader } from '@/components/marketing/site-header'
-import { createClient } from '@/lib/supabase/server'
 
-export default async function MarketingLayout({ children }: { children: ReactNode }) {
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
+// The header comes from the shared app/(site)/layout.tsx.
+export default function MarketingLayout({ children }: { children: ReactNode }) {
   return (
-    <div className="bg-background flex min-h-screen flex-col">
-      <SiteHeader isAuthenticated={Boolean(user)} />
-
+    <>
       {/*
         One branded canvas for the whole page. The wrapper spans every section;
         inside it a viewport-tall sticky layer paints the artwork and stays put
@@ -32,6 +24,6 @@ export default async function MarketingLayout({ children }: { children: ReactNod
       </main>
 
       <SiteFooter />
-    </div>
+    </>
   )
 }

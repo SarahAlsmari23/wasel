@@ -22,6 +22,9 @@
  * automatically: only colours change, never spacing, layout or hierarchy.
  */
 :root {
+  /* Height of the shared site header (closed bar + border). SiteHeader keeps it
+     in sync with the rendered header; this is the first-paint value. */
+  --site-header-h: 69px;
   color-scheme: light;
   --background: #f7f9fa; /* off-white page background */
   --surface: #ffffff; /* card/panel surface */

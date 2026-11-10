@@ -5,7 +5,7 @@ import {
   getComplaintEditDataAction,
   updateComplaintAction,
   type ComplaintEditableField,
-} from '@/app/wasal/complaint-actions'
+} from '@/app/(site)/wasal/complaint-actions'
 import { useCopy, useLocale } from '@/components/i18n/locale-provider'
 import { Button } from '@/components/ui/button'
 import { Field, TextArea, TextInput } from '@/components/ui/field'

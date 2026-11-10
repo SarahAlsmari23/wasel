@@ -316,7 +316,7 @@ type DraftRow = {
 // A "draft" (Phase 6.8) is a complaint-mode conversation that has not yet
 // produced a real complaint row — `createComplaintAction` always inserts,
 // versions, and finalizes a complaint in the same call (see
-// app/wasal/complaint-actions.ts), so a conversation only ever sits in this
+// app/(site)/wasal/complaint-actions.ts), so a conversation only ever sits in this
 // state while the user is still mid-collection. There is no separate drafts
 // table and none is added here. `complaints(id)` is the same disambiguated
 // reverse-FK embed pattern already used for `current_version` above — it

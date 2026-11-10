@@ -8,6 +8,7 @@ import { getCollectedInformationForConversation } from '@/lib/db/collected-infor
 import { loadComplaintCollectionState } from '@/lib/wasal/conversation-state'
 import { getComplaintByConversationId } from '@/lib/db/complaints'
 import { getConversationWithMessages, getSavedRouting } from '@/lib/db/conversations'
+import { getCurrentUser } from '@/lib/auth/current-user'
 import { createClient } from '@/lib/supabase/server'
 import type { ComplaintAnalysis, WasalMode } from '@/types/wasal'
 
@@ -136,9 +137,7 @@ export async function generateMetadata({
 
 export default async function WasalPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
   const [supabase, params] = await Promise.all([createClient(), searchParams])
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  const user = await getCurrentUser()
 
   const conversationId = parseConversationId(params.conversationId)
 

@@ -3,7 +3,7 @@
 import { Trash2 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
-import { deleteConversationAction } from '@/app/wasal/conversation-actions'
+import { deleteConversationAction } from '@/app/(site)/wasal/conversation-actions'
 import { Button, buttonClasses } from '@/components/ui/button'
 import { Modal } from '@/components/ui/modal'
 import { useToast } from '@/components/ui/toast'

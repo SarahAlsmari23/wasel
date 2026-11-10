@@ -1,10 +1,8 @@
 'use client'
 
-import { AnimatePresence, motion } from 'motion/react'
-import { Globe, LogOut, X } from 'lucide-react'
+import { LogOut } from 'lucide-react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { WaselLogo } from '@/components/brand/wasel-logo'
 import { isNavItemActive, NAV_ITEMS } from '@/components/dashboard/nav-items'
 import { useCopy, useLocale } from '@/components/i18n/locale-provider'
 import { defineCopy } from '@/lib/i18n/config'
@@ -12,128 +10,81 @@ import { cn } from '@/lib/utils/cn'
 
 const COPY = defineCopy({
   ar: {
-    homeAria: 'واصل — الصفحة الرئيسية',
-    closeMenu: 'إغلاق القائمة',
     navLabel: 'تنقل لوحة التحكم',
-    website: 'العودة إلى الموقع',
     signOut: 'تسجيل الخروج',
   },
   en: {
-    homeAria: 'Wasel — home',
-    closeMenu: 'Close menu',
     navLabel: 'Dashboard navigation',
-    website: 'Back to website',
     signOut: 'Sign out',
   },
 })
 
 type SidebarProps = {
-  isOpen: boolean
-  onClose: () => void
   onSignOutClick: () => void
 }
 
-export function Sidebar({ isOpen, onClose, onSignOutClick }: SidebarProps) {
+/**
+ * Desktop dashboard navigation. It sits on the reading-start edge (right in
+ * Arabic, left in English) directly below the shared site header, and stays
+ * in view while the content scrolls: `--site-header-h` is the header's
+ * measured height (see SiteHeader), so the offset follows the real layout.
+ * Its own contents scroll if they ever exceed the available height.
+ */
+export function Sidebar({ onSignOutClick }: SidebarProps) {
   const pathname = usePathname()
   const copy = useCopy(COPY)
   const locale = useLocale()
 
   return (
-    <>
-      <AnimatePresence>
-        {isOpen ? (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            onClick={onClose}
-            aria-hidden="true"
-            className="fixed inset-0 z-40 bg-[#12355B]/35 backdrop-blur-[2px] lg:hidden"
-          />
-        ) : null}
-      </AnimatePresence>
+    <aside
+      id="dashboard-sidebar"
+      className="bg-surface border-border sticky top-(--site-header-h) hidden h-[calc(100dvh-var(--site-header-h))] w-64 shrink-0 flex-col self-start overflow-y-auto border-e p-4 lg:flex"
+    >
+      <nav aria-label={copy.navLabel} className="flex flex-1 flex-col gap-1">
+        {NAV_ITEMS.map((item) => {
+          const isActive = isNavItemActive(item.href, pathname)
+          const Icon = item.icon
 
-      {/* Sits on the reading-start edge: right in Arabic, left in English. */}
-      <aside
-        id="dashboard-sidebar"
-        className={cn(
-          'bg-surface border-border fixed inset-y-0 start-0 z-50 flex w-72 flex-col border-e p-4 transition-transform duration-300 lg:static lg:z-auto lg:w-64 lg:translate-x-0',
-          isOpen ? 'translate-x-0' : 'max-lg:ltr:-translate-x-full max-lg:rtl:translate-x-full',
-        )}
-      >
-        <div className="mb-6 flex items-center justify-between px-2 pt-1">
-          <Link href="/" aria-label={copy.homeAria}>
-            <WaselLogo variant="horizontal" size="sm" />
-          </Link>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label={copy.closeMenu}
-            className="text-muted-foreground hover:bg-primary/6 hover:text-foreground rounded-lg p-1.5 transition-colors lg:hidden"
-          >
-            <X className="h-4 w-4" aria-hidden="true" />
-          </button>
-        </div>
-
-        <nav aria-label={copy.navLabel} className="flex flex-1 flex-col gap-1">
-          {NAV_ITEMS.map((item) => {
-            const isActive = isNavItemActive(item.href, pathname)
-            const Icon = item.icon
-
-            if (item.isPrimary) {
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  onClick={onClose}
-                  className="bg-primary text-primary-foreground shadow-soft hover:bg-primary/90 mb-3 flex items-center gap-3 rounded-xl px-3.5 py-3 text-sm font-medium transition-colors"
-                >
-                  <Icon className="h-4 w-4" aria-hidden="true" />
-                  {item.label[locale]}
-                </Link>
-              )
-            }
-
+          if (item.isPrimary) {
             return (
               <Link
                 key={item.href}
                 href={item.href}
-                onClick={onClose}
-                aria-current={isActive ? 'page' : undefined}
-                className={cn(
-                  'flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm font-medium transition-colors',
-                  isActive
-                    ? 'bg-primary/8 text-primary'
-                    : 'text-muted-foreground hover:bg-primary/5 hover:text-foreground',
-                )}
+                className="bg-primary text-primary-foreground shadow-soft hover:bg-primary/90 mb-3 flex items-center gap-3 rounded-xl px-3.5 py-3 text-sm font-medium transition-colors"
               >
-                <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
+                <Icon className="h-4 w-4" aria-hidden="true" />
                 {item.label[locale]}
               </Link>
             )
-          })}
-        </nav>
+          }
 
-        {/* The public website, one click away — same style as the items above. */}
-        <Link
-          href="/"
-          onClick={onClose}
-          className="text-muted-foreground hover:bg-primary/5 hover:text-foreground mt-4 flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm font-medium transition-colors"
-        >
-          <Globe className="h-4 w-4 shrink-0" aria-hidden="true" />
-          {copy.website}
-        </Link>
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              aria-current={isActive ? 'page' : undefined}
+              className={cn(
+                'flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm font-medium transition-colors',
+                isActive
+                  ? 'bg-primary/8 text-primary'
+                  : 'text-muted-foreground hover:bg-primary/5 hover:text-foreground',
+              )}
+            >
+              <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
+              {item.label[locale]}
+            </Link>
+          )
+        })}
+      </nav>
 
-        <button
-          type="button"
-          onClick={onSignOutClick}
-          className="text-muted-foreground hover:bg-danger/6 hover:text-danger mt-1 flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm font-medium transition-colors"
-        >
-          <LogOut className="h-4 w-4" aria-hidden="true" />
-          {copy.signOut}
-        </button>
-      </aside>
-    </>
+      <button
+        type="button"
+        onClick={onSignOutClick}
+        className="text-muted-foreground hover:bg-danger/6 hover:text-danger mt-4 flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm font-medium transition-colors"
+      >
+        <LogOut className="h-4 w-4" aria-hidden="true" />
+        {copy.signOut}
+      </button>
+    </aside>
   )
 }

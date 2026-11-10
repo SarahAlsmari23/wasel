@@ -37,7 +37,7 @@ export function BottomNav() {
             )}
           >
             <Icon className="h-4.5 w-4.5" aria-hidden="true" />
-            {item.label[locale]}
+            {(item.bottomNavLabel ?? item.label)[locale]}
           </Link>
         )
       })}

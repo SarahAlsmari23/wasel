@@ -3,7 +3,7 @@
 import { ArrowLeft, ArrowRight, MessagesSquare, Trash2 } from 'lucide-react'
 import Link from 'next/link'
 import { useMemo, useState } from 'react'
-import { deleteConversationAction } from '@/app/wasal/conversation-actions'
+import { deleteConversationAction } from '@/app/(site)/wasal/conversation-actions'
 import { Button, buttonClasses } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { EmptyState } from '@/components/ui/empty-state'
