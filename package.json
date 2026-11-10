@@ -17,7 +17,9 @@
     "eval:offline": "tsx evals/offline-eval.ts",
     "eval:live": "node evals/live-eval.mjs",
     "eval:drafting": "tsx evals/drafting/run.ts",
-    "eval:intent": "tsx evals/intent/run.ts"
+    "eval:intent": "tsx evals/intent/run.ts",
+    "eval:knowledge": "tsx evals/knowledge/run.ts",
+    "verify:sources": "tsx scripts/verify-official-sources.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.3",

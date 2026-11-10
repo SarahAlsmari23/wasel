@@ -133,7 +133,7 @@ const SECTOR_ISSUE: Record<Sector, RegExp> = {
     'i',
   ),
   electricity: new RegExp(
-    `${stem('مقطوع')}|${stem('انقطا?ع')}|${stem('انقطعت')}|${stem('ينقطع')}|${stem('طاف(?:ي|يه|ت)')}|${stem('تطفي')}|${stem('فصل')}|${stem('فاتور')}|${stem('عداد')}|${stem('جهد')}|${stem('تذبذب')}|${stem('عمود')}|${stem('اسلاك')}|${stem('شرار')}|${stem('تماس')}|${stem('ارتفع')}|\\b(?:outage|power cut|blackout|cut\\w*|bill\\w*|meter|voltage|no power|disconnect\\w*|pole)\\b`,
+    `${stem('مقطوع')}|${stem('انقطا?ع')}|${stem('انقطعت')}|${stem('ينقطع')}|${stem('طاف(?:ي|يه|ت)')}|${stem('تطفي')}|${stem('فصل')}|${stem('فاتور')}|${stem('عداد')}|${stem('جهد')}|${stem('تذبذب')}|${stem('عمود')}|${stem('اسلاك')}|${stem('شرار')}|${stem('تماس')}|${stem('ارتفع')}|\\b(?:outage|power cut|blackout|cut\\w*|bill\\w*|meter|voltage|no power|disconnect\\w*|pole|is out|went out)\\b`,
     'i',
   ),
   telecom: new RegExp(
@@ -206,7 +206,13 @@ export function assessIntent(message: string): IntentAssessment {
     ? SECTOR_ISSUE[sector].test(normalized) || SECTOR_ISSUE[sector].test(raw)
     : false
   const service = SERVICE_CONTEXT.test(normalized) || SERVICE_CONTEXT.test(raw)
-  const grievance = hasGrievanceSignal(raw) || describesProblem(raw)
+  const grievance =
+    hasGrievanceSignal(raw) ||
+    describesProblem(raw) ||
+    // «مشكلتي/مشاكل», «ما حلوا/ما حلت», "is out", "doesn't work".
+    /(?<![\u0600-\u06FF])(?:مشكلت|مشاكل|ما\s*(?:حل|حلت|حلوا|انحلت|عالجوا))|\b(?:is out|went out|isn'?t working|doesn'?t work|not resolved|ignored)\b/i.test(
+      normalized,
+    )
   if (issue) reasons.push('sector-issue')
   if (service) reasons.push('service-context')
   if (grievance) reasons.push('grievance')

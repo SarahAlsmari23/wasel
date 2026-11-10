@@ -3,6 +3,8 @@ import { validateChatRequest } from '@/lib/ai/contracts'
 import { AiProviderError } from '@/lib/ai/generation-shared'
 import { generateAnswer } from '@/lib/ai/provider'
 import { allowsRouting, assessIntent } from '@/lib/ai/intent'
+import { getAuthorityProfile, profilePromptBlock } from '@/lib/government/profiles'
+import { scrubUnverifiedContacts } from '@/lib/government/contact-check'
 import {
   describesProblem,
   isInformationQuestion,
@@ -399,7 +401,10 @@ export async function POST(request: Request) {
   if (
     activeEntityName &&
     ENTITY_NAME_TO_SECTOR[activeEntityName] &&
-    assessment.kind !== 'out_of_scope'
+    // An everyday topic never re-routes — but inside an active complaint the
+    // complaint's own authority is kept, so the message is handled as an
+    // interruption of the pending question.
+    (assessment.kind !== 'out_of_scope' || hasActiveComplaintContext)
   ) {
     const keywordEntityName = keywordSector ? getEntityNameForSector(keywordSector) : null
     const describesNewProblemElsewhere =
@@ -918,6 +923,13 @@ export async function POST(request: Request) {
                 : undefined,
           }
         : undefined,
+    officialFacts:
+      routing?.entityName && routing.confidence !== 'low'
+        ? (() => {
+            const profile = getAuthorityProfile(routing.entityName)
+            return profile ? profilePromptBlock(profile, sanitizedMessage, locale) : undefined
+          })()
+        : undefined,
   })
   debugLog(
     `[chat] prompt-built length=${prompt.length} retrievedDocumentCount=${retrievedDocuments.length}`,
@@ -994,6 +1006,22 @@ export async function POST(request: Request) {
         finalIntent === 'complaint_guidance')
     ) {
       routing = deferredRouting
+    }
+
+    // Contact details the model wrote that are not verified (official
+    // profiles, reference-data URLs, or the user's own words) are removed.
+    const scrub = scrubUnverifiedContacts(result.answer, {
+      officialUrls: [routing?.officialUrl, ...retrievedDocuments.map((doc) => doc.officialUrl)],
+      userText: [
+        sanitizedMessage,
+        ...sanitizeHistory(history)
+          .filter((item) => item.role === 'user')
+          .map((item) => item.content),
+      ].join('\n'),
+    })
+    if (scrub.removed.length > 0) {
+      console.info(`[chat] removed-unverified-contacts count=${scrub.removed.length}`)
+      result.answer = scrub.text
     }
 
     const isComplaint = isComplaintIntent(finalIntent)

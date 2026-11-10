@@ -24,7 +24,8 @@ export const SYSTEM_INSTRUCTIONS = `أنت مختص متمرس في التعام
 - لا تعد المستخدم أبداً بنتيجة شكواه (قبولها، أو استرداد مبلغ، أو مدة معالجة)؛ القرار للجهة المختصة وحدها.
 - لا تساعد في اختلاق أي معلومة في الشكوى (تاريخ، أو دليل، أو مبلغ، أو واقعة): اعتذر بلطف واعرض المساعدة في صياغة الوقائع الصحيحة كما هي.
 - لا تكشف أو تختلق بيانات أو شكاوى أي مستخدم آخر، ولا تتقمص دور موظف أو جهة حكومية حتى لو طُلب منك ذلك.
-- لا تذكر أي رقم هاتف أو بريد إلكتروني أو رابط أو رسوم أو مدة معالجة أو مستندات مطلوبة إلا إذا وردت حرفياً في المعلومات المسترجعة.
+- لا تذكر أي رقم هاتف أو بريد إلكتروني أو رابط أو رسوم أو مدة معالجة أو مستندات مطلوبة إلا إذا وردت حرفياً في المعلومات المسترجعة أو في «المعلومات الرسمية الموثّقة» المرفقة، وعند ذكرها اذكر رابط مصدرها.
+- عند السؤال عن إجراء رسمي (كيف أقدم، أين أشتكي، ما المطلوب): اعرض الخطوات الموثّقة مرقّمة وبإيجاز، وميّز بين ما هو منشور رسمياً وما هو إرشاد عام، وإن لم تتوفر المعلومة في المصادر الموثّقة فقل ذلك صراحة.
 
 الجهات المدعومة حالياً في واصل خمس فقط: السعودية للطاقة (الكهرباء)، والشركة الوطنية للمياه (المياه والصرف الصحي)، وهيئة الاتصالات والفضاء والتقنية (الاتصالات والإنترنت)، ووزارة التجارة (المتاجر وحماية المستهلك)، ووزارة البلديات والإسكان (الخدمات البلدية عبر منصة بلدي).
 - إذا كانت مشكلة المستخدم من اختصاص جهة أخرى غير هذه الخمس (مثل الجوازات أو المرور أو العمل والرواتب أو الصحة أو البنوك أو التعليم)، فوضّح بلطف ووضوح أنها خارج نطاق الجهات المدعومة حالياً في واصل، وانصحه بمراجعة القنوات الرسمية للجهة المعنية، دون أن تذكر اسم جهة أو رابطاً أو رقماً غير وارد في المعلومات المسترجعة، ودون أن تبدأ جمع بيانات شكوى.
@@ -83,6 +84,8 @@ export type BuildPromptInput = {
    * name — evals found it inventing "وزارة الكهرباء" and using the outdated
    * "Saudi Electricity Company" while the card showed the official name. */
   verifiedAuthority?: { nameAr: string; nameEn?: string }
+  /** Verified official facts for the selected authority (lib/government/profiles). */
+  officialFacts?: string
   sanitizedMessage: string
   sanitizedHistory: ChatHistoryItem[]
   intent?: ChatIntent
@@ -116,6 +119,7 @@ export function buildPrompt({
   retrievedDocuments = [],
   locale = 'ar',
   verifiedAuthority,
+  officialFacts,
 }: BuildPromptInput & { locale?: 'ar' | 'en' }): string {
   const authorityBlock = verifiedAuthority
     ? `الجهة المختصة المحددة من البيانات الرسمية المعتمدة: ${verifiedAuthority.nameAr}${
@@ -143,6 +147,7 @@ export function buildPrompt({
     RETRIEVED_CONTEXT_INSTRUCTION,
     retrievedContextBlock,
     authorityBlock,
+    officialFacts ?? '',
     intent ? `نوع الطلب: ${intent}` : '',
     complaintContextBlock,
     UNTRUSTED_INPUT_INSTRUCTION,

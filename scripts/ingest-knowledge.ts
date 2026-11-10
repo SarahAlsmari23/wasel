@@ -10,7 +10,15 @@ const EMBEDDING_DIMENSION = 768
 // import.meta.url, since this script is always invoked via `npm run
 // ingest:knowledge` from the project root (same place .env.local lives) —
 // avoids any CJS/ESM ambiguity around module-relative paths.
-const DATA_DIR = join(process.cwd(), 'data', 'knowledge')
+// `--dir <path>` ingests another reviewed folder (e.g. the verified
+// 2026-11 knowledge set); `--dry-run` validates and resolves every entry
+// without embedding or writing anything.
+const dirArgIndex = process.argv.indexOf('--dir')
+const DATA_DIR =
+  dirArgIndex !== -1
+    ? join(process.cwd(), process.argv[dirArgIndex + 1])
+    : join(process.cwd(), 'data', 'knowledge')
+const DRY_RUN = process.argv.includes('--dry-run')
 // A single hand-authored, single-topic entry should never need to be this
 // long — if it is, it's almost certainly an unsummarized paste that should
 // be split into separate entries instead (see data/knowledge/README.md).
@@ -44,6 +52,10 @@ type KnowledgeEntry = {
   sourceUrl: string
   sourceLabel: string
   reviewedAt: string
+  /** Verified-set provenance (optional for the original files). */
+  sourceId?: string
+  quote?: string
+  kbVersion?: string
 }
 
 /** Our own, self-authored validation failures — safe to log `.message` for
@@ -200,6 +212,11 @@ async function main() {
       }
 
       const contentHash = hashContent(entry.content)
+      if (DRY_RUN) {
+        console.log(`${progress} ok (dry run): ${entry.title}`)
+        inserted++
+        continue
+      }
 
       const { data: existing, error: existingError } = await supabase
         .from('knowledge_documents')
@@ -234,6 +251,9 @@ async function main() {
           source_url: entry.sourceUrl,
           source_label: entry.sourceLabel,
           reviewed_at: entry.reviewedAt,
+          ...(entry.sourceId ? { source_id: entry.sourceId } : {}),
+          ...(entry.quote ? { source_quote: entry.quote } : {}),
+          ...(entry.kbVersion ? { kb_version: entry.kbVersion } : {}),
         },
         embedding,
         embedding_model: EMBEDDING_MODEL,
