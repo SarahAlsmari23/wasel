@@ -25,7 +25,8 @@ select check_name, ok, detail from (
     (select count(*) || ' documents, ' || count(embedding) || ' with embeddings' from public.knowledge_documents)
   union all select 7, 'embedding dimension unchanged (768)',
     (select format_type(atttypid, atttypmod) from pg_attribute
-     where attrelid = 'public.knowledge_documents'::regclass and attname = 'embedding') = 'vector(768)', ''
+     where attrelid = 'public.knowledge_documents'::regclass and attname = 'embedding')
+      in ('vector(768)', 'extensions.vector(768)'), ''  -- spelled per the session's search_path
   union all select 8, 'government entities present',
     (select count(*) from public.government_entities) >= 5,
     (select count(*)::text from public.government_entities)
