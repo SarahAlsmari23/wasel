@@ -1,4 +1,4 @@
-import { Building2, CheckCircle2, FolderClock, MessagesSquare } from 'lucide-react'
+import { CheckCircle2, FileCheck2, FolderClock, MessagesSquare } from 'lucide-react'
 import type { Metadata } from 'next'
 import { ContinueCard } from '@/components/dashboard/continue-card'
 import { QuickActions } from '@/components/dashboard/quick-actions'
@@ -7,13 +7,42 @@ import { StatCard } from '@/components/dashboard/stat-card'
 import { getUserProfile } from '@/lib/auth/user-profile'
 import { getUserComplaints } from '@/lib/db/complaints'
 import { getUserConversations, getUserDrafts } from '@/lib/db/conversations'
+import { defineCopy } from '@/lib/i18n/config'
+import { getLocale } from '@/lib/i18n/server'
 import { createClient } from '@/lib/supabase/server'
 
-export const metadata: Metadata = {
-  title: 'لوحة التحكم',
+const COPY = defineCopy({
+  ar: {
+    metaTitle: 'لوحة التحكم',
+    greetingFallback: 'بك',
+    greeting: 'مرحباً،',
+    lead: 'هذه نظرة عامة على بلاغاتك ومحادثاتك مع واصل.',
+    statsHeading: 'إحصائيات سريعة',
+    ready: 'جاهزة للتقديم',
+    submitted: 'بلاغات قدّمتها',
+    drafts: 'مسودات محفوظة',
+    conversations: 'محادثات سابقة',
+  },
+  en: {
+    metaTitle: 'Dashboard',
+    greetingFallback: 'back',
+    greeting: 'Welcome,',
+    lead: 'An overview of your complaints and conversations with Wasel.',
+    statsHeading: 'Quick statistics',
+    ready: 'Ready to submit',
+    submitted: 'Submitted complaints',
+    drafts: 'Saved drafts',
+    conversations: 'Past conversations',
+  },
+})
+
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: COPY[await getLocale()].metaTitle }
 }
 
 export default async function DashboardPage() {
+  const locale = await getLocale()
+  const copy = COPY[locale]
   const supabase = await createClient()
   const {
     data: { user },
@@ -23,10 +52,9 @@ export default async function DashboardPage() {
   // reaching here without a user means an unexpected state — render a neutral
   // greeting rather than throwing and replacing the page with an error screen.
   const profile = user ? getUserProfile(user) : null
-  const greetingName = profile?.firstName ?? 'بك'
+  const greetingName = profile?.firstName ?? copy.greetingFallback
 
-  // Three independent, RLS-scoped reads — no service role, no fabricated
-  // content (Phase 6.8, Part 2).
+  // Three independent, RLS-scoped reads — no service role, no fabricated content.
   const [conversations, complaints, drafts] = user
     ? await Promise.all([
         getUserConversations(supabase),
@@ -37,20 +65,21 @@ export default async function DashboardPage() {
 
   const latestDraft = drafts.at(0)
 
-  const completedCount = complaints.filter((complaint) => complaint.status === 'completed').length
-  const recommendedEntityCount = new Set(
-    complaints.map((complaint) => complaint.entityId).filter(Boolean),
-  ).size
+  // Every figure is a count of the user's own records.
+  const readyCount = complaints.filter(
+    (complaint) => complaint.status === 'generated' && !complaint.submittedAt,
+  ).length
+  const submittedCount = complaints.filter((complaint) => Boolean(complaint.submittedAt)).length
 
   const recentComplaints = complaints.slice(0, 4)
 
   return (
     <div className="animate-fade-in mx-auto flex w-full max-w-6xl flex-col gap-10">
       <div>
-        <h1 className="text-heading text-2xl font-semibold">مرحباً، {greetingName} 👋</h1>
-        <p className="text-muted-foreground mt-1 text-sm">
-          هذه نظرة عامة على بلاغاتك ومحادثاتك مع واصل.
-        </p>
+        <h1 className="text-heading text-2xl font-semibold">
+          {copy.greeting} {greetingName} 👋
+        </h1>
+        <p className="text-muted-foreground mt-1 text-sm">{copy.lead}</p>
       </div>
 
       {latestDraft ? (
@@ -58,31 +87,35 @@ export default async function DashboardPage() {
       ) : null}
 
       <section className="flex flex-col gap-3">
-        <h2 className="text-heading text-sm font-semibold">إحصائيات سريعة</h2>
+        <h2 className="text-heading text-sm font-semibold">{copy.statsHeading}</h2>
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
           <StatCard
-            label="بلاغات مكتملة"
-            value={completedCount}
-            icon={CheckCircle2}
+            label={copy.ready}
+            value={readyCount}
+            icon={FileCheck2}
             href="/dashboard/complaints"
+            locale={locale}
           />
           <StatCard
-            label="مسودات محفوظة"
+            label={copy.submitted}
+            value={submittedCount}
+            icon={CheckCircle2}
+            href="/dashboard/complaints"
+            locale={locale}
+          />
+          <StatCard
+            label={copy.drafts}
             value={drafts.length}
             icon={FolderClock}
             href="/dashboard/drafts"
+            locale={locale}
           />
           <StatCard
-            label="محادثات سابقة"
+            label={copy.conversations}
             value={conversations.length}
             icon={MessagesSquare}
             href="/dashboard/conversations"
-          />
-          <StatCard
-            label="جهات موصى بها"
-            value={recommendedEntityCount}
-            icon={Building2}
-            href="/entities"
+            locale={locale}
           />
         </div>
       </section>

@@ -5,6 +5,18 @@ import { ChevronDown, LogOut, Settings, UserRound } from 'lucide-react'
 import Link from 'next/link'
 import { useEffect, useRef, useState } from 'react'
 import { UserAvatar } from '@/components/dashboard/user-avatar'
+import { useCopy } from '@/components/i18n/locale-provider'
+import { defineCopy } from '@/lib/i18n/config'
+
+const COPY = defineCopy({
+  ar: {
+    profile: 'الملف الشخصي',
+    settings: 'الإعدادات',
+    signOut: 'تسجيل الخروج',
+    account: 'قائمة الحساب',
+  },
+  en: { profile: 'Profile', settings: 'Settings', signOut: 'Sign out', account: 'Account menu' },
+})
 
 type UserMenuProps = {
   userName: string
@@ -13,6 +25,7 @@ type UserMenuProps = {
 }
 
 export function UserMenu({ userName, userEmail, onSignOutClick }: UserMenuProps) {
+  const copy = useCopy(COPY)
   const [isOpen, setIsOpen] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
 
@@ -44,6 +57,7 @@ export function UserMenu({ userName, userEmail, onSignOutClick }: UserMenuProps)
         type="button"
         onClick={() => setIsOpen((open) => !open)}
         aria-haspopup="menu"
+        aria-label={copy.account}
         aria-expanded={isOpen}
         className="hover:bg-primary/5 flex items-center gap-2.5 rounded-xl px-2 py-1.5 transition-colors"
       >
@@ -63,7 +77,7 @@ export function UserMenu({ userName, userEmail, onSignOutClick }: UserMenuProps)
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -6, scale: 0.97 }}
             transition={{ duration: 0.16, ease: [0.22, 1, 0.36, 1] }}
-            className="bg-surface border-border shadow-lift absolute top-full left-0 mt-2 w-56 overflow-hidden rounded-2xl border p-1.5"
+            className="bg-surface border-border shadow-lift absolute end-0 top-full mt-2 w-56 overflow-hidden rounded-2xl border p-1.5"
           >
             <div className="border-border mb-1.5 border-b px-3 py-2.5 sm:hidden">
               <p className="text-foreground text-sm font-medium">{userName}</p>
@@ -77,7 +91,7 @@ export function UserMenu({ userName, userEmail, onSignOutClick }: UserMenuProps)
               className="text-foreground hover:bg-primary/6 flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm transition-colors"
             >
               <UserRound className="h-4 w-4" aria-hidden="true" />
-              الملف الشخصي
+              {copy.profile}
             </Link>
             <Link
               href="/dashboard/settings"
@@ -86,7 +100,7 @@ export function UserMenu({ userName, userEmail, onSignOutClick }: UserMenuProps)
               className="text-foreground hover:bg-primary/6 flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm transition-colors"
             >
               <Settings className="h-4 w-4" aria-hidden="true" />
-              الإعدادات
+              {copy.settings}
             </Link>
             <button
               type="button"
@@ -98,7 +112,7 @@ export function UserMenu({ userName, userEmail, onSignOutClick }: UserMenuProps)
               className="text-danger hover:bg-danger/6 flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm transition-colors"
             >
               <LogOut className="h-4 w-4" aria-hidden="true" />
-              تسجيل الخروج
+              {copy.signOut}
             </button>
           </motion.div>
         ) : null}

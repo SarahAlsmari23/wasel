@@ -1,16 +1,41 @@
 'use client'
 
-import { motion } from 'motion/react'
+import { motion, useReducedMotion } from 'motion/react'
 import { Check } from 'lucide-react'
+import { useCopy, useLocale } from '@/components/i18n/locale-provider'
+import { defineCopy } from '@/lib/i18n/config'
 import { cn } from '@/lib/utils/cn'
 import type { ComplaintProgressStage, ProgressStageState } from '@/types/wasal'
 
-const STAGES: { key: ComplaintProgressStage; label: string; note?: string }[] = [
-  { key: 'analysis', label: 'تحليل الشكوى' },
-  { key: 'entity', label: 'تحديد الجهة المختصة' },
-  { key: 'summary', label: 'إنشاء ملخص البلاغ' },
-  { key: 'ready', label: 'جاهز للتقديم' },
-  { key: 'submitted', label: 'تم التقديم', note: 'ميزة قادمة' },
+const COPY = defineCopy({
+  ar: {
+    title: 'مسار البلاغ',
+    stages: {
+      analysis: 'تحليل الشكوى',
+      entity: 'تحديد الجهة المختصة',
+      summary: 'جمع تفاصيل البلاغ',
+      ready: 'جاهز للإنشاء',
+      submitted: 'تقديمه عبر القناة الرسمية',
+    } satisfies Record<ComplaintProgressStage, string>,
+  },
+  en: {
+    title: 'Complaint progress',
+    stages: {
+      analysis: 'Analyse the complaint',
+      entity: 'Identify the authority',
+      summary: 'Collect the details',
+      ready: 'Ready to create',
+      submitted: 'Submit via the official channel',
+    } satisfies Record<ComplaintProgressStage, string>,
+  },
+})
+
+const STAGE_ORDER: ComplaintProgressStage[] = [
+  'analysis',
+  'entity',
+  'summary',
+  'ready',
+  'submitted',
 ]
 
 const DOT_CLASSES: Record<ProgressStageState, string> = {
@@ -20,34 +45,33 @@ const DOT_CLASSES: Record<ProgressStageState, string> = {
 }
 
 type ProgressTimelineProps = {
-  /** Everything before this stage renders as done; this one is "current". */
   currentStage: ComplaintProgressStage
   className?: string
 }
 
-/**
- * Shows the user where they are in the complaint journey after analysis
- * completes (Phase 2 "Complaint Progress Timeline").
- */
 export function ProgressTimeline({ currentStage, className = '' }: ProgressTimelineProps) {
-  const currentIndex = STAGES.findIndex((stage) => stage.key === currentStage)
+  const copy = useCopy(COPY)
+  const prefersReducedMotion = useReducedMotion()
+  const slideFrom = useLocale() === 'ar' ? 8 : -8
+  const currentIndex = STAGE_ORDER.indexOf(currentStage)
 
   return (
     <div className={cn('bg-surface border-border shadow-soft rounded-2xl border p-5', className)}>
-      <p className="text-foreground mb-4 text-sm font-semibold">مسار البلاغ</p>
+      <p className="text-foreground mb-4 text-sm font-semibold">{copy.title}</p>
 
       <ol className="flex flex-col">
-        {STAGES.map((stage, index) => {
+        {STAGE_ORDER.map((stageKey, index) => {
           const state: ProgressStageState =
             index < currentIndex ? 'done' : index === currentIndex ? 'current' : 'upcoming'
-          const isLast = index === STAGES.length - 1
+          const isLast = index === STAGE_ORDER.length - 1
 
           return (
             <motion.li
-              key={stage.key}
-              initial={{ opacity: 0, x: 8 }}
+              key={stageKey}
+              initial={prefersReducedMotion ? false : { opacity: 0, x: slideFrom }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.3, delay: index * 0.07 }}
+              aria-current={state === 'current' ? 'step' : undefined}
               className="flex gap-3"
             >
               <div className="flex flex-col items-center">
@@ -74,19 +98,15 @@ export function ProgressTimeline({ currentStage, className = '' }: ProgressTimel
                 )}
               </div>
 
-              <div className={cn('flex flex-col', isLast ? 'pb-0' : 'pb-5')}>
-                <span
-                  className={cn(
-                    'text-sm',
-                    state === 'upcoming' ? 'text-muted-foreground' : 'text-foreground font-medium',
-                  )}
-                >
-                  {stage.label}
-                </span>
-                {stage.note ? (
-                  <span className="text-muted-foreground text-[11px]">{stage.note}</span>
-                ) : null}
-              </div>
+              <span
+                className={cn(
+                  'text-sm',
+                  isLast ? 'pb-0' : 'pb-5',
+                  state === 'upcoming' ? 'text-muted-foreground' : 'text-foreground font-medium',
+                )}
+              >
+                {copy.stages[stageKey]}
+              </span>
             </motion.li>
           )
         })}

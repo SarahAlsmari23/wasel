@@ -10,21 +10,65 @@ import { Card } from '@/components/ui/card'
 import { EmptyState } from '@/components/ui/empty-state'
 import { Select } from '@/components/ui/field'
 import { SearchInput } from '@/components/ui/search-input'
+import { useCopy, useLocale } from '@/components/i18n/locale-provider'
 import { getDisplayTitle, getComplaintStatusPresentation } from '@/lib/complaints/display'
+import { defineCopy } from '@/lib/i18n/config'
 import type { ComplaintRecord } from '@/lib/db/complaints'
-import { getGovernmentEntityByName } from '@/lib/mock/government-entities'
+import { entityDisplayName, getGovernmentEntityByName } from '@/lib/mock/government-entities'
 import { formatDate } from '@/lib/utils/format'
 
 type SortOrder = 'newest' | 'oldest'
 type StatusFilter = 'all' | 'draft' | 'generated' | 'submitted' | 'completed'
 
-const STATUS_FILTER_LABELS: Record<StatusFilter, string> = {
-  all: 'كل الحالات',
-  draft: 'مسودة',
-  generated: 'تم الإنشاء',
-  submitted: 'تم التقديم',
-  completed: 'مكتمل',
-}
+const COPY = defineCopy({
+  ar: {
+    filters: {
+      all: 'كل الحالات',
+      draft: 'مسودة',
+      generated: 'جاهز للتقديم',
+      submitted: 'تم التقديم',
+      completed: 'مكتمل',
+    } satisfies Record<StatusFilter, string>,
+    emptyTitle: 'لا توجد لديك بلاغات محفوظة حتى الآن.',
+    emptyBody: 'ابدأ بلاغاً جديداً وسيساعدك واصل في تحديد الجهة المختصة وصياغة البلاغ.',
+    start: 'ابدأ بلاغاً جديداً',
+    searchPlaceholder: 'ابحث باسم البلاغ أو الجهة الحكومية...',
+    searchLabel: 'البحث في البلاغات',
+    filterLabel: 'تصفية حسب الحالة',
+    sortLabel: 'ترتيب النتائج',
+    newest: 'الأحدث أولاً',
+    oldest: 'الأقدم أولاً',
+    noResults: 'لا توجد نتائج مطابقة.',
+    noResultsHint: 'جرّب تعديل كلمات البحث أو تغيير التصفية.',
+    created: 'أُنشئ',
+    updated: 'آخر تحديث',
+    open: 'فتح',
+  },
+  en: {
+    filters: {
+      all: 'All statuses',
+      draft: 'Draft',
+      generated: 'Ready to submit',
+      submitted: 'Submitted',
+      completed: 'Completed',
+    } satisfies Record<StatusFilter, string>,
+    emptyTitle: "You don't have any saved complaints yet.",
+    emptyBody:
+      'Start a new complaint and Wasel will help you identify the responsible authority and draft it.',
+    start: 'Start a new complaint',
+    searchPlaceholder: 'Search by complaint or authority...',
+    searchLabel: 'Search complaints',
+    filterLabel: 'Filter by status',
+    sortLabel: 'Sort results',
+    newest: 'Newest first',
+    oldest: 'Oldest first',
+    noResults: 'No matching results.',
+    noResultsHint: 'Try different search words or another filter.',
+    created: 'Created',
+    updated: 'Last updated',
+    open: 'Open',
+  },
+})
 
 function statusFilterKey(complaint: ComplaintRecord): Exclude<StatusFilter, 'all'> {
   if (complaint.status === 'completed') return 'completed'
@@ -42,6 +86,8 @@ type ComplaintsBrowserProps = {
  * (real complaints have no category display name yet).
  */
 export function ComplaintsBrowser({ complaints }: ComplaintsBrowserProps) {
+  const copy = useCopy(COPY)
+  const locale = useLocale()
   const [query, setQuery] = useState('')
   const [status, setStatus] = useState<StatusFilter>('all')
   const [sortOrder, setSortOrder] = useState<SortOrder>('newest')
@@ -54,30 +100,32 @@ export function ComplaintsBrowser({ complaints }: ComplaintsBrowserProps) {
         if (status !== 'all' && statusFilterKey(complaint) !== status) return false
         if (normalizedQuery === '') return true
 
-        const displayTitle = getDisplayTitle({
-          title: complaint.title,
-          complaintSubject: complaint.subject,
-        })
+        const displayTitle = getDisplayTitle(
+          { title: complaint.title, complaintSubject: complaint.subject },
+          locale,
+        )
         return (
           displayTitle.toLowerCase().includes(normalizedQuery) ||
-          (complaint.entityName?.toLowerCase().includes(normalizedQuery) ?? false)
+          (complaint.entityName?.toLowerCase().includes(normalizedQuery) ?? false) ||
+          entityDisplayName(complaint.entityName, 'en').toLowerCase().includes(normalizedQuery) ||
+          complaint.referenceNumber.toLowerCase().includes(normalizedQuery)
         )
       })
       .sort((a, b) => {
         const diff = new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
         return sortOrder === 'newest' ? diff : -diff
       })
-  }, [complaints, query, status, sortOrder])
+  }, [complaints, query, status, sortOrder, locale])
 
   if (complaints.length === 0) {
     return (
       <EmptyState
         icon={FileText}
-        title="لا توجد لديك بلاغات محفوظة حتى الآن."
-        description="ابدأ بلاغاً جديداً وسيساعدك واصل في تحديد الجهة المختصة وصياغة البلاغ."
+        title={copy.emptyTitle}
+        description={copy.emptyBody}
         action={
           <Link href="/wasal?mode=complaint" className={buttonClasses('primary', 'md')}>
-            ابدأ بلاغاً جديداً
+            {copy.start}
           </Link>
         }
       />
@@ -91,8 +139,8 @@ export function ComplaintsBrowser({ complaints }: ComplaintsBrowserProps) {
           <SearchInput
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="ابحث باسم البلاغ أو الجهة الحكومية..."
-            aria-label="البحث في البلاغات"
+            placeholder={copy.searchPlaceholder}
+            aria-label={copy.searchLabel}
           />
         </div>
 
@@ -100,12 +148,12 @@ export function ComplaintsBrowser({ complaints }: ComplaintsBrowserProps) {
           <Select
             value={status}
             onChange={(event) => setStatus(event.target.value as StatusFilter)}
-            aria-label="تصفية حسب الحالة"
+            aria-label={copy.filterLabel}
             className="w-auto shrink-0"
           >
-            {(Object.keys(STATUS_FILTER_LABELS) as StatusFilter[]).map((value) => (
+            {(Object.keys(copy.filters) as StatusFilter[]).map((value) => (
               <option key={value} value={value}>
-                {STATUS_FILTER_LABELS[value]}
+                {copy.filters[value]}
               </option>
             ))}
           </Select>
@@ -113,31 +161,28 @@ export function ComplaintsBrowser({ complaints }: ComplaintsBrowserProps) {
           <Select
             value={sortOrder}
             onChange={(event) => setSortOrder(event.target.value as SortOrder)}
-            aria-label="ترتيب النتائج"
+            aria-label={copy.sortLabel}
             className="w-auto shrink-0"
           >
-            <option value="newest">الأحدث أولاً</option>
-            <option value="oldest">الأقدم أولاً</option>
+            <option value="newest">{copy.newest}</option>
+            <option value="oldest">{copy.oldest}</option>
           </Select>
         </div>
       </div>
 
       {visible.length === 0 ? (
-        <EmptyState
-          icon={FileText}
-          title="لا توجد نتائج مطابقة."
-          description="جرّب تعديل كلمات البحث أو تغيير التصفية."
-        />
+        <EmptyState icon={FileText} title={copy.noResults} description={copy.noResultsHint} />
       ) : (
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {visible.map((complaint) => {
-            const displayTitle = getDisplayTitle({
-              title: complaint.title,
-              complaintSubject: complaint.subject,
-            })
+            const displayTitle = getDisplayTitle(
+              { title: complaint.title, complaintSubject: complaint.subject },
+              locale,
+            )
             const presentation = getComplaintStatusPresentation(
               complaint.status,
               complaint.submittedAt,
+              locale,
             )
             const entity = complaint.entityName
               ? getGovernmentEntityByName(complaint.entityName)
@@ -148,11 +193,14 @@ export function ComplaintsBrowser({ complaints }: ComplaintsBrowserProps) {
                 <div className="flex items-start gap-3">
                   <GovernmentLogo iconKey={entity?.iconKey} size="sm" />
                   <div className="min-w-0 flex-1">
-                    <h3 className="text-heading text-sm leading-snug font-semibold text-balance">
+                    <h3
+                      dir="auto"
+                      className="text-match-parent text-heading text-sm leading-snug font-semibold text-balance"
+                    >
                       {displayTitle}
                     </h3>
                     <p className="text-muted-foreground mt-1 truncate text-xs">
-                      {complaint.entityName ?? ''}
+                      {entityDisplayName(complaint.entityName, locale)}
                     </p>
                   </div>
                   <Badge variant={presentation.badgeVariant}>
@@ -162,11 +210,18 @@ export function ComplaintsBrowser({ complaints }: ComplaintsBrowserProps) {
                 </div>
 
                 <div className="text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
-                  <span className="bg-secondary/10 text-secondary rounded-full px-2 py-0.5 font-medium">
+                  <span
+                    dir="ltr"
+                    className="bg-secondary/10 text-secondary rounded-full px-2 py-0.5 font-medium"
+                  >
                     {complaint.referenceNumber}
                   </span>
-                  <span>أُنشئ: {formatDate(complaint.createdAt)}</span>
-                  <span>آخر تحديث: {formatDate(complaint.updatedAt)}</span>
+                  <span>
+                    {copy.created}: {formatDate(complaint.createdAt, locale)}
+                  </span>
+                  <span>
+                    {copy.updated}: {formatDate(complaint.updatedAt, locale)}
+                  </span>
                 </div>
 
                 <div className="border-border mt-auto flex items-center gap-1 border-t pt-3">
@@ -174,7 +229,7 @@ export function ComplaintsBrowser({ complaints }: ComplaintsBrowserProps) {
                     href={`/dashboard/complaints/${complaint.id}`}
                     className="text-foreground hover:bg-primary/6 inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium transition-colors"
                   >
-                    فتح
+                    {copy.open}
                   </Link>
                 </div>
               </Card>

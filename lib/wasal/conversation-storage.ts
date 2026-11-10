@@ -55,6 +55,16 @@ export type PersistedConversation = {
 /** Discard anything older than this so a stale tab doesn't resurrect a chat. */
 const MAX_AGE_MS = 6 * 60 * 60 * 1000
 
+/**
+ * Cross-tab handoff for the sign-in round trip. Email confirmation links often
+ * open in a *new* tab, where this tab's sessionStorage is invisible — so while
+ * (and only while) a guest is waiting to sign in to create a complaint, a copy
+ * is also kept in localStorage. It is short-lived, consumed (deleted) the
+ * moment it is restored, and cleared on sign-out or a new conversation.
+ */
+const HANDOFF_KEY = 'wasel:chat:pending-signin'
+const HANDOFF_MAX_AGE_MS = 30 * 60 * 1000
+
 function isBrowser(): boolean {
   return typeof window !== 'undefined' && typeof window.sessionStorage !== 'undefined'
 }
@@ -62,20 +72,46 @@ function isBrowser(): boolean {
 export function saveConversation(state: Omit<PersistedConversation, 'savedAt'>): void {
   if (!isBrowser()) return
   try {
-    window.sessionStorage.setItem(
-      STORAGE_KEY,
-      JSON.stringify({ ...state, savedAt: Date.now() } satisfies PersistedConversation),
-    )
+    const serialized = JSON.stringify({
+      ...state,
+      savedAt: Date.now(),
+    } satisfies PersistedConversation)
+    window.sessionStorage.setItem(STORAGE_KEY, serialized)
+    if (state.pendingComplaint) {
+      window.localStorage.setItem(HANDOFF_KEY, serialized)
+    } else {
+      window.localStorage.removeItem(HANDOFF_KEY)
+    }
   } catch {
     // Private browsing or a full quota — resuming is a convenience, never a
     // requirement, so a failure here must not interrupt the conversation.
   }
 }
 
+function takeHandoff(): string | null {
+  try {
+    const raw = window.localStorage.getItem(HANDOFF_KEY)
+    if (!raw) return null
+    // Consumed on read: the handoff can resume exactly once.
+    window.localStorage.removeItem(HANDOFF_KEY)
+    const savedAt = (JSON.parse(raw) as { savedAt?: unknown }).savedAt
+    if (typeof savedAt !== 'number' || Date.now() - savedAt > HANDOFF_MAX_AGE_MS) return null
+    return raw
+  } catch {
+    return null
+  }
+}
+
 export function loadConversation(): PersistedConversation | null {
   if (!isBrowser()) return null
   try {
-    const raw = window.sessionStorage.getItem(STORAGE_KEY)
+    let raw = window.sessionStorage.getItem(STORAGE_KEY)
+    if (!raw) {
+      // A new tab (e.g. opened from the confirmation email): fall back to the
+      // short-lived sign-in handoff, then adopt it as this tab's conversation.
+      raw = takeHandoff()
+      if (raw) window.sessionStorage.setItem(STORAGE_KEY, raw)
+    }
     if (!raw) return null
 
     const parsed: unknown = JSON.parse(raw)
@@ -112,6 +148,7 @@ export function clearConversation(): void {
   if (!isBrowser()) return
   try {
     window.sessionStorage.removeItem(STORAGE_KEY)
+    window.localStorage.removeItem(HANDOFF_KEY)
   } catch {
     // Ignored for the same reason as saveConversation.
   }

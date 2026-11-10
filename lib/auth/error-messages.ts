@@ -1,6 +1,8 @@
 import { AuthError } from '@supabase/supabase-js'
+import type { Locale } from '@/lib/i18n/config'
 
 const FALLBACK_MESSAGE = 'تعذر إتمام العملية. حاول مرة أخرى.'
+const FALLBACK_MESSAGE_EN = "The operation couldn't be completed. Please try again."
 
 /**
  * Keyed on Supabase's stable `error_code`, NOT on the English `message`.
@@ -32,6 +34,37 @@ const ERROR_CODE_MESSAGES: Record<string, string> = {
   reauthentication_needed: 'يرجى تسجيل الدخول مجدداً قبل تنفيذ هذا الإجراء.',
 }
 
+const ERROR_CODE_MESSAGES_EN: Record<string, string> = {
+  email_not_confirmed:
+    "Your email hasn't been confirmed yet. Check your inbox for the confirmation email.",
+  invalid_credentials: 'The email or password is incorrect.',
+  user_already_exists: 'This email is already registered.',
+  email_exists: 'This email is already registered.',
+  weak_password: 'The password is too weak. Use at least 6 characters.',
+  over_email_send_rate_limit:
+    'Too many emails were sent. Please wait a little before trying again.',
+  over_request_rate_limit: 'Too many attempts in a short time. Please wait, then try again.',
+  email_address_invalid: 'The email address is invalid or its domain is not accepted.',
+  validation_failed: 'Please check the information you entered.',
+  user_not_found: 'No account is linked to this email address.',
+  session_expired: 'Your session has expired. Please sign in again.',
+  same_password: 'The new password matches the current one. Choose a different password.',
+  signup_disabled: 'Sign-up is currently unavailable.',
+  email_provider_disabled: 'Email sign-in is not enabled for this project.',
+  provider_disabled: 'This sign-in method is not enabled for this project.',
+  otp_expired: 'The confirmation link has expired. Request a new one.',
+  reauthentication_needed: 'Please sign in again before performing this action.',
+}
+
+const LEGACY_MESSAGE_MESSAGES_EN: Record<string, string> = {
+  'Invalid login credentials': 'The email or password is incorrect.',
+  'Email not confirmed':
+    "Your email hasn't been confirmed yet. Check your inbox for the confirmation email.",
+  'User already registered': 'This email is already registered.',
+  'Password should be at least 6 characters': 'The password must be at least 6 characters.',
+  'Unsupported provider': 'This sign-in method is not enabled for this project.',
+}
+
 /** Older GoTrue responses that carry no `code` — matched on message text. */
 const LEGACY_MESSAGE_MESSAGES: Record<string, string> = {
   'Invalid login credentials': 'البريد الإلكتروني أو كلمة المرور غير صحيحة.',
@@ -57,14 +90,17 @@ export type AuthErrorDetails = {
  * real cause is never lost — the UI shows it beneath the Arabic text rather
  * than swallowing it.
  */
-export function getAuthErrorDetails(error: unknown): AuthErrorDetails {
+export function getAuthErrorDetails(error: unknown, locale: Locale = 'ar'): AuthErrorDetails {
+  const codeMessages = locale === 'en' ? ERROR_CODE_MESSAGES_EN : ERROR_CODE_MESSAGES
+  const legacyMessages = locale === 'en' ? LEGACY_MESSAGE_MESSAGES_EN : LEGACY_MESSAGE_MESSAGES
+  const fallback = locale === 'en' ? FALLBACK_MESSAGE_EN : FALLBACK_MESSAGE
+
   if (error instanceof AuthError) {
     const code = error.code
-    const mapped =
-      (code ? ERROR_CODE_MESSAGES[code] : undefined) ?? LEGACY_MESSAGE_MESSAGES[error.message]
+    const mapped = (code ? codeMessages[code] : undefined) ?? legacyMessages[error.message]
 
     return {
-      message: mapped ?? FALLBACK_MESSAGE,
+      message: mapped ?? fallback,
       code,
       rawMessage: error.message,
       status: error.status,
@@ -72,10 +108,10 @@ export function getAuthErrorDetails(error: unknown): AuthErrorDetails {
   }
 
   if (error instanceof Error) {
-    return { message: FALLBACK_MESSAGE, rawMessage: error.message }
+    return { message: fallback, rawMessage: error.message }
   }
 
-  return { message: FALLBACK_MESSAGE }
+  return { message: fallback }
 }
 
 /**
@@ -83,14 +119,17 @@ export function getAuthErrorDetails(error: unknown): AuthErrorDetails {
  * Accepts an AuthError, an Error, or a raw message for backwards
  * compatibility with the previous signature.
  */
-export function getAuthErrorMessage(error: unknown): string {
+export function getAuthErrorMessage(error: unknown, locale: Locale = 'ar'): string {
+  const fallback = locale === 'en' ? FALLBACK_MESSAGE_EN : FALLBACK_MESSAGE
   if (typeof error === 'string') {
-    return LEGACY_MESSAGE_MESSAGES[error] ?? FALLBACK_MESSAGE
+    return (
+      (locale === 'en' ? LEGACY_MESSAGE_MESSAGES_EN : LEGACY_MESSAGE_MESSAGES)[error] ?? fallback
+    )
   }
   if (error === null || error === undefined) {
-    return FALLBACK_MESSAGE
+    return fallback
   }
-  return getAuthErrorDetails(error).message
+  return getAuthErrorDetails(error, locale).message
 }
 
 /** True when the account exists but its email has never been confirmed. */

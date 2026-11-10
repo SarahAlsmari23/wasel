@@ -20,13 +20,13 @@ import { createClient } from '@/lib/supabase/server'
  * always comes from the authenticated session — never a client-supplied id.
  */
 
-// TEMPORARY DIAGNOSTICS — structural only: operation name + success/failure.
-// Never logs message content, user ids, conversation ids, or raw Supabase
-// error bodies (only our own already-generic internal error messages, e.g.
-// "Failed to create conversation."). Remove once Phase 1 persistence is
-// confirmed working end-to-end.
-function logDiag(operation: string, detail: string) {
-  console.log(`[wasal-actions] ${operation}: ${detail}`)
+/** Failures are reported as a single structural line (operation + our own
+ * generic error message) — never message content, ids, or raw Supabase
+ * error bodies. Success paths are silent. */
+function logFailure(operation: string, error: unknown) {
+  console.warn(
+    `[wasal-actions] ${operation} failed: ${error instanceof Error ? error.message : typeof error}`,
+  )
 }
 
 export async function createConversationAction(
@@ -38,7 +38,6 @@ export async function createConversationAction(
     const {
       data: { user },
     } = await supabase.auth.getUser()
-    logDiag('createConversation', `user-resolved=${Boolean(user)}`)
     if (!user) return null
 
     const conversation = await createConversation(
@@ -47,13 +46,9 @@ export async function createConversationAction(
       firstMessageContent,
       conversationType,
     )
-    logDiag('createConversation', 'insert-success')
     return conversation.id
   } catch (error) {
-    logDiag(
-      'createConversation',
-      `failed category=${error instanceof Error ? error.message : typeof error}`,
-    )
+    logFailure('createConversation', error)
     return null
   }
 }
@@ -70,19 +65,13 @@ export async function saveUserMessageAction(
     const {
       data: { user },
     } = await supabase.auth.getUser()
-    logDiag('saveUserMessage', `user-resolved=${Boolean(user)}`)
     if (!user) return null
 
     const message = await insertUserMessage(supabase, conversationId, content)
-    logDiag('saveUserMessage', 'insert-success')
     await touchConversationMetadata(supabase, conversationId)
-    logDiag('saveUserMessage', 'touch-metadata-success')
     return message.id
   } catch (error) {
-    logDiag(
-      'saveUserMessage',
-      `failed category=${error instanceof Error ? error.message : typeof error}`,
-    )
+    logFailure('saveUserMessage', error)
     return null
   }
 }
@@ -105,11 +94,9 @@ export async function saveCollectedFieldAction(
     const {
       data: { user },
     } = await supabase.auth.getUser()
-    logDiag('saveCollectedField', `user-resolved=${Boolean(user)}`)
     if (!user) return
 
     const owns = await verifyConversationOwnership(supabase, conversationId, user.id)
-    logDiag('saveCollectedField', `ownership-verified=${owns}`)
     if (!owns) return
 
     await saveCollectedFieldAsServiceRole(conversationId, {
@@ -117,12 +104,8 @@ export async function saveCollectedFieldAction(
       fieldValue,
       sourceMessageId,
     })
-    logDiag('saveCollectedField', 'upsert-success')
   } catch (error) {
-    logDiag(
-      'saveCollectedField',
-      `failed category=${error instanceof Error ? error.message : typeof error}`,
-    )
+    logFailure('saveCollectedField', error)
   }
 }
 
@@ -195,21 +178,14 @@ export async function saveAssistantMessageAction(
     const {
       data: { user },
     } = await supabase.auth.getUser()
-    logDiag('saveAssistantMessage', `user-resolved=${Boolean(user)}`)
     if (!user) return
 
     const owns = await verifyConversationOwnership(supabase, conversationId, user.id)
-    logDiag('saveAssistantMessage', `ownership-verified=${owns}`)
     if (!owns) return
 
     await insertAssistantMessageAsServiceRole(conversationId, content)
-    logDiag('saveAssistantMessage', 'insert-success')
     await touchConversationMetadata(supabase, conversationId)
-    logDiag('saveAssistantMessage', 'touch-metadata-success')
   } catch (error) {
-    logDiag(
-      'saveAssistantMessage',
-      `failed category=${error instanceof Error ? error.message : typeof error}`,
-    )
+    logFailure('saveAssistantMessage', error)
   }
 }

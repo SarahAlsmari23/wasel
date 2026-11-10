@@ -371,3 +371,99 @@ export async function getCurrentComplaintVersion(
 
   return { complaintText: data.complaint_text as string, subject }
 }
+
+/**
+ * Appends a new current version to an existing complaint (edit / regenerate)
+ * and points the complaint at it. Previous versions are kept intact as
+ * history. The partial unique index on (complaint_id) where is_current means
+ * the old version must be un-flagged first; if the insert then fails, the
+ * old version is restored as current so the complaint is never left without
+ * a letter. Service-role only — callers must verify ownership first.
+ */
+export async function createNextComplaintVersion(input: {
+  complaintId: string
+  complaintText: string
+  generatedFromData: Record<string, unknown>
+  changeSummary: string
+}): Promise<{ id: string; versionNumber: number; updatedAt: string }> {
+  const supabase = getServiceRoleClient()
+
+  const { data: versions, error: versionsError } = await supabase
+    .from('complaint_versions')
+    .select('id, version_number, is_current')
+    .eq('complaint_id', input.complaintId)
+    .order('version_number', { ascending: false })
+
+  if (versionsError || !versions) {
+    throw new Error('Failed to load complaint versions.')
+  }
+
+  const latestNumber = (versions[0]?.version_number as number | undefined) ?? 0
+  const previousCurrentId = versions.find((version) => version.is_current)?.id as string | undefined
+
+  if (previousCurrentId) {
+    const { error } = await supabase
+      .from('complaint_versions')
+      .update({ is_current: false })
+      .eq('id', previousCurrentId)
+    if (error) throw new Error('Failed to update complaint versions.')
+  }
+
+  const { data: inserted, error: insertError } = await supabase
+    .from('complaint_versions')
+    .insert({
+      complaint_id: input.complaintId,
+      version_number: latestNumber + 1,
+      complaint_text: input.complaintText,
+      generated_from_data: input.generatedFromData,
+      change_summary: input.changeSummary,
+      is_current: true,
+    })
+    .select('id')
+    .single()
+
+  if (insertError || !inserted) {
+    if (previousCurrentId) {
+      await supabase
+        .from('complaint_versions')
+        .update({ is_current: true })
+        .eq('id', previousCurrentId)
+    }
+    throw new Error('Failed to create complaint version.')
+  }
+
+  const finalized = await markComplaintGenerated(input.complaintId, inserted.id as string)
+  return {
+    id: inserted.id as string,
+    versionNumber: latestNumber + 1,
+    updatedAt: finalized.updatedAt,
+  }
+}
+
+export async function countComplaintVersions(
+  supabase: SupabaseServerClient,
+  complaintId: string,
+): Promise<number> {
+  const { count, error } = await supabase
+    .from('complaint_versions')
+    .select('id', { count: 'exact', head: true })
+    .eq('complaint_id', complaintId)
+  if (error) return 0
+  return count ?? 0
+}
+
+/** The current version's `generated_from_data` (the inputs the letter was
+ * built from), read through the caller's RLS-scoped client. */
+export async function getCurrentComplaintVersionData(
+  supabase: SupabaseServerClient,
+  complaintId: string,
+): Promise<Record<string, unknown> | null> {
+  const { data, error } = await supabase
+    .from('complaint_versions')
+    .select('generated_from_data')
+    .eq('complaint_id', complaintId)
+    .eq('is_current', true)
+    .maybeSingle()
+  if (error || !data) return null
+  return (data.generated_from_data as Record<string, unknown> | null) ?? null
+}

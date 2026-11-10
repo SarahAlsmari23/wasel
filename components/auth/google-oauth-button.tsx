@@ -1,7 +1,9 @@
 'use client'
 
 import { useState } from 'react'
+import { useCopy, useLocale } from '@/components/i18n/locale-provider'
 import { Button } from '@/components/ui/button'
+import { defineCopy } from '@/lib/i18n/config'
 import { getAuthErrorMessage } from '@/lib/auth/error-messages'
 import { DEFAULT_SIGNED_IN_PATH } from '@/lib/auth/redirect'
 import { createClient } from '@/lib/supabase/client'
@@ -30,12 +32,19 @@ function GoogleMark() {
   )
 }
 
+const COPY = defineCopy({
+  ar: { label: 'المتابعة باستخدام Google' },
+  en: { label: 'Continue with Google' },
+})
+
 type GoogleOAuthButtonProps = {
   /** Path to return to once the OAuth round-trip completes. */
   nextPath?: string
 }
 
 export function GoogleOAuthButton({ nextPath = DEFAULT_SIGNED_IN_PATH }: GoogleOAuthButtonProps) {
+  const copy = useCopy(COPY)
+  const locale = useLocale()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -55,13 +64,13 @@ export function GoogleOAuthButton({ nextPath = DEFAULT_SIGNED_IN_PATH }: GoogleO
       })
 
       if (oauthError) {
-        setError(getAuthErrorMessage(oauthError))
+        setError(getAuthErrorMessage(oauthError, locale))
         setIsSubmitting(false)
       }
       // On success the browser is redirected away by Supabase, so there is
       // no success state to render here.
     } catch (unexpectedError) {
-      setError(getAuthErrorMessage(unexpectedError))
+      setError(getAuthErrorMessage(unexpectedError, locale))
       setIsSubmitting(false)
     }
   }
@@ -76,7 +85,7 @@ export function GoogleOAuthButton({ nextPath = DEFAULT_SIGNED_IN_PATH }: GoogleO
         className="w-full"
       >
         {isSubmitting ? null : <GoogleMark />}
-        المتابعة باستخدام Google
+        {copy.label}
       </Button>
       {error ? (
         <p role="alert" className="text-danger mt-2 text-sm">

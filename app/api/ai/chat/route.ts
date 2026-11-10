@@ -1,7 +1,15 @@
 import { NextResponse } from 'next/server'
 import { validateChatRequest } from '@/lib/ai/contracts'
 import { AiProviderError } from '@/lib/ai/generation-shared'
-import { getGenerationProvider } from '@/lib/ai/provider'
+import { generateAnswer } from '@/lib/ai/provider'
+import { describesProblem } from '@/lib/ai/problem-signal'
+import {
+  localizedFieldQuestion,
+  SERVER_COPY,
+  subtypeClarificationQuestion,
+} from '@/lib/ai/server-copy'
+import { LOCALE_COOKIE, resolveLocale, type Locale } from '@/lib/i18n/config'
+import { checkRateLimits, clientIpFrom } from '@/lib/security/rate-limit'
 import {
   buildKnownFieldKeysFromComplaintContext,
   type MissingFieldsResult,
@@ -21,26 +29,19 @@ import { retrieveRelevantDocuments, RetrievalError } from '@/lib/rag/retrieve'
 import type { RetrievedDocument } from '@/lib/rag/types'
 import { createClient } from '@/lib/supabase/server'
 import { ENTITY_NAME_TO_SECTOR } from '@/lib/complaints/sectors'
-import {
-  hasSectorIssueSignal,
-  SUBTYPE_CLARIFICATION_QUESTIONS,
-} from '@/lib/complaints/issue-signal'
+import { hasSectorIssueSignal } from '@/lib/complaints/issue-signal'
 import { loadComplaintCollectionState } from '@/lib/wasal/conversation-state'
 import { isExplicitRoutingChange, wantsToCreateComplaint } from '@/lib/wasal/complaint-intent'
 import {
   appendPendingQuestion,
   coerceModelIntent,
-  GREETING_RESPONSE,
   hasGrievanceSignal,
-  IDENTITY_RESPONSE,
   isComplaintIntent,
   isGreetingOnly,
   isIdentityQuestion,
   isInformationalIntent,
   isLikelySideQuestion,
   isObviousOutOfScope,
-  NO_VERIFIED_INFO_RESPONSE,
-  OUT_OF_SCOPE_RESPONSE,
 } from '@/lib/ai/intent-guards'
 import type {
   ChatComplaintContext,
@@ -51,60 +52,31 @@ import type {
   ChatSuccessResponse,
 } from '@/types/ai'
 
-// Deterministic, server-authored — never model-generated. Used whenever
-// computeMissingFields determines every required field has been collected,
-// so the client never displays a model-invented follow-up question once the
-// server has authoritatively decided the complaint-collection flow is done.
-const COMPLETION_MESSAGE = 'اكتملت المعلومات اللازمة، وسأقوم الآن بإعداد البلاغ الرسمي.'
-
-// Emergency release fix, Part 2 — shown only when the hard duplicate-
-// question invariant catches a genuine validation/persistence failure (the
-// client believed it just answered a field, but a fresh reload of
-// collected_information still shows it missing) — a short, honest notice
-// instead of ever silently repeating the exact same question a second time.
-const VALIDATION_RETRY_MESSAGE = 'تعذر حفظ إجابتك الأخيرة. حاول إرسالها مرة أخرى من فضلك.'
+// Server-authored messages (completion notice, validation retry, fixed
+// greeting/identity/out-of-scope replies, errors) live in
+// lib/ai/server-copy.ts in both languages.
 
 const RATE_LIMIT_WINDOW_MS = 60_000
-// Guests get a tighter budget than signed-in users: the assistant is open to
-// everyone (Phase 1 "Guest User"), so the anonymous path is the one exposed
-// to casual abuse.
-const RATE_LIMIT_MAX_REQUESTS_AUTHENTICATED = 10
-const RATE_LIMIT_MAX_REQUESTS_GUEST = 5
+// Signed-in users are keyed by account. Guests are keyed per conversation
+// AND per IP: the per-conversation budget keeps one visitor from hammering
+// the model, while the much looser per-IP ceiling still bounds abuse without
+// letting several people behind one shared network (a venue, an office)
+// exhaust each other's budget.
+const RATE_LIMIT_AUTHENTICATED = 15
+const RATE_LIMIT_GUEST_CONVERSATION = 10
+const RATE_LIMIT_GUEST_IP = 40
 
-// In-memory, per-process sliding-window limiter. Development-only: state
-// resets on server restart and is not shared across multiple instances.
-// Exists only to prevent accidental spam / unnecessary AI-provider usage
-// during this phase — not a production rate-limiting solution.
-const requestTimestampsByUser = new Map<string, number[]>()
-
-/**
- * Exported so its logic can be verified directly (called repeatedly with a
- * fake key) without HTTP, auth, or any network call.
- */
-export function checkRateLimit(key: string, maxRequests: number): boolean {
-  const now = Date.now()
-  const timestamps = requestTimestampsByUser.get(key) ?? []
-  const recent = timestamps.filter((timestamp) => now - timestamp < RATE_LIMIT_WINDOW_MS)
-
-  if (recent.length >= maxRequests) {
-    requestTimestampsByUser.set(key, recent)
-    return false
-  }
-
-  recent.push(now)
-  requestTimestampsByUser.set(key, recent)
-  return true
+/** Opt-in verbose pipeline tracing (CHAT_DEBUG_LOGS=true). Structural only —
+ * never message content, prompts, identifiers or provider error bodies. */
+function debugLog(line: string) {
+  if (process.env.CHAT_DEBUG_LOGS === 'true') debugLog(line)
 }
 
-/**
- * Best-effort client identity for guest rate limiting. Proxy headers are
- * spoofable, so this only raises the cost of casual abuse — it is not an
- * authentication signal and is never used for anything but the limiter key.
- */
-function getGuestRateLimitKey(request: Request): string {
-  const forwardedFor = request.headers.get('x-forwarded-for')
-  const clientIp = forwardedFor?.split(',')[0]?.trim() || request.headers.get('x-real-ip')
-  return `guest:${clientIp || 'unknown'}`
+function localeFromCookie(request: Request): Locale {
+  const match = request.headers
+    .get('cookie')
+    ?.match(new RegExp(`(?:^|;\\s*)${LOCALE_COOKIE}=([^;]+)`))
+  return resolveLocale(match?.[1])
 }
 
 function errorResponse(error: string, status: number) {
@@ -172,15 +144,35 @@ function categorizeMissingFieldsFailure(error: unknown): string {
 // below (skipping the model call entirely once the answer is already
 // deterministic) — this export only hardens the remaining, genuinely
 // model-dependent turns.
-export const maxDuration = 30
+export const maxDuration = 45
 
 export async function POST(request: Request) {
+  const requestStart = Date.now()
+  const cookieLocale = localeFromCookie(request)
+
   let payload: unknown
   try {
     payload = await request.json()
   } catch {
-    return errorResponse('الطلب غير صالح.', 400)
+    return errorResponse(SERVER_COPY[cookieLocale].errors.invalidRequest, 400)
   }
+
+  const validation = validateChatRequest(payload, cookieLocale)
+  if (!validation.valid) {
+    return errorResponse(validation.error, 400)
+  }
+
+  const {
+    message,
+    history,
+    intent,
+    complaintContext,
+    dbConversationId,
+    activeEntityName,
+    conversationId: clientConversationId,
+  } = validation.value
+  const locale: Locale = validation.value.locale ?? cookieLocale
+  const sc = SERVER_COPY[locale]
 
   const supabase = await createClient()
   const {
@@ -190,19 +182,32 @@ export async function POST(request: Request) {
   // The assistant is open to guests by design — asking general questions
   // never requires an account. Only complaint creation and persistence are
   // gated, and neither happens here.
-  const rateLimitKey = user ? user.id : getGuestRateLimitKey(request)
-  const maxRequests = user ? RATE_LIMIT_MAX_REQUESTS_AUTHENTICATED : RATE_LIMIT_MAX_REQUESTS_GUEST
-
-  if (!checkRateLimit(rateLimitKey, maxRequests)) {
-    return errorResponse('لقد تجاوزت الحد المسموح به من الطلبات. حاول مرة أخرى بعد قليل.', 429)
+  const rateLimit = await checkRateLimits(
+    user
+      ? [
+          {
+            key: `user:${user.id}`,
+            limit: RATE_LIMIT_AUTHENTICATED,
+            windowMs: RATE_LIMIT_WINDOW_MS,
+          },
+        ]
+      : [
+          {
+            key: `guest-conv:${clientConversationId.slice(0, 64)}`,
+            limit: RATE_LIMIT_GUEST_CONVERSATION,
+            windowMs: RATE_LIMIT_WINDOW_MS,
+          },
+          {
+            key: `guest-ip:${clientIpFrom(request)}`,
+            limit: RATE_LIMIT_GUEST_IP,
+            windowMs: RATE_LIMIT_WINDOW_MS,
+          },
+        ],
+  )
+  if (!rateLimit.allowed) {
+    return errorResponse(sc.errors.rateLimited, 429)
   }
 
-  const validation = validateChatRequest(payload)
-  if (!validation.valid) {
-    return errorResponse(validation.error, 400)
-  }
-
-  const { message, history, intent, complaintContext, dbConversationId } = validation.value
   const sanitizedMessage = sanitizeMessage(message)
 
   // Phase 7.1/7.2 — deterministic, server-authoritative intent guards.
@@ -245,43 +250,38 @@ export async function POST(request: Request) {
 
   if (!hasActiveComplaintContext && !likelyComplaint) {
     if (isGreetingOnly(sanitizedMessage)) {
-      return NextResponse.json<ChatSuccessResponse>(
-        fixedIntentResponse('greeting', GREETING_RESPONSE),
-        { status: 200 },
-      )
+      return NextResponse.json<ChatSuccessResponse>(fixedIntentResponse('greeting', sc.greeting), {
+        status: 200,
+      })
     }
     if (isIdentityQuestion(sanitizedMessage)) {
       return NextResponse.json<ChatSuccessResponse>(
-        fixedIntentResponse('identity_question', IDENTITY_RESPONSE),
+        fixedIntentResponse('identity_question', sc.identity),
         { status: 200 },
       )
     }
     if (isObviousOutOfScope(sanitizedMessage)) {
       return NextResponse.json<ChatSuccessResponse>(
-        fixedIntentResponse('out_of_scope', OUT_OF_SCOPE_RESPONSE),
+        fixedIntentResponse('out_of_scope', sc.outOfScope),
         { status: 200 },
       )
     }
   }
 
-  console.log(
-    `[chat] SUPABASE_SERVICE_ROLE_KEY exists: ${Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY)}`,
-  )
-
   // Retrieval is non-fatal: a failure or timeout here must never surface to
   // the user or block the chat response — it just falls back to no
   // retrieved context, same as before RAG existed.
-  console.log('[chat] retrieval-start')
+  debugLog('[chat] retrieval-start')
   const retrievalStart = Date.now()
   let retrievedDocuments: RetrievedDocument[] = []
   try {
     retrievedDocuments = await retrieveRelevantDocuments(sanitizedMessage)
-    console.log(
+    debugLog(
       `[chat] retrieval-success count=${retrievedDocuments.length} elapsedMs=${Date.now() - retrievalStart}`,
     )
   } catch (error) {
     retrievedDocuments = []
-    console.log(
+    debugLog(
       `[chat] retrieval-fallback category=${categorizeRetrievalFailure(error)} elapsedMs=${Date.now() - retrievalStart}`,
     )
   }
@@ -289,17 +289,17 @@ export async function POST(request: Request) {
   // Routing is resolved purely from retrievedDocuments (real, DB-backed
   // ids only — no model call happens here) and is non-fatal, same as
   // retrieval itself: a failure here must never block the chat response.
-  console.log('[chat] routing-start')
+  debugLog('[chat] routing-start')
   const routingStart = Date.now()
   let routing: ChatRouting | null = null
   try {
     routing = await resolveRouting(supabase, retrievedDocuments)
-    console.log(
+    debugLog(
       `[chat] routing-${routing ? 'resolved' : 'null'} elapsedMs=${Date.now() - routingStart}`,
     )
   } catch (error) {
     routing = null
-    console.log(
+    debugLog(
       `[chat] routing-fallback category=${categorizeRoutingFailure(error)} elapsedMs=${Date.now() - routingStart}`,
     )
   }
@@ -319,12 +319,47 @@ export async function POST(request: Request) {
       )
       if (keywordRouting) {
         routing = keywordRouting
-        console.log('[chat] routing-resolved-by-keyword')
+        debugLog('[chat] routing-resolved-by-keyword')
       }
     } catch (error) {
-      console.log(
-        `[chat] routing-keyword-fallback-failed category=${categorizeRoutingFailure(error)}`,
-      )
+      debugLog(`[chat] routing-keyword-fallback-failed category=${categorizeRoutingFailure(error)}`)
+    }
+  }
+
+  // Authority continuity. A follow-up question ("can I track it online?")
+  // carries no sector words of its own, so routing it on its own wording
+  // alone lands on whichever knowledge document happens to be nearest —
+  // which is how a water conversation could suddenly announce the telecom
+  // regulator. When the client reports the authority already shown in this
+  // conversation, that authority is kept unless this message itself
+  // justifies a change: an explicit correction / new-complaint request, or an
+  // unambiguous keyword naming a *different* supported sector. The hint is
+  // only honoured for one of the known supported authorities and is always
+  // re-resolved from the database — never trusted as an id.
+  //
+  // A bare mention of another sector is not new information: "can I follow
+  // my request up via the internet?" names the telecom keyword "الإنترنت"
+  // while still being about the same water complaint — exactly the
+  // production case that switched to CST. A different sector only wins when
+  // the message also describes a problem (grievance / complaint signal).
+  if (activeEntityName && ENTITY_NAME_TO_SECTOR[activeEntityName]) {
+    const keywordEntityName = keywordSector ? getEntityNameForSector(keywordSector) : null
+    const describesNewProblemElsewhere =
+      keywordEntityName !== null &&
+      keywordEntityName !== activeEntityName &&
+      describesProblem(sanitizedMessage)
+    const newInformationJustifiesChange =
+      isExplicitRoutingChange(sanitizedMessage) || describesNewProblemElsewhere
+    if (!newInformationJustifiesChange && routing?.entityName !== activeEntityName) {
+      try {
+        const continuedRouting = await resolveRoutingByEntityName(supabase, activeEntityName)
+        if (continuedRouting) {
+          routing = continuedRouting
+          debugLog('[chat] routing-continued-from-active-authority')
+        }
+      } catch {
+        // Non-fatal — fall back to this turn's fresh routing.
+      }
     }
   }
 
@@ -376,7 +411,7 @@ export async function POST(request: Request) {
         routingPersisted = true
       }
     } catch (error) {
-      console.log(`[chat] saved-routing-fallback category=${categorizeRoutingFailure(error)}`)
+      debugLog(`[chat] saved-routing-fallback category=${categorizeRoutingFailure(error)}`)
     }
   }
 
@@ -389,7 +424,7 @@ export async function POST(request: Request) {
   // list and never decides what's missing — only the single selected
   // field's label/hint is ever exposed to it (below). Non-fatal, same as
   // retrieval and routing above.
-  console.log('[chat] missing-fields-start')
+  debugLog('[chat] missing-fields-start')
   const missingFieldsStart = Date.now()
   let missingFieldsResult: MissingFieldsResult | null = null
   let nextFieldHint: string | null = null
@@ -409,6 +444,16 @@ export async function POST(request: Request) {
   // once true, the same required field must never be handed back as
   // `nextField` on the very turn that just supplied a genuine answer for it.
   let duplicateInvariantViolated = false
+  // Outside the complaint builder, a message that itself describes a problem
+  // *is* the problem description — the next question must move on (e.g. to
+  // the city) rather than ask the user to describe what they just described.
+  const knownFieldKeysThisTurn = (): Set<string> => {
+    const known = buildKnownFieldKeysFromComplaintContext(sanitizedComplaintContext)
+    if (!hasActiveComplaintContext && describesProblem(sanitizedMessage)) {
+      known.add('problem_description')
+    }
+    return known
+  }
   if (likelyComplaint && routing?.complaintTypeId) {
     try {
       const persistedFields =
@@ -419,7 +464,7 @@ export async function POST(request: Request) {
         supabase,
         routing.complaintTypeId,
         persistedFields,
-        buildKnownFieldKeysFromComplaintContext(sanitizedComplaintContext),
+        knownFieldKeysThisTurn(),
       )
 
       const answeredFieldKey = sanitizedComplaintContext?.answeredFieldKey
@@ -436,7 +481,7 @@ export async function POST(request: Request) {
         // is about to ask for again — reload collected_information fresh
         // (in case an earlier read in this same request raced a concurrent
         // write) and recompute once more before concluding anything.
-        console.log('[chat] duplicate-invariant-check reload')
+        debugLog('[chat] duplicate-invariant-check reload')
         const freshPersistedFields =
           user && dbConversationId
             ? await getCollectedInformationForConversation(supabase, dbConversationId)
@@ -445,7 +490,7 @@ export async function POST(request: Request) {
           supabase,
           routing.complaintTypeId,
           freshPersistedFields,
-          buildKnownFieldKeysFromComplaintContext(sanitizedComplaintContext),
+          knownFieldKeysThisTurn(),
         )
         if (freshState) collectionState = freshState
 
@@ -456,7 +501,7 @@ export async function POST(request: Request) {
           // so the response can say so plainly instead of silently
           // repeating the exact same question a second time.
           duplicateInvariantViolated = true
-          console.log('[chat] duplicate-invariant-violated')
+          debugLog('[chat] duplicate-invariant-violated')
         }
       }
 
@@ -464,18 +509,18 @@ export async function POST(request: Request) {
         missingFieldsResult = collectionState.missing
         nextFieldHint = collectionState.nextFieldHint
 
-        console.log(
+        debugLog(
           `[chat] missing-fields-resolved missingCount=${collectionState.missing.missingFields.length} ready=${collectionState.missing.readyToGenerateComplaint} elapsedMs=${Date.now() - missingFieldsStart}`,
         )
       }
     } catch (error) {
       missingFieldsResult = null
-      console.log(
+      debugLog(
         `[chat] missing-fields-fallback category=${categorizeMissingFieldsFailure(error)} elapsedMs=${Date.now() - missingFieldsStart}`,
       )
     }
   } else {
-    console.log(
+    debugLog(
       `[chat] missing-fields-skipped reason=${likelyComplaint ? 'no-complaint-type-id' : 'non-complaint-intent'}`,
     )
   }
@@ -493,7 +538,10 @@ export async function POST(request: Request) {
   // The exact, already-deterministic pending-question text (Phase 4C) — the
   // one and only text ever used to resume a pending complaint field after an
   // interruption (Phase 7.2, Parts 4/6/8). Never re-derived or re-phrased.
-  const pendingQuestionText = nextField ? (missingFieldsResult?.nextQuestion ?? null) : null
+  const pendingQuestionText =
+    nextField && missingFieldsResult?.nextQuestion
+      ? localizedFieldQuestion(nextField.key, missingFieldsResult.nextQuestion, locale)
+      : null
 
   // Phase 7.2, Part 4/5/7 — is this message actually an interruption (an
   // identity question, an obvious out-of-scope aside, or a relevant side
@@ -555,10 +603,10 @@ export async function POST(request: Request) {
   ) {
     const baseAnswer =
       complaintInterruption === 'identity_question'
-        ? IDENTITY_RESPONSE
+        ? sc.identity
         : complaintInterruption === 'greeting'
-          ? GREETING_RESPONSE
-          : OUT_OF_SCOPE_RESPONSE
+          ? sc.greeting
+          : sc.outOfScope
     return NextResponse.json<ChatSuccessResponse>(
       {
         answer: pendingQuestionText
@@ -588,7 +636,7 @@ export async function POST(request: Request) {
   // Emergency Fix — electricity-complaint bug, root cause. Confirmed via
   // live reproduction: once missingFieldsResult.readyToGenerateComplaint is
   // true, the response built after generation below (see the `isServerReady`
-  // ternary) ALWAYS uses the fixed COMPLETION_MESSAGE as `answer` — the
+  // ternary) ALWAYS uses the fixed sc.completion as `answer` — the
   // model's own output is computed and then unconditionally discarded. This
   // block used to still pay for a full generation call anyway: a live-tested
   // Gemini call regularly took 7-14+ seconds, and with no `maxDuration` set
@@ -629,7 +677,7 @@ export async function POST(request: Request) {
     }))
     return NextResponse.json<ChatSuccessResponse>(
       {
-        answer: COMPLETION_MESSAGE,
+        answer: sc.completion,
         intent: explicitCreateComplaint
           ? 'create_complaint'
           : complaintInterruption === 'complaint_side_question'
@@ -679,7 +727,7 @@ export async function POST(request: Request) {
     return hasSectorIssueSignal(sector, problemDescriptionText) ? null : sector
   })()
   if (genericStarterSector) {
-    const clarification = SUBTYPE_CLARIFICATION_QUESTIONS[genericStarterSector]
+    const clarification = subtypeClarificationQuestion(genericStarterSector, locale)
     if (clarification) {
       return NextResponse.json<ChatSuccessResponse>(
         {
@@ -765,16 +813,22 @@ export async function POST(request: Request) {
     intent,
     complaintContext: promptComplaintContext,
     retrievedDocuments,
+    locale,
   })
-  console.log(
+  debugLog(
     `[chat] prompt-built length=${prompt.length} retrievedDocumentCount=${retrievedDocuments.length}`,
   )
 
-  console.log('[chat] generation-start')
+  debugLog('[chat] generation-start')
   const generationStart = Date.now()
   try {
-    const result = await getGenerationProvider().generate({ prompt })
-    console.log(`[chat] generation-success elapsedMs=${Date.now() - generationStart}`)
+    const generation = await generateAnswer({ prompt })
+    const result = generation.output
+    // One structural line per generated turn — model, latency, outcome.
+    // Never message content, prompts, identifiers or provider bodies.
+    console.info(
+      `[chat] generated provider=${generation.provider} model=${generation.model} genMs=${Date.now() - generationStart} totalMs=${Date.now() - requestStart} docs=${retrievedDocuments.length} locale=${locale}`,
+    )
 
     // Phase 7.1/7.2 — server-authoritative final intent. Deterministic
     // priority always wins when it applies (Part 7): a detected side
@@ -811,13 +865,13 @@ export async function POST(request: Request) {
     // these two fixed-response categories.
     if (finalIntent === 'identity_question') {
       return NextResponse.json<ChatSuccessResponse>(
-        fixedIntentResponse('identity_question', IDENTITY_RESPONSE),
+        fixedIntentResponse('identity_question', sc.identity),
         { status: 200 },
       )
     }
     if (finalIntent === 'out_of_scope') {
       return NextResponse.json<ChatSuccessResponse>(
-        fixedIntentResponse('out_of_scope', OUT_OF_SCOPE_RESPONSE),
+        fixedIntentResponse('out_of_scope', sc.outOfScope),
         { status: 200 },
       )
     }
@@ -852,8 +906,8 @@ export async function POST(request: Request) {
     const informationalFallback =
       isInformationalIntent(finalIntent) && retrievedDocuments.length === 0
         ? routing?.officialUrl
-          ? `${NO_VERIFIED_INFO_RESPONSE}\n\n${routing.officialUrl}`
-          : NO_VERIFIED_INFO_RESPONSE
+          ? `${sc.noVerifiedInfo}\n\n${sc.officialSiteLabel}: ${routing.officialUrl}`
+          : sc.noVerifiedInfo
         : null
 
     // Phase 7.2, Part 6 — a side-question turn's displayed answer is always
@@ -865,6 +919,19 @@ export async function POST(request: Request) {
       finalIntent === 'complaint_side_question' && pendingQuestionText
         ? appendPendingQuestion(result.answer, pendingQuestionText)
         : null
+
+    // Authority continuity, part 2 — an informational answer about an
+    // authority whose official site is verified in our reference data always
+    // carries that link, so the answer never tells the user a link "isn't
+    // available" while the authority card beside it shows one.
+    const verifiedOfficialUrl =
+      routing && routing.confidence !== 'low' && routing.officialUrl ? routing.officialUrl : null
+    const withOfficialLink = (text: string): string =>
+      verifiedOfficialUrl &&
+      isInformationalIntent(finalIntent) &&
+      !text.includes(verifiedOfficialUrl)
+        ? `${text}\n\n${sc.officialSiteLabel}: ${verifiedOfficialUrl}`
+        : text
 
     const response: ChatSuccessResponse = {
       ...result,
@@ -879,10 +946,10 @@ export async function POST(request: Request) {
       // instead of ever silently repeating the exact same question.
       answer:
         isComplaint && duplicateInvariantViolated
-          ? VALIDATION_RETRY_MESSAGE
+          ? sc.validationRetry
           : isServerReady
-            ? COMPLETION_MESSAGE
-            : (sideQuestionAnswer ?? informationalFallback ?? result.answer),
+            ? sc.completion
+            : (sideQuestionAnswer ?? informationalFallback ?? withOfficialLink(result.answer)),
       sources,
       routing,
       missingFields: isComplaint
@@ -896,9 +963,9 @@ export async function POST(request: Request) {
       // complaint-interruption early return above.
       nextQuestion:
         isComplaint && duplicateInvariantViolated
-          ? VALIDATION_RETRY_MESSAGE
+          ? sc.validationRetry
           : isComplaint && nextField && finalIntent !== 'complaint_side_question'
-            ? result.nextQuestion?.trim() || (missingFieldsResult?.nextQuestion ?? null)
+            ? result.nextQuestion?.trim() || pendingQuestionText
             : null,
       nextFieldKey: isComplaint ? (nextField?.key ?? null) : null,
       readyToGenerateComplaint: isComplaint
@@ -910,8 +977,8 @@ export async function POST(request: Request) {
     }
     return NextResponse.json<ChatSuccessResponse>(response, { status: 200 })
   } catch (error) {
-    console.log(
-      `[chat] generation-failed category=${categorizeGenerationFailure(error)} elapsedMs=${Date.now() - generationStart}`,
+    console.warn(
+      `[chat] generation-failed category=${categorizeGenerationFailure(error)} genMs=${Date.now() - generationStart} totalMs=${Date.now() - requestStart}`,
     )
     // Phase 8, Part 1/16 — a model failure never needs to abort a complaint-
     // collection turn: routing/missing-fields were already resolved above
@@ -924,11 +991,20 @@ export async function POST(request: Request) {
     // provider outage never actually stalls or resets a complaint in
     // progress. A genuinely open-ended informational question that fails
     // still has no deterministic answer to give, so that case is unchanged.
+    //
+    // The degraded, server-authored question is only appropriate inside an
+    // active complaint flow (the client sends complaintContext). Outside it —
+    // e.g. "what are the water company's working hours?", which merely names
+    // a sector — answering a failed question with "describe the problem?"
+    // would misrepresent what happened, so the honest error is returned.
+    if (error instanceof AiProviderError && !hasActiveComplaintContext) {
+      return errorResponse(sc.errors.unavailable, 502)
+    }
     if (error instanceof AiProviderError) {
       if (duplicateInvariantViolated) {
         return NextResponse.json<ChatSuccessResponse>(
           {
-            answer: VALIDATION_RETRY_MESSAGE,
+            answer: sc.validationRetry,
             intent: 'complaint_guidance',
             confidence: 'medium',
             grounded: false,
@@ -936,7 +1012,7 @@ export async function POST(request: Request) {
             suggestedQuestions: [],
             sources: [],
             routing,
-            nextQuestion: VALIDATION_RETRY_MESSAGE,
+            nextQuestion: sc.validationRetry,
             nextFieldKey: nextField?.key ?? null,
             readyToGenerateComplaint: false,
             routingPersisted,
@@ -947,7 +1023,7 @@ export async function POST(request: Request) {
       if (missingFieldsResult?.readyToGenerateComplaint) {
         return NextResponse.json<ChatSuccessResponse>(
           {
-            answer: COMPLETION_MESSAGE,
+            answer: sc.completion,
             intent: 'complaint_guidance',
             confidence: 'high',
             grounded: false,
@@ -982,8 +1058,8 @@ export async function POST(request: Request) {
           { status: 200 },
         )
       }
-      return errorResponse('تعذر التواصل مع المساعد الذكي حالياً. حاول مرة أخرى لاحقاً.', 502)
+      return errorResponse(sc.errors.unavailable, 502)
     }
-    return errorResponse('حدث خطأ غير متوقع. حاول مرة أخرى.', 500)
+    return errorResponse(sc.errors.unexpected, 500)
   }
 }

@@ -6,18 +6,19 @@ import type { AuthErrorDetails } from '@/lib/auth/error-messages'
 
 type AuthErrorNoticeProps = {
   details: AuthErrorDetails
-  /** Recovery action rendered under the message (e.g. resend confirmation). */
   action?: ReactNode
 }
 
 /**
- * Shows the Arabic explanation and, underneath it, the verbatim message and
- * code Supabase returned. Keeping the original text visible is deliberate:
- * a user reporting "حدث خطأ" gives no diagnostic signal, whereas
- * "email_not_confirmed · Email not confirmed" identifies the cause instantly.
+ * Shows the localized explanation. Supabase's own technical message (code,
+ * English text, HTTP status) is useful while developing but confusing — and
+ * needlessly revealing — to end users, so it only renders in development.
  */
 export function AuthErrorNotice({ details, action }: AuthErrorNoticeProps) {
-  const showRaw = Boolean(details.rawMessage) && details.rawMessage !== details.message
+  const showRaw =
+    process.env.NODE_ENV === 'development' &&
+    Boolean(details.rawMessage) &&
+    details.rawMessage !== details.message
 
   return (
     <div
@@ -30,14 +31,14 @@ export function AuthErrorNotice({ details, action }: AuthErrorNoticeProps) {
       </div>
 
       {showRaw ? (
-        <p className="text-muted-foreground pr-6.5 text-xs" dir="ltr">
+        <p className="text-muted-foreground ps-6.5 text-xs" dir="ltr">
           {details.code ? `${details.code} · ` : ''}
           {details.rawMessage}
           {details.status ? ` (${details.status})` : ''}
         </p>
       ) : null}
 
-      {action ? <div className="pr-6.5">{action}</div> : null}
+      {action ? <div className="ps-6.5">{action}</div> : null}
     </div>
   )
 }

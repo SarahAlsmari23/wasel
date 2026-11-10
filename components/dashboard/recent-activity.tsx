@@ -1,43 +1,67 @@
-import { ArrowLeft } from 'lucide-react'
+'use client'
+
+import { ArrowLeft, ArrowRight } from 'lucide-react'
 import Link from 'next/link'
 import { GovernmentLogo } from '@/components/government/government-logo'
+import { useCopy, useLocale } from '@/components/i18n/locale-provider'
 import { Badge } from '@/components/ui/badge'
 import { EmptyState } from '@/components/ui/empty-state'
 import { RelativeTime } from '@/components/ui/relative-time'
 import { getComplaintStatusPresentation, getDisplayTitle } from '@/lib/complaints/display'
 import type { ComplaintRecord } from '@/lib/db/complaints'
-import { getGovernmentEntityByName } from '@/lib/mock/government-entities'
+import { defineCopy } from '@/lib/i18n/config'
+import { entityDisplayName, getGovernmentEntityByName } from '@/lib/mock/government-entities'
+
+const COPY = defineCopy({
+  ar: {
+    heading: 'آخر النشاطات',
+    viewAll: 'عرض الكل',
+    emptyTitle: 'لا يوجد نشاط بعد.',
+    emptyBody: 'ستظهر هنا آخر بلاغاتك وتحديثاتها.',
+  },
+  en: {
+    heading: 'Recent activity',
+    viewAll: 'View all',
+    emptyTitle: 'No activity yet.',
+    emptyBody: 'Your latest complaints and their updates will appear here.',
+  },
+})
 
 type RecentActivityProps = {
   complaints: ComplaintRecord[]
 }
 
 export function RecentActivity({ complaints }: RecentActivityProps) {
+  const copy = useCopy(COPY)
+  const locale = useLocale()
+  const ForwardArrow = locale === 'ar' ? ArrowLeft : ArrowRight
+
   return (
     <section className="flex flex-col gap-3">
       <div className="flex items-center justify-between gap-3">
-        <h2 className="text-heading text-sm font-semibold">آخر النشاطات</h2>
+        <h2 className="text-heading text-sm font-semibold">{copy.heading}</h2>
         <Link
           href="/dashboard/complaints"
           className="text-primary inline-flex items-center gap-1.5 text-xs font-medium hover:underline"
         >
-          عرض الكل
-          <ArrowLeft className="h-3 w-3" aria-hidden="true" />
+          {copy.viewAll}
+          <ForwardArrow className="h-3 w-3" aria-hidden="true" />
         </Link>
       </div>
 
       {complaints.length === 0 ? (
-        <EmptyState title="لا يوجد نشاط بعد." description="ستظهر هنا آخر بلاغاتك وتحديثاتها." />
+        <EmptyState title={copy.emptyTitle} description={copy.emptyBody} />
       ) : (
         <ul className="bg-surface border-border shadow-soft divide-border divide-y overflow-hidden rounded-2xl border">
           {complaints.map((complaint) => {
-            const displayTitle = getDisplayTitle({
-              title: complaint.title,
-              complaintSubject: complaint.subject,
-            })
+            const displayTitle = getDisplayTitle(
+              { title: complaint.title, complaintSubject: complaint.subject },
+              locale,
+            )
             const presentation = getComplaintStatusPresentation(
               complaint.status,
               complaint.submittedAt,
+              locale,
             )
             const entity = complaint.entityName
               ? getGovernmentEntityByName(complaint.entityName)
@@ -52,9 +76,15 @@ export function RecentActivity({ complaints }: RecentActivityProps) {
                   <GovernmentLogo iconKey={entity?.iconKey} size="sm" />
 
                   <div className="min-w-0 flex-1">
-                    <p className="text-foreground truncate text-sm font-medium">{displayTitle}</p>
+                    <p
+                      dir="auto"
+                      className="text-match-parent text-foreground truncate text-sm font-medium"
+                    >
+                      {displayTitle}
+                    </p>
                     <p className="text-muted-foreground mt-0.5 truncate text-xs">
-                      {complaint.entityName ?? ''} · <RelativeTime iso={complaint.updatedAt} />
+                      {entityDisplayName(complaint.entityName, locale)} ·{' '}
+                      <RelativeTime iso={complaint.updatedAt} />
                     </p>
                   </div>
 

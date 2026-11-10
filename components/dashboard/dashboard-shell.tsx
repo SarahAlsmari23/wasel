@@ -6,7 +6,15 @@ import { BottomNav } from '@/components/dashboard/bottom-nav'
 import { Sidebar } from '@/components/dashboard/sidebar'
 import { SignOutModal } from '@/components/dashboard/sign-out-modal'
 import { UserMenu } from '@/components/dashboard/user-menu'
+import { LanguageSwitcher } from '@/components/i18n/language-switcher'
+import { useCopy } from '@/components/i18n/locale-provider'
 import { ThemeToggle } from '@/components/theme/theme-toggle'
+import { defineCopy } from '@/lib/i18n/config'
+
+const COPY = defineCopy({
+  ar: { openMenu: 'فتح القائمة' },
+  en: { openMenu: 'Open menu' },
+})
 
 type DashboardShellProps = {
   userName: string
@@ -15,6 +23,7 @@ type DashboardShellProps = {
 }
 
 export function DashboardShell({ userName, userEmail, children }: DashboardShellProps) {
+  const copy = useCopy(COPY)
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
   const [isSignOutOpen, setIsSignOutOpen] = useState(false)
 
@@ -34,7 +43,9 @@ export function DashboardShell({ userName, userEmail, children }: DashboardShell
           <button
             type="button"
             onClick={() => setIsSidebarOpen(true)}
-            aria-label="فتح القائمة"
+            aria-label={copy.openMenu}
+            aria-controls="dashboard-sidebar"
+            aria-expanded={isSidebarOpen}
             className="text-foreground border-border hover:bg-primary/5 rounded-xl border p-2.5 transition-colors lg:hidden"
           >
             <Menu className="h-4 w-4" aria-hidden="true" />
@@ -43,6 +54,7 @@ export function DashboardShell({ userName, userEmail, children }: DashboardShell
           <div className="hidden lg:block" />
 
           <div className="flex items-center gap-1">
+            <LanguageSwitcher />
             <ThemeToggle />
             <UserMenu
               userName={userName}
@@ -52,7 +64,7 @@ export function DashboardShell({ userName, userEmail, children }: DashboardShell
           </div>
         </header>
 
-        {/* pb-20 clears the mobile bottom nav so content is never hidden. */}
+        {/* pb-24 clears the mobile bottom nav so content is never hidden. */}
         <main id="main-content" className="flex-1 px-4 pt-6 pb-24 md:px-6 md:pb-10 lg:px-8">
           {children}
         </main>

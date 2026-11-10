@@ -46,7 +46,12 @@ function Mark({ px, priority }: { px: number; priority: boolean }) {
         src={LOGO_SRC}
         alt=""
         fill
-        sizes={`${px}px`}
+        // The artwork is drawn MARK_ZOOM× larger than the box (see the transform
+        // below), so request a source for the size actually painted — asking for
+        // `px` made the browser pick a small file and upscale it, which is what
+        // softened the mark on high-density screens.
+        sizes={`${Math.ceil(px * MARK_ZOOM)}px`}
+        quality={90}
         className="origin-top object-contain object-top"
         style={{ transform: `scale(${MARK_ZOOM})` }}
         priority={priority}
@@ -94,6 +99,7 @@ export function WaselLogo({
       width={px}
       height={px}
       sizes={`${px}px`}
+      quality={90}
       priority={priority}
       className={cn('w-auto shrink-0 object-contain', className)}
       style={{ height: px }}

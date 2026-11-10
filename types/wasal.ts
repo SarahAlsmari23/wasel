@@ -29,6 +29,9 @@ export type ComplaintAnalysis = {
   confidence: ConfidenceLevel
   /** 0–100 companion to `confidence`. Also internal only. */
   confidenceScore: number
+  /** The complaint details collected so far, keyed by field key — rendered
+   * with labels in the interface language. Optional for older sessions. */
+  collectedFields?: Record<string, string>
 }
 
 /** Stages of the Phase 2 "Complaint Progress Timeline". */

@@ -7,6 +7,7 @@ import { AuthCard, AuthDivider } from '@/components/auth/auth-card'
 import { AuthErrorNotice } from '@/components/auth/auth-error-notice'
 import { GoogleOAuthButton } from '@/components/auth/google-oauth-button'
 import { ResendConfirmationButton } from '@/components/auth/resend-confirmation-button'
+import { useCopy, useLocale } from '@/components/i18n/locale-provider'
 import { Button } from '@/components/ui/button'
 import { Field, TextInput } from '@/components/ui/field'
 import { useToast } from '@/components/ui/toast'
@@ -16,12 +17,46 @@ import {
   type AuthErrorDetails,
 } from '@/lib/auth/error-messages'
 import { resolveRedirectPath } from '@/lib/auth/redirect'
+import { defineCopy } from '@/lib/i18n/config'
 import { createClient } from '@/lib/supabase/client'
+
+const COPY = defineCopy({
+  ar: {
+    otpExpired: 'انتهت صلاحية رابط التفعيل. اطلب رابطاً جديداً بتسجيل الدخول ثم إعادة الإرسال.',
+    verifyFailed: 'تعذر إتمام عملية التحقق. حاول تسجيل الدخول مرة أخرى.',
+    missingCredentials: 'يرجى إدخال البريد الإلكتروني وكلمة المرور.',
+    noSession: 'تعذر إنشاء الجلسة. حاول مرة أخرى.',
+    signedIn: 'تم تسجيل الدخول بنجاح.',
+    title: 'تسجيل الدخول',
+    subtitle: 'أهلاً بعودتك — سجّل الدخول لمتابعة بلاغاتك.',
+    noAccount: 'ليس لديك حساب؟',
+    signUp: 'إنشاء حساب',
+    email: 'البريد الإلكتروني',
+    password: 'كلمة المرور',
+    submit: 'تسجيل الدخول',
+  },
+  en: {
+    otpExpired: 'The confirmation link has expired. Sign in and resend it to get a new one.',
+    verifyFailed: "Verification couldn't be completed. Please try signing in again.",
+    missingCredentials: 'Please enter your email and password.',
+    noSession: "Your session couldn't be created. Please try again.",
+    signedIn: 'Signed in.',
+    title: 'Sign in',
+    subtitle: 'Welcome back — sign in to follow your complaints.',
+    noAccount: "Don't have an account?",
+    signUp: 'Create account',
+    email: 'Email',
+    password: 'Password',
+    submit: 'Sign in',
+  },
+})
 
 function SignInForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { showToast } = useToast()
+  const copy = useCopy(COPY)
+  const locale = useLocale()
   const nextPath = resolveRedirectPath(searchParams.get('next'))
 
   const [email, setEmail] = useState('')
@@ -40,14 +75,11 @@ function SignInForm() {
   useEffect(() => {
     if (!callbackError) return
     setError({
-      message:
-        callbackErrorCode === 'otp_expired'
-          ? 'انتهت صلاحية رابط التفعيل. اطلب رابطاً جديداً بتسجيل الدخول ثم إعادة الإرسال.'
-          : 'تعذر إتمام عملية التحقق. حاول تسجيل الدخول مرة أخرى.',
+      message: callbackErrorCode === 'otp_expired' ? copy.otpExpired : copy.verifyFailed,
       code: callbackErrorCode ?? callbackError,
       rawMessage: callbackErrorDescription ?? undefined,
     })
-  }, [callbackError, callbackErrorCode, callbackErrorDescription])
+  }, [callbackError, callbackErrorCode, callbackErrorDescription, copy])
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -64,7 +96,7 @@ function SignInForm() {
 
     if (!submittedEmail || !submittedPassword) {
       setError({
-        message: 'يرجى إدخال البريد الإلكتروني وكلمة المرور.',
+        message: copy.missingCredentials,
         code: 'missing_credentials',
       })
       return
@@ -82,7 +114,7 @@ function SignInForm() {
       })
 
       if (signInError) {
-        setError(getAuthErrorDetails(signInError))
+        setError(getAuthErrorDetails(signInError, locale))
         return
       }
 
@@ -91,22 +123,23 @@ function SignInForm() {
       // bounce straight back off the middleware, so treat it as a failure.
       if (!data.session) {
         setError({
-          message: 'تعذر إنشاء الجلسة. حاول مرة أخرى.',
+          message: copy.noSession,
           code: 'no_session_returned',
         })
         return
       }
 
-      showToast('تم تسجيل الدخول بنجاح.')
-      // push() before refresh(): the browser client has already written the
-      // auth cookie synchronously, so navigating first gets the user moving
-      // immediately. Refreshing first re-fetches the *sign-in* route and
+      showToast(copy.signedIn)
+      // replace() (not push) so Back from the destination returns to where
+      // the user was before signing in, not to this form. Navigate before
+      // refresh(): the browser client has already written the auth cookie
+      // synchronously, so navigating first gets the user moving immediately. Refreshing first re-fetches the *sign-in* route and
       // measurably delays the push, which left users sitting on this page for
       // seconds after a successful login.
-      router.push(nextPath)
+      router.replace(nextPath)
       router.refresh()
     } catch (unexpectedError) {
-      setError(getAuthErrorDetails(unexpectedError))
+      setError(getAuthErrorDetails(unexpectedError, locale))
     } finally {
       setIsSubmitting(false)
     }
@@ -114,22 +147,22 @@ function SignInForm() {
 
   return (
     <AuthCard
-      title="تسجيل الدخول"
-      subtitle="أهلاً بعودتك — سجّل الدخول لمتابعة بلاغاتك."
+      title={copy.title}
+      subtitle={copy.subtitle}
       footer={
         <>
-          ليس لديك حساب؟{' '}
+          {copy.noAccount}{' '}
           <Link
             href={`/auth/sign-up?next=${encodeURIComponent(nextPath)}`}
             className="text-primary font-medium hover:underline"
           >
-            إنشاء حساب
+            {copy.signUp}
           </Link>
         </>
       }
     >
       <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
-        <Field htmlFor="email" label="البريد الإلكتروني">
+        <Field htmlFor="email" label={copy.email}>
           <TextInput
             id="email"
             name="email"
@@ -145,7 +178,7 @@ function SignInForm() {
           />
         </Field>
 
-        <Field htmlFor="password" label="كلمة المرور">
+        <Field htmlFor="password" label={copy.password}>
           <TextInput
             id="password"
             name="password"
@@ -174,7 +207,7 @@ function SignInForm() {
         ) : null}
 
         <Button type="submit" isLoading={isSubmitting} className="mt-1 w-full">
-          تسجيل الدخول
+          {copy.submit}
         </Button>
       </form>
 

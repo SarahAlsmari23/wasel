@@ -8,10 +8,11 @@ import {
   UserRound,
   type LucideIcon,
 } from 'lucide-react'
+import type { Locale } from '@/lib/i18n/config'
 
 export type NavItem = {
   href: string
-  label: string
+  label: Record<Locale, string>
   icon: LucideIcon
   /** Highlighted as the primary action at the top of the sidebar. */
   isPrimary?: boolean
@@ -25,16 +26,48 @@ export type NavItem = {
  * surfaced anywhere in the user interface.
  */
 export const NAV_ITEMS: NavItem[] = [
-  { href: '/wasal?mode=complaint', label: 'بلاغ جديد', icon: SquarePen, isPrimary: true },
-  { href: '/dashboard', label: 'لوحة التحكم', icon: LayoutDashboard, inBottomNav: true },
-  { href: '/dashboard/complaints', label: 'البلاغات السابقة', icon: FileText, inBottomNav: true },
-  { href: '/dashboard/conversations', label: 'المحادثات', icon: MessagesSquare, inBottomNav: true },
-  { href: '/dashboard/drafts', label: 'المسودات', icon: FolderClock },
-  { href: '/dashboard/profile', label: 'الملف الشخصي', icon: UserRound, inBottomNav: true },
-  { href: '/dashboard/settings', label: 'الإعدادات', icon: Settings },
+  {
+    href: '/wasal?mode=complaint',
+    label: { ar: 'بلاغ جديد', en: 'New complaint' },
+    icon: SquarePen,
+    isPrimary: true,
+  },
+  {
+    href: '/dashboard',
+    label: { ar: 'لوحة التحكم', en: 'Dashboard' },
+    icon: LayoutDashboard,
+    inBottomNav: true,
+  },
+  {
+    href: '/dashboard/complaints',
+    label: { ar: 'البلاغات السابقة', en: 'My complaints' },
+    icon: FileText,
+    inBottomNav: true,
+  },
+  {
+    href: '/dashboard/conversations',
+    label: { ar: 'المحادثات', en: 'Conversations' },
+    icon: MessagesSquare,
+    inBottomNav: true,
+  },
+  {
+    href: '/dashboard/drafts',
+    label: { ar: 'المسودات', en: 'Drafts' },
+    icon: FolderClock,
+  },
+  {
+    href: '/dashboard/profile',
+    label: { ar: 'الملف الشخصي', en: 'Profile' },
+    icon: UserRound,
+    inBottomNav: true,
+  },
+  {
+    href: '/dashboard/settings',
+    label: { ar: 'الإعدادات', en: 'Settings' },
+    icon: Settings,
+  },
 ]
 
-/** /dashboard must match exactly, or every child route would light it up. */
 export function isNavItemActive(href: string, pathname: string): boolean {
   const path = href.split('?')[0]
   if (path === '/dashboard') return pathname === '/dashboard'

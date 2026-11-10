@@ -1,10 +1,20 @@
+'use client'
+
+import { useCopy } from '@/components/i18n/locale-provider'
 import { Skeleton } from '@/components/ui/skeleton'
+import { defineCopy } from '@/lib/i18n/config'
+
+const COPY = defineCopy({
+  ar: { label: 'جارٍ تحليل الشكوى' },
+  en: { label: 'Analysing the complaint' },
+})
 
 export function RecommendationSkeleton() {
+  const copy = useCopy(COPY)
   return (
     <div
       role="status"
-      aria-label="جارٍ تحليل الشكوى"
+      aria-label={copy.label}
       className="bg-surface border-border shadow-soft flex flex-col gap-5 rounded-2xl border p-5"
     >
       <div className="flex items-start gap-3">

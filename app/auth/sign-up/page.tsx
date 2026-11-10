@@ -7,19 +7,78 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { AuthCard, AuthDivider } from '@/components/auth/auth-card'
 import { AuthErrorNotice } from '@/components/auth/auth-error-notice'
 import { GoogleOAuthButton } from '@/components/auth/google-oauth-button'
+import { useCopy, useLocale } from '@/components/i18n/locale-provider'
 import { Button, buttonClasses } from '@/components/ui/button'
 import { Field, TextInput } from '@/components/ui/field'
 import { useToast } from '@/components/ui/toast'
 import { getAuthErrorDetails, type AuthErrorDetails } from '@/lib/auth/error-messages'
 import { resolveRedirectPath } from '@/lib/auth/redirect'
+import { defineCopy } from '@/lib/i18n/config'
 import { createClient } from '@/lib/supabase/client'
 
 const MIN_PASSWORD_LENGTH = 6
+
+const COPY = defineCopy({
+  ar: {
+    passwordsMismatch: 'كلمتا المرور غير متطابقتين.',
+    nameRequired: 'يرجى إدخال الاسم الكامل — يظهر في البلاغات الرسمية التي يصيغها واصل.',
+    missingCredentials: 'يرجى إدخال البريد الإلكتروني وكلمة المرور.',
+    alreadyRegistered:
+      'هذا البريد الإلكتروني مسجل بالفعل. سجّل الدخول، أو أعد إرسال رابط التفعيل من صفحة تسجيل الدخول.',
+    created: 'تم إنشاء حسابك بنجاح.',
+    confirmTitle: 'فعّل بريدك الإلكتروني',
+    confirmSentTo: 'أرسلنا رابط تفعيل إلى',
+    confirmBody: 'يجب الضغط على الرابط قبل أن تتمكن من تسجيل الدخول.',
+    confirmHelp:
+      'لم تصلك الرسالة؟ تحقق من مجلد الرسائل غير المرغوب فيها، أو أعد إرسال الرابط من صفحة تسجيل الدخول بعد إدخال بياناتك.',
+    goToSignIn: 'الذهاب إلى تسجيل الدخول',
+    title: 'إنشاء حساب',
+    subtitle: 'أنشئ حسابك لبدء إعداد بلاغاتك وحفظها.',
+    haveAccount: 'لديك حساب بالفعل؟',
+    signIn: 'تسجيل الدخول',
+    fullName: 'الاسم الكامل',
+    fullNameHint: 'يظهر اسمك في البلاغ الرسمي.',
+    fullNamePlaceholder: 'مثال: محمد عبدالله',
+    email: 'البريد الإلكتروني',
+    password: 'كلمة المرور',
+    passwordHint: `${MIN_PASSWORD_LENGTH} أحرف على الأقل.`,
+    confirmPassword: 'تأكيد كلمة المرور',
+    submit: 'إنشاء الحساب',
+  },
+  en: {
+    passwordsMismatch: "The passwords don't match.",
+    nameRequired: 'Please enter your full name — it appears in the formal complaints Wasel drafts.',
+    missingCredentials: 'Please enter your email and password.',
+    alreadyRegistered:
+      'This email is already registered. Sign in, or resend the confirmation link from the sign-in page.',
+    created: 'Your account was created.',
+    confirmTitle: 'Confirm your email',
+    confirmSentTo: 'We sent a confirmation link to',
+    confirmBody: 'You need to click the link before you can sign in.',
+    confirmHelp:
+      "Didn't get it? Check your spam folder, or resend the link from the sign-in page after entering your details.",
+    goToSignIn: 'Go to sign in',
+    title: 'Create account',
+    subtitle: 'Create your account to start preparing and saving your complaints.',
+    haveAccount: 'Already have an account?',
+    signIn: 'Sign in',
+    fullName: 'Full name',
+    fullNameHint: 'Your name appears on the formal complaint.',
+    fullNamePlaceholder: 'e.g. Mohammed Abdullah',
+    email: 'Email',
+    password: 'Password',
+    passwordHint: `At least ${MIN_PASSWORD_LENGTH} characters.`,
+    confirmPassword: 'Confirm password',
+    submit: 'Create account',
+  },
+})
 
 function SignUpForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { showToast } = useToast()
+  const copy = useCopy(COPY)
+  const locale = useLocale()
   const nextPath = resolveRedirectPath(searchParams.get('next'))
 
   const [fullName, setFullName] = useState('')
@@ -29,6 +88,7 @@ function SignUpForm() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<AuthErrorDetails | null>(null)
   const [confirmError, setConfirmError] = useState<string | null>(null)
+  const [nameError, setNameError] = useState<string | null>(null)
   const [awaitingEmailConfirmation, setAwaitingEmailConfirmation] = useState(false)
   /** The address actually submitted, shown on the confirmation screen. */
   const [attemptedEmail, setAttemptedEmail] = useState('')
@@ -39,6 +99,7 @@ function SignUpForm() {
 
     setError(null)
     setConfirmError(null)
+    setNameError(null)
 
     // Read from the form rather than React state alone — credentials entered
     // before hydration (slow connection, password manager autofill) never fire
@@ -49,14 +110,19 @@ function SignUpForm() {
     const submittedConfirm = String(formData.get('confirmPassword') ?? '') || confirmPassword
     const submittedName = String(formData.get('fullName') ?? '').trim() || fullName.trim()
 
+    if (!submittedName) {
+      setNameError(copy.nameRequired)
+      return
+    }
+
     if (submittedPassword !== submittedConfirm) {
-      setConfirmError('كلمتا المرور غير متطابقتين.')
+      setConfirmError(copy.passwordsMismatch)
       return
     }
 
     if (!submittedEmail || !submittedPassword) {
       setError({
-        message: 'يرجى إدخال البريد الإلكتروني وكلمة المرور.',
+        message: copy.missingCredentials,
         code: 'missing_credentials',
       })
       return
@@ -78,7 +144,7 @@ function SignUpForm() {
       })
 
       if (signUpError) {
-        setError(getAuthErrorDetails(signUpError))
+        setError(getAuthErrorDetails(signUpError, locale))
         return
       }
 
@@ -88,8 +154,7 @@ function SignUpForm() {
       // account was created and send the user to an inbox with nothing in it.
       if (data.user && data.user.identities && data.user.identities.length === 0) {
         setError({
-          message:
-            'هذا البريد الإلكتروني مسجل بالفعل. سجّل الدخول، أو أعد إرسال رابط التفعيل من صفحة تسجيل الدخول.',
+          message: copy.alreadyRegistered,
           code: 'user_already_exists',
         })
         return
@@ -98,15 +163,15 @@ function SignUpForm() {
       // A session is only returned when email confirmation is disabled on the
       // Supabase project. Otherwise the user must click the emailed link first.
       if (data.session) {
-        showToast('تم إنشاء حسابك بنجاح.')
-        router.push(nextPath)
+        showToast(copy.created)
+        router.replace(nextPath)
         router.refresh()
         return
       }
 
       setAwaitingEmailConfirmation(true)
     } catch (unexpectedError) {
-      setError(getAuthErrorDetails(unexpectedError))
+      setError(getAuthErrorDetails(unexpectedError, locale))
     } finally {
       setIsSubmitting(false)
     }
@@ -118,20 +183,19 @@ function SignUpForm() {
         <span className="bg-status-completed/12 text-status-completed mx-auto flex h-14 w-14 items-center justify-center rounded-2xl">
           <MailCheck className="h-6 w-6" aria-hidden="true" />
         </span>
-        <h1 className="text-heading mt-5 text-xl font-semibold">فعّل بريدك الإلكتروني</h1>
+        <h1 className="text-heading mt-5 text-xl font-semibold">{copy.confirmTitle}</h1>
         <p className="text-muted-foreground mt-2 text-sm leading-relaxed">
-          أرسلنا رابط تفعيل إلى <span dir="ltr">{attemptedEmail || email.trim()}</span>. يجب الضغط
-          على الرابط قبل أن تتمكن من تسجيل الدخول.
+          {copy.confirmSentTo} <span dir="ltr">{attemptedEmail || email.trim()}</span>.{' '}
+          {copy.confirmBody}
         </p>
         <p className="text-muted-foreground bg-surface-muted mt-4 rounded-xl px-3 py-2.5 text-xs leading-relaxed">
-          لم تصلك الرسالة؟ تحقق من مجلد الرسائل غير المرغوب فيها، أو أعد إرسال الرابط من صفحة تسجيل
-          الدخول بعد إدخال بياناتك.
+          {copy.confirmHelp}
         </p>
         <Link
           href={`/auth/sign-in?next=${encodeURIComponent(nextPath)}`}
           className={buttonClasses('primary', 'md', 'mt-6 w-full')}
         >
-          الذهاب إلى تسجيل الدخول
+          {copy.goToSignIn}
         </Link>
       </div>
     )
@@ -139,36 +203,43 @@ function SignUpForm() {
 
   return (
     <AuthCard
-      title="إنشاء حساب"
-      subtitle="أنشئ حسابك لبدء إعداد بلاغاتك وحفظها."
+      title={copy.title}
+      subtitle={copy.subtitle}
       footer={
         <>
-          لديك حساب بالفعل؟{' '}
+          {copy.haveAccount}{' '}
           <Link
             href={`/auth/sign-in?next=${encodeURIComponent(nextPath)}`}
             className="text-primary font-medium hover:underline"
           >
-            تسجيل الدخول
+            {copy.signIn}
           </Link>
         </>
       }
     >
       <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
-        <Field htmlFor="fullName" label="الاسم الكامل">
+        <Field
+          htmlFor="fullName"
+          label={copy.fullName}
+          hint={nameError ? undefined : copy.fullNameHint}
+          error={nameError ?? undefined}
+        >
           <TextInput
             id="fullName"
             name="fullName"
             type="text"
             required
             autoComplete="name"
-            placeholder="مثال: محمد عبدالله"
+            placeholder={copy.fullNamePlaceholder}
             defaultValue=""
             onChange={(event) => setFullName(event.target.value)}
             disabled={isSubmitting}
+            aria-invalid={nameError ? true : undefined}
+            aria-describedby={nameError ? 'fullName-error' : undefined}
           />
         </Field>
 
-        <Field htmlFor="email" label="البريد الإلكتروني">
+        <Field htmlFor="email" label={copy.email}>
           <TextInput
             id="email"
             name="email"
@@ -183,11 +254,7 @@ function SignUpForm() {
           />
         </Field>
 
-        <Field
-          htmlFor="password"
-          label="كلمة المرور"
-          hint={`${MIN_PASSWORD_LENGTH} أحرف على الأقل.`}
-        >
+        <Field htmlFor="password" label={copy.password} hint={copy.passwordHint}>
           <TextInput
             id="password"
             name="password"
@@ -203,7 +270,7 @@ function SignUpForm() {
 
         <Field
           htmlFor="confirmPassword"
-          label="تأكيد كلمة المرور"
+          label={copy.confirmPassword}
           error={confirmError ?? undefined}
         >
           <TextInput
@@ -223,7 +290,7 @@ function SignUpForm() {
         {error ? <AuthErrorNotice details={error} /> : null}
 
         <Button type="submit" isLoading={isSubmitting} className="mt-1 w-full">
-          إنشاء الحساب
+          {copy.submit}
         </Button>
       </form>
 

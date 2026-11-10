@@ -2,9 +2,26 @@
 
 import { MailCheck, Send } from 'lucide-react'
 import { useState } from 'react'
+import { useCopy, useLocale } from '@/components/i18n/locale-provider'
 import { useToast } from '@/components/ui/toast'
+import { defineCopy } from '@/lib/i18n/config'
 import { getAuthErrorDetails } from '@/lib/auth/error-messages'
 import { createClient } from '@/lib/supabase/client'
+
+const COPY = defineCopy({
+  ar: {
+    sentToast: 'تم إرسال رابط التفعيل إلى بريدك.',
+    sent: 'تم إرسال رابط التفعيل — تحقق من بريدك (ومجلد الرسائل غير المرغوبة).',
+    sending: 'جارٍ الإرسال...',
+    resend: 'إعادة إرسال رابط التفعيل',
+  },
+  en: {
+    sentToast: 'A confirmation link was sent to your email.',
+    sent: 'Confirmation link sent — check your inbox (and spam folder).',
+    sending: 'Sending...',
+    resend: 'Resend the confirmation link',
+  },
+})
 
 type ResendConfirmationButtonProps = {
   email: string
@@ -18,6 +35,8 @@ type ResendConfirmationButtonProps = {
  */
 export function ResendConfirmationButton({ email, nextPath }: ResendConfirmationButtonProps) {
   const { showToast } = useToast()
+  const copy = useCopy(COPY)
+  const locale = useLocale()
   const [isSending, setIsSending] = useState(false)
   const [wasSent, setWasSent] = useState(false)
 
@@ -36,13 +55,13 @@ export function ResendConfirmationButton({ email, nextPath }: ResendConfirmation
       })
 
       if (error) {
-        const details = getAuthErrorDetails(error)
+        const details = getAuthErrorDetails(error, locale)
         showToast(details.message, 'error')
         return
       }
 
       setWasSent(true)
-      showToast('تم إرسال رابط التفعيل إلى بريدك.')
+      showToast(copy.sentToast)
     } finally {
       setIsSending(false)
     }
@@ -52,7 +71,7 @@ export function ResendConfirmationButton({ email, nextPath }: ResendConfirmation
     return (
       <p className="text-status-completed flex items-center gap-1.5 text-xs font-medium">
         <MailCheck className="h-3.5 w-3.5" aria-hidden="true" />
-        تم إرسال رابط التفعيل — تحقق من بريدك (ومجلد الرسائل غير المرغوبة).
+        {copy.sent}
       </p>
     )
   }
@@ -65,7 +84,7 @@ export function ResendConfirmationButton({ email, nextPath }: ResendConfirmation
       className="text-danger inline-flex items-center gap-1.5 text-xs font-medium underline underline-offset-2 disabled:opacity-50"
     >
       <Send className="h-3 w-3" aria-hidden="true" />
-      {isSending ? 'جارٍ الإرسال...' : 'إعادة إرسال رابط التفعيل'}
+      {isSending ? copy.sending : copy.resend}
     </button>
   )
 }

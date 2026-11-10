@@ -12,9 +12,62 @@ import { useToast } from '@/components/ui/toast'
 import { getAuthErrorMessage } from '@/lib/auth/error-messages'
 import { createClient } from '@/lib/supabase/client'
 import { formatDate } from '@/lib/utils/format'
+import { useCopy, useLocale } from '@/components/i18n/locale-provider'
+import { defineCopy } from '@/lib/i18n/config'
 import { NOT_PROVIDED, type UserProfile } from '@/lib/auth/user-profile'
 
 const MIN_PASSWORD_LENGTH = 6
+
+const COPY = defineCopy({
+  ar: {
+    updated: 'تم تحديث الملف الشخصي.',
+    nameRequired: 'الاسم الكامل مطلوب.',
+    edit: 'تعديل الملف الشخصي',
+    changePassword: 'تغيير كلمة المرور',
+    accountDetails: 'بيانات الحساب',
+    fullName: 'الاسم الكامل',
+    email: 'البريد الإلكتروني',
+    phone: 'رقم الجوال',
+    createdAt: 'تاريخ إنشاء الحساب',
+    language: 'لغة الواجهة',
+    languageName: 'العربية',
+    notProvided: 'غير مضاف',
+    editDescription: 'سيظهر هذا الاسم في البلاغات التي يصيغها واصل لك.',
+    optional: 'اختياري.',
+    save: 'حفظ التغييرات',
+    cancel: 'إلغاء',
+    passwordsMismatch: 'كلمتا المرور غير متطابقتين.',
+    passwordUpdated: 'تم تحديث كلمة المرور.',
+    newPassword: 'كلمة المرور الجديدة',
+    passwordHint: `${MIN_PASSWORD_LENGTH} أحرف على الأقل.`,
+    confirmPassword: 'تأكيد كلمة المرور',
+    updatePassword: 'تحديث كلمة المرور',
+  },
+  en: {
+    updated: 'Profile updated.',
+    nameRequired: 'Full name is required.',
+    edit: 'Edit profile',
+    changePassword: 'Change password',
+    accountDetails: 'Account details',
+    fullName: 'Full name',
+    email: 'Email',
+    phone: 'Mobile number',
+    createdAt: 'Account created',
+    language: 'Interface language',
+    languageName: 'English',
+    notProvided: 'Not provided',
+    editDescription: 'This name appears on the complaints Wasel drafts for you.',
+    optional: 'Optional.',
+    save: 'Save changes',
+    cancel: 'Cancel',
+    passwordsMismatch: "The passwords don't match.",
+    passwordUpdated: 'Password updated.',
+    newPassword: 'New password',
+    passwordHint: `At least ${MIN_PASSWORD_LENGTH} characters.`,
+    confirmPassword: 'Confirm password',
+    updatePassword: 'Update password',
+  },
+})
 
 type ProfileViewProps = {
   profile: UserProfile
@@ -23,6 +76,8 @@ type ProfileViewProps = {
 export function ProfileView({ profile }: ProfileViewProps) {
   const router = useRouter()
   const { showToast } = useToast()
+  const copy = useCopy(COPY)
+  const locale = useLocale()
   const [isEditOpen, setIsEditOpen] = useState(false)
   const [isPasswordOpen, setIsPasswordOpen] = useState(false)
   const [name, setName] = useState(profile.name)
@@ -32,6 +87,10 @@ export function ProfileView({ profile }: ProfileViewProps) {
   async function handleSaveProfile(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (isSaving) return
+    if (!name.trim()) {
+      showToast(copy.nameRequired, 'error')
+      return
+    }
     setIsSaving(true)
 
     try {
@@ -41,15 +100,15 @@ export function ProfileView({ profile }: ProfileViewProps) {
       })
 
       if (error) {
-        showToast(getAuthErrorMessage(error), 'error')
+        showToast(getAuthErrorMessage(error, locale), 'error')
         return
       }
 
       setIsEditOpen(false)
       router.refresh()
-      showToast('تم تحديث الملف الشخصي.')
+      showToast(copy.updated)
     } catch (unexpectedError) {
-      showToast(getAuthErrorMessage(unexpectedError), 'error')
+      showToast(getAuthErrorMessage(unexpectedError, locale), 'error')
     } finally {
       setIsSaving(false)
     }
@@ -68,32 +127,36 @@ export function ProfileView({ profile }: ProfileViewProps) {
         <div className="mt-2 flex flex-col gap-2 sm:flex-row">
           <Button type="button" variant="primary" size="sm" onClick={() => setIsEditOpen(true)}>
             <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
-            تعديل الملف الشخصي
+            {copy.edit}
           </Button>
           <Button type="button" variant="outline" size="sm" onClick={() => setIsPasswordOpen(true)}>
             <KeyRound className="h-3.5 w-3.5" aria-hidden="true" />
-            تغيير كلمة المرور
+            {copy.changePassword}
           </Button>
         </div>
       </Card>
 
       <Card className="flex flex-col gap-4">
-        <h2 className="text-heading text-sm font-semibold">بيانات الحساب</h2>
-        <InfoRow label="الاسم الكامل" value={profile.name} />
-        <InfoRow label="البريد الإلكتروني" value={profile.email} isLtr />
-        <InfoRow label="رقم الجوال" value={profile.phone} isLtr={profile.phone !== NOT_PROVIDED} />
-        <InfoRow label="تاريخ إنشاء الحساب" value={formatDate(profile.createdAt)} />
-        <InfoRow label="اللغة المفضلة" value={profile.preferredLanguage} />
+        <h2 className="text-heading text-sm font-semibold">{copy.accountDetails}</h2>
+        <InfoRow label={copy.fullName} value={profile.name} />
+        <InfoRow label={copy.email} value={profile.email} isLtr />
+        <InfoRow
+          label={copy.phone}
+          value={profile.phone === NOT_PROVIDED ? copy.notProvided : profile.phone}
+          isLtr={profile.phone !== NOT_PROVIDED}
+        />
+        <InfoRow label={copy.createdAt} value={formatDate(profile.createdAt, locale)} />
+        <InfoRow label={copy.language} value={copy.languageName} />
       </Card>
 
       <Modal
         isOpen={isEditOpen}
         onClose={() => setIsEditOpen(false)}
-        title="تعديل الملف الشخصي"
-        description="سيظهر هذا الاسم في البلاغات التي يصيغها واصل نيابةً عنك."
+        title={copy.edit}
+        description={copy.editDescription}
       >
         <form onSubmit={handleSaveProfile} className="flex flex-col gap-4">
-          <Field htmlFor="profile-name" label="الاسم الكامل">
+          <Field htmlFor="profile-name" label={copy.fullName}>
             <TextInput
               id="profile-name"
               value={name}
@@ -103,7 +166,7 @@ export function ProfileView({ profile }: ProfileViewProps) {
             />
           </Field>
 
-          <Field htmlFor="profile-phone" label="رقم الجوال" hint="اختياري.">
+          <Field htmlFor="profile-phone" label={copy.phone} hint={copy.optional}>
             <TextInput
               id="profile-phone"
               type="tel"
@@ -117,7 +180,7 @@ export function ProfileView({ profile }: ProfileViewProps) {
 
           <div className="mt-1 flex flex-col gap-2 sm:flex-row-reverse">
             <Button type="submit" isLoading={isSaving} className="w-full sm:flex-1">
-              حفظ التغييرات
+              {copy.save}
             </Button>
             <Button
               type="button"
@@ -126,7 +189,7 @@ export function ProfileView({ profile }: ProfileViewProps) {
               disabled={isSaving}
               className="w-full sm:flex-1"
             >
-              إلغاء
+              {copy.cancel}
             </Button>
           </div>
         </form>
@@ -158,6 +221,8 @@ function InfoRow({
 
 export function ChangePasswordModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
   const { showToast } = useToast()
+  const copy = useCopy(COPY)
+  const locale = useLocale()
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -169,7 +234,7 @@ export function ChangePasswordModal({ isOpen, onClose }: { isOpen: boolean; onCl
 
     setError(null)
     if (password !== confirmPassword) {
-      setError('كلمتا المرور غير متطابقتين.')
+      setError(copy.passwordsMismatch)
       return
     }
 
@@ -179,29 +244,25 @@ export function ChangePasswordModal({ isOpen, onClose }: { isOpen: boolean; onCl
       const { error: updateError } = await supabase.auth.updateUser({ password })
 
       if (updateError) {
-        setError(getAuthErrorMessage(updateError))
+        setError(getAuthErrorMessage(updateError, locale))
         return
       }
 
       setPassword('')
       setConfirmPassword('')
       onClose()
-      showToast('تم تحديث كلمة المرور.')
+      showToast(copy.passwordUpdated)
     } catch (unexpectedError) {
-      setError(getAuthErrorMessage(unexpectedError))
+      setError(getAuthErrorMessage(unexpectedError, locale))
     } finally {
       setIsSaving(false)
     }
   }
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="تغيير كلمة المرور">
+    <Modal isOpen={isOpen} onClose={onClose} title={copy.changePassword}>
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-        <Field
-          htmlFor="new-password"
-          label="كلمة المرور الجديدة"
-          hint={`${MIN_PASSWORD_LENGTH} أحرف على الأقل.`}
-        >
+        <Field htmlFor="new-password" label={copy.newPassword} hint={copy.passwordHint}>
           <TextInput
             id="new-password"
             type="password"
@@ -214,7 +275,11 @@ export function ChangePasswordModal({ isOpen, onClose }: { isOpen: boolean; onCl
           />
         </Field>
 
-        <Field htmlFor="confirm-new-password" label="تأكيد كلمة المرور" error={error ?? undefined}>
+        <Field
+          htmlFor="confirm-new-password"
+          label={copy.confirmPassword}
+          error={error ?? undefined}
+        >
           <TextInput
             id="confirm-new-password"
             type="password"
@@ -229,7 +294,7 @@ export function ChangePasswordModal({ isOpen, onClose }: { isOpen: boolean; onCl
 
         <div className="mt-1 flex flex-col gap-2 sm:flex-row-reverse">
           <Button type="submit" isLoading={isSaving} className="w-full sm:flex-1">
-            تحديث كلمة المرور
+            {copy.updatePassword}
           </Button>
           <Button
             type="button"
@@ -238,7 +303,7 @@ export function ChangePasswordModal({ isOpen, onClose }: { isOpen: boolean; onCl
             disabled={isSaving}
             className="w-full sm:flex-1"
           >
-            إلغاء
+            {copy.cancel}
           </Button>
         </div>
       </form>

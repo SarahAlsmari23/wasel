@@ -12,7 +12,14 @@ import {
   useState,
   type ReactNode,
 } from 'react'
+import { useCopy } from '@/components/i18n/locale-provider'
+import { defineCopy } from '@/lib/i18n/config'
 import { cn } from '@/lib/utils/cn'
+
+const TOAST_COPY = defineCopy({
+  ar: { region: 'إشعارات', dismiss: 'إغلاق الإشعار' },
+  en: { region: 'Notifications', dismiss: 'Dismiss notification' },
+})
 
 const AUTO_DISMISS_MS = 4000
 
@@ -111,11 +118,12 @@ function ToastViewport({
   toasts: Toast[]
   onDismiss: (id: string) => void
 }) {
+  const toastCopy = useCopy(TOAST_COPY)
   return (
     <div
       role="region"
-      aria-label="إشعارات"
-      className="pointer-events-none fixed inset-x-0 bottom-4 z-[60] flex flex-col items-center gap-2 px-4 sm:inset-x-auto sm:bottom-6 sm:left-6 sm:items-start sm:px-0"
+      aria-label={toastCopy.region}
+      className="pointer-events-none fixed inset-x-0 bottom-4 z-[60] flex flex-col items-center gap-2 px-4 sm:inset-x-auto sm:end-6 sm:bottom-6 sm:items-end sm:px-0"
     >
       <AnimatePresence initial={false}>
         {toasts.map((toast) => {
@@ -140,7 +148,7 @@ function ToastViewport({
               <button
                 type="button"
                 onClick={() => onDismiss(toast.id)}
-                aria-label="إغلاق الإشعار"
+                aria-label={toastCopy.dismiss}
                 className="text-muted-foreground hover:text-foreground -mt-0.5 rounded p-0.5 transition-colors"
               >
                 <X className="h-3.5 w-3.5" aria-hidden="true" />

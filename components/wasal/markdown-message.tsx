@@ -13,19 +13,19 @@ type MarkdownMessageProps = {
  */
 export function MarkdownMessage({ content }: MarkdownMessageProps) {
   return (
-    <div className="text-sm leading-relaxed">
+    <div dir="auto" className="text-sm leading-relaxed">
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         components={{
           p: ({ children }) => <p className="mb-3 last:mb-0">{children}</p>,
           strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
           ul: ({ children }) => (
-            <ul className="mb-3 flex list-disc flex-col gap-1.5 pr-5 last:mb-0">{children}</ul>
+            <ul className="mb-3 flex list-disc flex-col gap-1.5 ps-5 last:mb-0">{children}</ul>
           ),
           ol: ({ children }) => (
-            <ol className="mb-3 flex list-decimal flex-col gap-1.5 pr-5 last:mb-0">{children}</ol>
+            <ol className="mb-3 flex list-decimal flex-col gap-1.5 ps-5 last:mb-0">{children}</ol>
           ),
-          li: ({ children }) => <li className="pr-1">{children}</li>,
+          li: ({ children }) => <li className="ps-1">{children}</li>,
           a: ({ href, children }) => (
             <a
               href={href}

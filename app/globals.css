@@ -11,7 +11,7 @@
  * واصل · Wasel — official brand tokens.
  *
  * Palette (Saudi Inspired):
- *   #006C35 Saudi Green  — primary, 25%
+ *   #086B4C Emerald      — primary (approved), 25%; white text 6.5:1
  *   #22B8A0 Teal         — accent / highlights, 10%
  *   #12355B Deep Navy    — headings, charts, secondary elements
  *   #E6F4EF Mint Green   — active states, tinted surfaces, 5%
@@ -33,9 +33,9 @@
   --muted-foreground: #64748b; /* secondary text */
   --subtle-foreground: #94a3b8; /* light/disabled text */
 
-  --primary: #006c35; /* Saudi green */
+  --primary: #086b4c; /* approved emerald */
   --primary-foreground: #ffffff;
-  --primary-hover: #005a2c; /* darker green for hover */
+  --primary-hover: #06573e; /* darker emerald for hover */
 
   --secondary: #12355b; /* deep navy */
   --secondary-foreground: #ffffff;
@@ -48,14 +48,14 @@
 
   --border: #e6edf2; /* light gray hairline */
   --border-strong: #cfd9e4;
-  --ring: #006c35;
+  --ring: #086b4c;
 
   /* Dark surface used by the brand's navy panels. */
   --surface-dark: #0f2d52;
   --surface-dark-foreground: #f7f9fa;
 
   /* Status colours, matching the identity sheet. */
-  --status-success: #006c35;
+  --status-success: #086b4c;
   --status-info: #12355b;
   --status-warning: #b7791f;
   --status-error: #e5484d;
@@ -64,11 +64,11 @@
   --status-draft: #64748b;
   --status-ready: #22b8a0;
   --status-submitted: #12355b;
-  --status-completed: #006c35;
+  --status-completed: #086b4c;
   --status-pending: #b7791f;
 
   /* Signature brand gradient: green → teal. */
-  --brand-gradient: linear-gradient(135deg, #006c35 0%, #22b8a0 100%);
+  --brand-gradient: linear-gradient(135deg, #086b4c 0%, #22b8a0 100%);
 
   /* Which artwork the shared landing canvas paints. */
   --canvas-image: url('/brand/hero-bg-light.jpeg');
@@ -98,9 +98,11 @@
   --muted-foreground: #93a6bd;
   --subtle-foreground: #6b819b;
 
-  --primary: #0f9950; /* Saudi green, lifted for dark surfaces */
-  --primary-foreground: #ffffff;
-  --primary-hover: #13ad5c;
+  /* Emerald, lifted for dark surfaces. Deep-green button text (6.2:1);
+     white would only reach 3:1 at this lightness. */
+  --primary: #1aa878;
+  --primary-foreground: #04140d;
+  --primary-hover: #22b385;
 
   --secondary: #7ba5d0; /* navy is invisible on navy — use its light tint */
   --secondary-foreground: #081c34;
@@ -118,7 +120,7 @@
   --surface-dark: #0b2444;
   --surface-dark-foreground: #f2f6fa;
 
-  --status-success: #2fbe6f;
+  --status-success: #1aa878;
   --status-info: #7ba5d0;
   --status-warning: #e0a53c;
   --status-error: #ff6369;
@@ -126,10 +128,10 @@
   --status-draft: #93a6bd;
   --status-ready: #2ed3b7;
   --status-submitted: #7ba5d0;
-  --status-completed: #2fbe6f;
+  --status-completed: #1aa878;
   --status-pending: #e0a53c;
 
-  --brand-gradient: linear-gradient(135deg, #13ad5c 0%, #2ed3b7 100%);
+  --brand-gradient: linear-gradient(135deg, #1aa878 0%, #2ed3b7 100%);
 
   --canvas-image: url('/brand/hero-bg-dark.png');
   --canvas-scrim: linear-gradient(
@@ -335,5 +337,37 @@ body {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
+  }
+}
+
+/*
+ * For user content shown with dir="auto" (titles a user typed): the text keeps
+ * its own direction but aligns with the surrounding layout.
+ */
+@utility text-match-parent {
+  text-align: match-parent;
+}
+
+/*
+ * Hero journey line draw-in: a clip that opens from the "You" end (local
+ * right edge; the SVG is mirrored in English). CSS rather than script, so the
+ * line never waits on hydration and always ends fully drawn.
+ */
+@keyframes journey-draw {
+  from {
+    clip-path: inset(0 0 0 100%);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+
+.wasel-journey-line {
+  animation: journey-draw 1.6s ease-in-out 0.4s both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wasel-journey-line {
+    animation: none;
   }
 }

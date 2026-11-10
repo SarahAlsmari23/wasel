@@ -1,61 +1,132 @@
 'use client'
 
-import { motion } from 'motion/react'
-import { Check, Copy, ExternalLink, Save } from 'lucide-react'
+import { motion, useReducedMotion } from 'motion/react'
+import { Check, Copy, ExternalLink, FileSignature, Info } from 'lucide-react'
 import { useState } from 'react'
 import { GovernmentLogo } from '@/components/government/government-logo'
+import { useCopy, useLocale } from '@/components/i18n/locale-provider'
 import { Button } from '@/components/ui/button'
 import { useToast } from '@/components/ui/toast'
+import { ENGLISH_FIELD_LABELS } from '@/lib/ai/server-copy'
+import { COMPLAINT_FIELD_LABELS } from '@/lib/complaints/formal-letter'
+import { defineCopy } from '@/lib/i18n/config'
+import { getGovernmentEntityByName, localizeEntity } from '@/lib/mock/government-entities'
 import type { ComplaintAnalysis } from '@/types/wasal'
 
 /*
- * No confidence score here by design. Once the analysis has settled on a final
- * authority, surfacing an internal certainty metric only undermines the result
- * it is attached to. `ComplaintAnalysis` still carries `confidence` and
- * `confidenceScore` for the matching logic — they are simply not user-facing.
+ * No confidence score here by design: once the analysis has settled on a
+ * final authority, an internal certainty metric only undermines the result.
+ *
+ * Only information Wasel can stand behind is shown: the authority, why it was
+ * selected, and its verified official website. Required documents, steps,
+ * processing times and contact details are not yet verified in Wasel's
+ * reference data, so the card says so plainly instead of inventing them.
  */
+const COPY = defineCopy({
+  ar: {
+    authority: 'الجهة المختصة',
+    why: 'سبب الاختيار',
+    whyFallback: 'تم الاختيار بناءً على وصفك وبيانات الجهات الموثّقة في واصل.',
+    category: 'تصنيف الشكوى',
+    details: 'التفاصيل المجمّعة',
+    noDetails: 'سيظهر هنا ما تقدّمه من تفاصيل أثناء المحادثة.',
+    officialChannel: 'قناة التقديم الرسمية',
+    unverifiedNote:
+      'المستندات المطلوبة وخطوات التقديم ومدة المعالجة وبيانات التواصل غير متوفرة بعد في مصادر واصل الموثّقة — راجعها في الموقع الرسمي للجهة.',
+    openOfficial: 'الانتقال إلى الموقع الرسمي',
+    create: 'إنشاء البلاغ',
+    creating: 'جارٍ إنشاء البلاغ...',
+    copy: 'نسخ التفاصيل',
+    copied: 'تم النسخ',
+    copiedToast: 'تم نسخ التفاصيل',
+    copyFailed: 'تعذر النسخ. حاول مرة أخرى.',
+  },
+  en: {
+    authority: 'Responsible authority',
+    why: 'Why this authority',
+    whyFallback: "Selected from your description and Wasel's verified authority information.",
+    category: 'Complaint category',
+    details: 'Details collected',
+    noDetails: 'The details you provide during the conversation will appear here.',
+    officialChannel: 'Official submission channel',
+    unverifiedNote:
+      "Required documents, submission steps, processing times and contact details aren't yet available in Wasel's verified sources — please check them on the authority's official website.",
+    openOfficial: 'Go to the official website',
+    create: 'Create the complaint',
+    creating: 'Creating the complaint...',
+    copy: 'Copy details',
+    copied: 'Copied',
+    copiedToast: 'Details copied',
+    copyFailed: "Couldn't copy. Please try again.",
+  },
+})
+
+const DETAIL_KEYS = [
+  'problem_description',
+  'city',
+  'service_provider',
+  'merchant_name',
+  'prior_provider_contact',
+  'location_or_address',
+  'account_or_meter_number',
+  'bill_reference',
+  'previous_report_number',
+  'purchase_proof',
+] as const
 
 type RecommendationCardProps = {
   analysis: ComplaintAnalysis
-  /** The deterministic pre-generation summary text (lib/complaints/summary.ts),
-   * used by "نسخ الملخص". Omitted entirely (no copy button rendered) if ever
-   * unavailable — never falls back to mock content. */
-  letter?: string
   onSave: () => void
-  isSaved?: boolean
   isSaving?: boolean
-  /** When present, the save button is disabled and this notice is shown
-   * instead of the normal label — used while routing persistence to the DB
-   * is still being confirmed (Phase 6.6F). */
+  /** When present, the create button is disabled and this notice is shown. */
   saveDisabledNotice?: string
 }
 
 export function RecommendationCard({
   analysis,
-  letter,
   onSave,
-  isSaved = false,
   isSaving = false,
   saveDisabledNotice,
 }: RecommendationCardProps) {
+  const copy = useCopy(COPY)
+  const locale = useLocale()
   const { showToast } = useToast()
+  const prefersReducedMotion = useReducedMotion()
   const [justCopied, setJustCopied] = useState(false)
 
+  const entity = getGovernmentEntityByName(analysis.entityName)
+  const entityText = entity ? localizeEntity(entity, locale) : null
+  const labels = locale === 'en' ? ENGLISH_FIELD_LABELS : COMPLAINT_FIELD_LABELS
+  const details = DETAIL_KEYS.map((key) => ({
+    key,
+    label: labels[key] ?? key,
+    value: analysis.collectedFields?.[key]?.trim() ?? '',
+  })).filter((entry) => entry.value !== '')
+
+  // The routing reason is authored in Arabic by the server; English users get
+  // an accurate, generic explanation instead of a mixed-language sentence.
+  const reason =
+    locale === 'ar' && analysis.entityDescription ? analysis.entityDescription : copy.whyFallback
+
   async function handleCopy() {
-    if (!letter) return
+    const text = [
+      `${copy.authority}: ${entityText?.name ?? analysis.entityName}`,
+      ...details.map((entry) => `${entry.label}: ${entry.value}`),
+      `${copy.officialChannel}: ${analysis.officialUrl}`,
+    ].join('\n')
     try {
-      await navigator.clipboard.writeText(letter)
+      await navigator.clipboard.writeText(text)
       setJustCopied(true)
-      showToast('تم نسخ الملخص')
+      showToast(copy.copiedToast)
       window.setTimeout(() => setJustCopied(false), 2000)
     } catch {
-      showToast('تعذر نسخ الملخص. حاول مرة أخرى.', 'error')
+      showToast(copy.copyFailed, 'error')
     }
   }
 
   return (
     <motion.div
-      initial={{ opacity: 0, x: 24 }}
+      initial={prefersReducedMotion ? false : { opacity: 0, x: locale === 'ar' ? 24 : -24 }}
       animate={{ opacity: 1, x: 0 }}
       transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
       className="bg-surface border-border shadow-soft flex flex-col gap-5 rounded-2xl border p-5"
@@ -63,58 +134,51 @@ export function RecommendationCard({
       <div className="flex items-start gap-3">
         <GovernmentLogo iconKey={analysis.entityIconKey} />
         <div className="flex min-w-0 flex-col gap-1">
-          <span className="text-secondary text-xs font-medium">الجهة المختصة</span>
+          <span className="text-secondary text-xs font-medium">{copy.authority}</span>
           <h2 className="text-heading text-base leading-snug font-semibold">
-            {analysis.entityName}
+            {entityText?.name ?? analysis.entityName}
           </h2>
-          <p className="text-muted-foreground text-xs leading-relaxed">
-            {analysis.entityDescription}
-          </p>
+          {entityText ? (
+            <p className="text-muted-foreground text-xs leading-relaxed">
+              {entityText.description}
+            </p>
+          ) : null}
         </div>
       </div>
 
-      <Section title="تصنيف الشكوى">
-        <span className="bg-secondary/12 text-secondary inline-flex rounded-full px-2.5 py-1 text-xs font-medium">
-          {analysis.category}
-        </span>
+      <Section title={copy.why}>
+        <p className="text-muted-foreground text-sm leading-relaxed">{reason}</p>
       </Section>
 
-      <Section title="ملخص البلاغ">
-        <p className="text-muted-foreground text-sm leading-relaxed break-words whitespace-pre-line">
-          {analysis.summary}
-        </p>
-      </Section>
-
-      {analysis.requiredDocuments.length > 0 ? (
-        <Section title="المستندات المطلوبة">
-          <ul className="flex flex-col gap-1.5">
-            {analysis.requiredDocuments.map((document) => (
-              <li key={document} className="text-muted-foreground flex gap-2 text-sm">
-                <span
-                  className="bg-secondary mt-1.5 h-1 w-1 shrink-0 rounded-full"
-                  aria-hidden="true"
-                />
-                {document}
-              </li>
-            ))}
-          </ul>
+      {entityText ? (
+        <Section title={copy.category}>
+          <span className="bg-secondary/12 text-secondary inline-flex w-fit rounded-full px-2.5 py-1 text-xs font-medium">
+            {entityText.sector}
+          </span>
         </Section>
       ) : null}
 
-      {analysis.submissionSteps.length > 0 ? (
-        <Section title="خطوات التقديم">
-          <ol className="flex flex-col gap-2">
-            {analysis.submissionSteps.map((step, index) => (
-              <li key={step} className="text-muted-foreground flex gap-2.5 text-sm">
-                <span className="bg-primary/8 text-primary flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold">
-                  {index + 1}
-                </span>
-                <span className="leading-relaxed">{step}</span>
-              </li>
+      <Section title={copy.details}>
+        {details.length > 0 ? (
+          <dl className="flex flex-col gap-2">
+            {details.map((entry) => (
+              <div key={entry.key} className="flex flex-col gap-0.5">
+                <dt className="text-subtle-foreground text-[11px] font-medium">{entry.label}</dt>
+                <dd dir="auto" className="text-foreground text-sm leading-relaxed break-words">
+                  {entry.value}
+                </dd>
+              </div>
             ))}
-          </ol>
-        </Section>
-      ) : null}
+          </dl>
+        ) : (
+          <p className="text-muted-foreground text-sm">{copy.noDetails}</p>
+        )}
+      </Section>
+
+      <p className="text-muted-foreground flex items-start gap-1.5 text-xs leading-relaxed">
+        <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+        {copy.unverifiedNote}
+      </p>
 
       <div className="border-border flex flex-col gap-2 border-t pt-4">
         <a
@@ -124,7 +188,7 @@ export function RecommendationCard({
           className="bg-primary text-primary-foreground hover:bg-primary/90 inline-flex h-11 items-center justify-center gap-2 rounded-xl px-4 text-sm font-medium transition-colors"
         >
           <ExternalLink className="h-4 w-4" aria-hidden="true" />
-          الانتقال إلى الموقع الرسمي
+          {copy.openOfficial}
         </a>
 
         {saveDisabledNotice ? (
@@ -136,32 +200,21 @@ export function RecommendationCard({
           variant="outline"
           onClick={onSave}
           isLoading={isSaving}
-          disabled={isSaved || Boolean(saveDisabledNotice)}
+          disabled={Boolean(saveDisabledNotice)}
           className="lg:self-center"
         >
-          {isSaving ? (
-            'جارٍ إنشاء البلاغ...'
-          ) : isSaved ? (
-            <>
-              <Check className="h-4 w-4" aria-hidden="true" />
-              تم حفظ البلاغ
-            </>
-          ) : (
-            <>
-              <Save className="h-4 w-4" aria-hidden="true" />
-              إنشاء البلاغ
-            </>
-          )}
+          {isSaving ? null : <FileSignature className="h-4 w-4" aria-hidden="true" />}
+          {isSaving ? copy.creating : copy.create}
         </Button>
 
-        {letter ? (
+        {details.length > 0 ? (
           <Button type="button" variant="ghost" onClick={handleCopy} className="w-full">
             {justCopied ? (
               <Check className="h-4 w-4" aria-hidden="true" />
             ) : (
               <Copy className="h-4 w-4" aria-hidden="true" />
             )}
-            {justCopied ? 'تم نسخ الملخص' : 'نسخ الملخص'}
+            {justCopied ? copy.copied : copy.copy}
           </Button>
         ) : null}
       </div>

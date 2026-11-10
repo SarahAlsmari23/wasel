@@ -38,14 +38,19 @@ const SECTOR_KEYWORD_PATTERNS: Record<Sector, RegExp> = {
   // Phase 8, Part 12 — "الشبكة"/"النت" are the same underlying concept as
   // "الانترنت" in ordinary usage ("النت مقطوع" means exactly the same thing
   // as "الانترنت مقطوع") and must resolve to the same sector.
-  telecom: /اتصالات|الانترنت|إنترنت|انترنت|النت|الشبكه|تغطية الجوال/,
+  // Written in normalised form (ة→ه): the previous "تغطية الجوال" could never
+  // match normalised input. "جوال" (mobile), "شريحه" (SIM) and "باقه"
+  // (plan) are unambiguous telecom terms.
+  telecom: /اتصالات|الانترنت|إنترنت|انترنت|النت|الشبكه|جوال|شريحه|باقه|تغطيه/,
   commerce: /متجر|تاجر|بائع/,
   // Phase 8, Part 15 — bare "حفره" (not "حفره في الشارع" as an exact
   // adjacent phrase): a real sentence almost always has words between the
   // noun and "الشارع" ("حفرة كبيرة في الشارع"), which the old, over-specific
   // phrase never matched at all. Same for "نظافه عامه" → bare "نظافه".
   municipality: /بلديه|بلديات|رصيف|حفره|نظافه|قمامه/,
-  electricity: /كهرباء|عداد الكهرباء/,
+  // "كهربا" also covers "الكهربائي" (as in "التيار الكهربائي"), which the
+  // previous "كهرباء" — with its final hamza — never matched.
+  electricity: /كهرباء|كهربا|عداد الكهرباء/,
 }
 
 /** The single sector-to-entity-name mapping already used elsewhere
@@ -61,10 +66,31 @@ const SECTOR_TO_ENTITY_NAME = Object.fromEntries(
  * nothing in the fixed keyword lists appears in the message at all (the
  * normal case for most messages, which continue to rely on RAG as before).
  */
+/*
+ * English equivalents, so an English-language conversation gets the same
+ * deterministic sector fallback as an Arabic one when retrieval is weak.
+ * Word-boundary anchored and limited to unambiguous terms.
+ */
+const ENGLISH_SECTOR_KEYWORD_PATTERNS: Record<Sector, RegExp> = {
+  water: /\b(water|sewage|sewer|nwc)\b/i,
+  telecom:
+    /\b(internet|telecom|mobile network|network coverage|signal|broadband|fiber|fibre|sim card|cst)\b/i,
+  commerce: /\b(store|shop|merchant|seller|refund|retailer|online order)\b/i,
+  municipality:
+    /\b(municipality|pothole|sidewalk|pavement|garbage|rubbish|street ?light|balady)\b/i,
+  electricity: /\b(electricity|electric|power outage|power cut|blackout|electricity meter)\b/i,
+}
+
 export function detectSectorByKeyword(message: string): Sector | null {
   const normalized = normalizeArabicInput(message)
   for (const [sector, pattern] of Object.entries(SECTOR_KEYWORD_PATTERNS) as [Sector, RegExp][]) {
     if (pattern.test(normalized)) return sector
+  }
+  for (const [sector, pattern] of Object.entries(ENGLISH_SECTOR_KEYWORD_PATTERNS) as [
+    Sector,
+    RegExp,
+  ][]) {
+    if (pattern.test(message)) return sector
   }
   return null
 }

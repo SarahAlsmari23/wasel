@@ -106,3 +106,63 @@ export function isValidGenerateOutput(value: unknown): value is AiGenerateOutput
 
   return true
 }
+
+const VALID_CONFIDENCE = new Set(['high', 'medium', 'low'])
+
+/**
+ * Tolerant normalisation for open-weight models (Llama) whose structured
+ * output occasionally omits optional-in-spirit fields. A response is only
+ * accepted when it carries the two fields that actually matter — a non-empty
+ * `answer` and an `intent` string — and everything else is filled with safe,
+ * conservative defaults (never "grounded", never "high" confidence). The
+ * result is still run through `isValidGenerateOutput` by the caller.
+ */
+export function coerceGenerateOutput(value: unknown): AiGenerateOutput | null {
+  if (typeof value !== 'object' || value === null) return null
+  const candidate = value as Record<string, unknown>
+  if (typeof candidate.answer !== 'string' || candidate.answer.trim() === '') return null
+  if (typeof candidate.intent !== 'string') return null
+
+  const stringArray = (input: unknown): string[] =>
+    Array.isArray(input) ? input.filter((item): item is string => typeof item === 'string') : []
+
+  const coerced: Record<string, unknown> = {
+    ...candidate,
+    answer: candidate.answer.trim(),
+    confidence:
+      typeof candidate.confidence === 'string' && VALID_CONFIDENCE.has(candidate.confidence)
+        ? candidate.confidence
+        : 'medium',
+    grounded: typeof candidate.grounded === 'boolean' ? candidate.grounded : false,
+    missingFields: stringArray(candidate.missingFields),
+    suggestedQuestions: stringArray(candidate.suggestedQuestions),
+  }
+  if (typeof coerced.nextQuestion !== 'string') delete coerced.nextQuestion
+  if (typeof coerced.readyToGenerateComplaint !== 'boolean') delete coerced.readyToGenerateComplaint
+
+  return isValidGenerateOutput(coerced) ? coerced : null
+}
+
+/**
+ * Extracts the first JSON object from model text that may be wrapped in code
+ * fences or surrounded by stray prose. Returns undefined when none parses.
+ */
+export function parseModelJson(content: string): unknown {
+  const trimmed = content.trim()
+  const candidates = [trimmed]
+  const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/i)
+  if (fenced?.[1]) candidates.push(fenced[1].trim())
+  const firstBrace = trimmed.indexOf('{')
+  const lastBrace = trimmed.lastIndexOf('}')
+  if (firstBrace !== -1 && lastBrace > firstBrace) {
+    candidates.push(trimmed.slice(firstBrace, lastBrace + 1))
+  }
+  for (const candidate of candidates) {
+    try {
+      return JSON.parse(candidate)
+    } catch {
+      // try the next candidate
+    }
+  }
+  return undefined
+}

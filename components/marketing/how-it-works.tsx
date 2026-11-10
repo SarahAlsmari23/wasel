@@ -4,34 +4,61 @@ import { motion, useReducedMotion } from 'motion/react'
 import { FileSignature, MessageSquareText } from 'lucide-react'
 import { useState } from 'react'
 import { WaselLogo } from '@/components/brand/wasel-logo'
+import { useCopy, useDirection } from '@/components/i18n/locale-provider'
+import { defineCopy } from '@/lib/i18n/config'
 import { cn } from '@/lib/utils/cn'
 import { useMediaQuery } from '@/lib/utils/use-media-query'
+
+const STEP_COPY = defineCopy({
+  ar: {
+    stepLabel: 'الخطوة',
+    steps: [
+      {
+        title: 'صف مشكلتك',
+        description: 'ابدأ محادثة طبيعية مع واصل واشرح المشكلة كما لو كنت تتحدث مع شخص يساعدك.',
+      },
+      {
+        title: 'واصل يحلل الحالة',
+        description:
+          'يقوم واصل بتحليل المشكلة وتحديد الجهة الحكومية المناسبة مع اقتراح أفضل طريقة لمعالجة البلاغ.',
+      },
+      {
+        title: 'أنشئ البلاغ',
+        description: 'بعد التأكد من الجهة المناسبة يمكنك تسجيل الدخول وإنشاء البلاغ خلال ثوانٍ.',
+      },
+    ],
+  },
+  en: {
+    stepLabel: 'Step',
+    steps: [
+      {
+        title: 'Describe your problem',
+        description:
+          'Start a natural conversation with Wasel and explain the problem as if you were talking to someone helping you.',
+      },
+      {
+        title: 'Wasel analyses it',
+        description:
+          'Wasel analyses the problem, identifies the right government authority, and suggests the best way to handle your complaint.',
+      },
+      {
+        title: 'Create the complaint',
+        description:
+          'Once the authority is confirmed, sign in and create your formal complaint in seconds.',
+      },
+    ],
+  },
+})
 
 /**
  * Step 02 is Wasel doing the work, so it carries the official logo mark rather
  * than a stand-in glyph.
  */
 const STEPS = [
-  {
-    number: '01',
-    icon: MessageSquareText,
-    title: 'صف مشكلتك',
-    description: 'ابدأ محادثة طبيعية مع واصل واشرح المشكلة كما لو كنت تتحدث مع شخص يساعدك.',
-  },
-  {
-    number: '02',
-    icon: null,
-    title: 'واصل يحلل الحالة',
-    description:
-      'يقوم واصل بتحليل المشكلة وتحديد الجهة الحكومية المناسبة مع اقتراح أفضل طريقة لمعالجة البلاغ.',
-  },
-  {
-    number: '03',
-    icon: FileSignature,
-    title: 'أنشئ البلاغ',
-    description: 'بعد التأكد من الجهة المناسبة يمكنك تسجيل الدخول وإنشاء البلاغ خلال ثوانٍ.',
-  },
-]
+  { number: '01', icon: MessageSquareText },
+  { number: '02', icon: null },
+  { number: '03', icon: FileSignature },
+] as const
 
 /** Resting fan: each card sits a little further back and a little more rotated. */
 const BASE_ROTATION = [-1.5, 2.5, 6]
@@ -55,7 +82,13 @@ type CardGeometry = {
   zIndex: number
 }
 
-function getGeometry(index: number, activeIndex: number | null, isStacked: boolean): CardGeometry {
+function getGeometry(
+  index: number,
+  activeIndex: number | null,
+  isStacked: boolean,
+  /** +1 in Arabic; -1 mirrors the fan for the left-to-right English layout. */
+  mirror: 1 | -1,
+): CardGeometry {
   if (isStacked) {
     // Mobile: a plain vertical list. Tapping still highlights the card, but
     // there is no overlap to unstack.
@@ -69,7 +102,7 @@ function getGeometry(index: number, activeIndex: number | null, isStacked: boole
   }
 
   const base: CardGeometry = {
-    rotate: BASE_ROTATION[index],
+    rotate: BASE_ROTATION[index] * mirror,
     y: BASE_LIFT[index],
     scale: BASE_SCALE[index],
     zIndex: 30 - index * 10,
@@ -94,6 +127,8 @@ function getGeometry(index: number, activeIndex: number | null, isStacked: boole
 export function HowItWorks() {
   const [activeIndex, setActiveIndex] = useState<number | null>(null)
   const prefersReducedMotion = useReducedMotion()
+  const copy = useCopy(STEP_COPY)
+  const mirror = useDirection() === 'rtl' ? 1 : -1
 
   // The server snapshot is `false`, so the mobile stack is the safe default and
   // the deck engages once the real viewport is known. The section sits well
@@ -120,7 +155,8 @@ export function HowItWorks() {
     >
       {STEPS.map((stepItem, index) => {
         const Icon = stepItem.icon
-        const geometry = getGeometry(index, activeIndex, isStacked)
+        const geometry = getGeometry(index, activeIndex, isStacked, mirror)
+        const text = copy.steps[index]
         const isActive = activeIndex === index
 
         return (
@@ -168,8 +204,9 @@ export function HowItWorks() {
           >
             <div className="flex h-full flex-col">
               {/*
-                Icon at the start, number at the end. The deck fans leftwards in
-                RTL, so the end of each card is the sliver that stays visible —
+                Icon at the start, number at the end. The deck fans towards the
+                end (left in Arabic, right in English), so the end of each card
+                is the sliver that stays visible —
                 keeping the numbers there means 01 / 02 / 03 all read at a
                 glance even while stacked.
               */}
@@ -205,11 +242,13 @@ export function HowItWorks() {
 
               <div className="mt-auto flex flex-col gap-2.5 pt-8">
                 <h4 className="text-heading text-lg font-semibold sm:text-xl">
-                  <span className="sr-only">الخطوة {stepItem.number}: </span>
-                  {stepItem.title}
+                  <span className="sr-only">
+                    {copy.stepLabel} {stepItem.number}:{' '}
+                  </span>
+                  {text.title}
                 </h4>
                 <p className="text-muted-foreground text-sm leading-relaxed text-pretty">
-                  {stepItem.description}
+                  {text.description}
                 </p>
               </div>
             </div>

@@ -3,7 +3,26 @@
 import { RotateCcw, TriangleAlert } from 'lucide-react'
 import Link from 'next/link'
 import { useEffect } from 'react'
+import { useCopy } from '@/components/i18n/locale-provider'
 import { Button, buttonClasses } from '@/components/ui/button'
+import { defineCopy } from '@/lib/i18n/config'
+
+const COPY = defineCopy({
+  ar: {
+    title: 'تعذر تحميل هذه الصفحة',
+    body: 'حدث خطأ أثناء عرض البيانات. يمكنك إعادة المحاولة أو الانتقال إلى صفحة أخرى من القائمة.',
+    devDetails: 'تفاصيل الخطأ (بيئة التطوير فقط)',
+    retry: 'إعادة المحاولة',
+    dashboard: 'لوحة التحكم',
+  },
+  en: {
+    title: "This page couldn't be loaded",
+    body: 'Something went wrong while showing the data. Try again, or open another page from the menu.',
+    devDetails: 'Error details (development only)',
+    retry: 'Try again',
+    dashboard: 'Dashboard',
+  },
+})
 
 /**
  * Scoped to the dashboard segment so a failure in one page keeps the sidebar,
@@ -18,6 +37,7 @@ export default function DashboardError({
   reset: () => void
 }) {
   const isDevelopment = process.env.NODE_ENV === 'development'
+  const copy = useCopy(COPY)
 
   useEffect(() => {
     console.error('[wasal:dashboard] render failed', {
@@ -34,10 +54,8 @@ export default function DashboardError({
       </span>
 
       <div className="flex flex-col gap-2">
-        <h1 className="text-heading text-xl font-semibold">تعذر تحميل هذه الصفحة</h1>
-        <p className="text-muted-foreground text-sm leading-relaxed">
-          حدث خطأ أثناء عرض البيانات. يمكنك إعادة المحاولة أو الانتقال إلى صفحة أخرى من القائمة.
-        </p>
+        <h1 className="text-heading text-xl font-semibold">{copy.title}</h1>
+        <p className="text-muted-foreground text-sm leading-relaxed">{copy.body}</p>
         {error.digest ? (
           <p className="text-muted-foreground/70 text-xs" dir="ltr">
             ref: {error.digest}
@@ -48,7 +66,7 @@ export default function DashboardError({
       {isDevelopment ? (
         <details className="border-danger/25 bg-danger/5 w-full rounded-2xl border p-4 text-start">
           <summary className="text-danger cursor-pointer text-sm font-medium">
-            تفاصيل الخطأ (بيئة التطوير فقط)
+            {copy.devDetails}
           </summary>
           <p className="text-foreground mt-3 text-sm font-semibold" dir="ltr">
             {error.name}: {error.message}
@@ -67,10 +85,10 @@ export default function DashboardError({
       <div className="flex flex-col gap-2 sm:flex-row">
         <Button type="button" onClick={reset}>
           <RotateCcw className="h-4 w-4" aria-hidden="true" />
-          إعادة المحاولة
+          {copy.retry}
         </Button>
         <Link href="/dashboard" className={buttonClasses('outline', 'md')}>
-          لوحة التحكم
+          {copy.dashboard}
         </Link>
       </div>
     </div>

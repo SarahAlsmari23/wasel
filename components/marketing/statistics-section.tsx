@@ -1,16 +1,31 @@
 import { SectionHeading } from '@/components/marketing/section-heading'
 import { Reveal } from '@/components/ui/reveal'
+import { defineCopy } from '@/lib/i18n/config'
+import { getLocale } from '@/lib/i18n/server'
 import { PLATFORM_STATS } from '@/lib/mock/platform-stats'
 import { formatNumber } from '@/lib/utils/format'
 
-export function StatisticsSection() {
+const COPY = defineCopy({
+  ar: { eyebrow: 'واصل بالأرقام', title: 'منصة تختصر الطريق إلى الجهة المختصة' },
+  en: { eyebrow: 'Wasel in numbers', title: 'The shortest route to the responsible authority' },
+})
+
+/**
+ * The figures are verifiable properties of the product (see PLATFORM_STATS),
+ * not usage claims — so the panel no longer carries the former
+ * "illustrative data" footnote.
+ */
+export async function StatisticsSection() {
+  const locale = await getLocale()
+  const copy = COPY[locale]
+
   return (
     <section className="mx-auto w-full max-w-6xl px-5 md:px-6">
       {/* The brand's navy panel — the one place the dark artwork belongs. */}
       <div className="bg-wasel-panel text-surface-dark-foreground shadow-lift overflow-hidden rounded-3xl px-6 py-12 md:px-12 md:py-14">
         <SectionHeading
-          eyebrow="واصل بالأرقام"
-          title="منصة تختصر الطريق إلى الجهة المختصة"
+          eyebrow={copy.eyebrow}
+          title={copy.title}
           className="[&_h2]:text-surface-dark-foreground [&_span]:text-accent"
         />
 
@@ -18,20 +33,15 @@ export function StatisticsSection() {
           {PLATFORM_STATS.map((stat, index) => (
             <Reveal key={stat.id} delay={index * 0.07} className="text-center">
               <p className="text-3xl font-semibold sm:text-4xl">
-                {formatNumber(stat.value)}
-                {stat.suffix ? <span className="text-accent text-2xl">{stat.suffix}</span> : null}
+                {stat.display ?? formatNumber(stat.value ?? 0, locale)}
               </p>
-              <p className="mt-2 text-sm font-medium">{stat.label}</p>
+              <p className="mt-2 text-sm font-medium">{stat.label[locale]}</p>
               <p className="text-surface-dark-foreground/60 mt-1 text-xs leading-relaxed">
-                {stat.description}
+                {stat.description[locale]}
               </p>
             </Reveal>
           ))}
         </div>
-
-        <p className="text-surface-dark-foreground/50 mt-10 text-center text-xs">
-          بيانات توضيحية لعرض واجهة المنصة.
-        </p>
       </div>
     </section>
   )

@@ -4,11 +4,10 @@ import { motion } from 'motion/react'
 import { WaselLogo } from '@/components/brand/wasel-logo'
 
 type TypingIndicatorProps = {
-  /** Phase 2 asks for "واصل يحلل الشكوى..." during complaint analysis. */
-  label?: string
+  label: string
 }
 
-export function TypingIndicator({ label = 'واصل يكتب...' }: TypingIndicatorProps) {
+export function TypingIndicator({ label }: TypingIndicatorProps) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 8 }}
@@ -20,7 +19,7 @@ export function TypingIndicator({ label = 'واصل يكتب...' }: TypingIndica
       aria-live="polite"
     >
       <WaselLogo size="sm" variant="mark" className="mt-1 shrink-0" />
-      <div className="bg-surface border-border shadow-soft flex items-center gap-2.5 rounded-2xl rounded-tl-md border px-4 py-3">
+      <div className="bg-surface border-border shadow-soft flex items-center gap-2.5 rounded-2xl rounded-se-md border px-4 py-3">
         <span className="flex items-center gap-1" aria-hidden="true">
           <span className="bg-secondary h-1.5 w-1.5 animate-bounce rounded-full [animation-delay:-0.3s]" />
           <span className="bg-secondary h-1.5 w-1.5 animate-bounce rounded-full [animation-delay:-0.15s]" />

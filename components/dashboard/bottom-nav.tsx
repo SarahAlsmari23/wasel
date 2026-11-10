@@ -3,18 +3,25 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { isNavItemActive, NAV_ITEMS } from '@/components/dashboard/nav-items'
+import { useCopy, useLocale } from '@/components/i18n/locale-provider'
+import { defineCopy } from '@/lib/i18n/config'
 import { cn } from '@/lib/utils/cn'
 
 const BOTTOM_NAV_ITEMS = NAV_ITEMS.filter((item) => item.inBottomNav)
 
+const COPY = defineCopy({ ar: { label: 'التنقل السريع' }, en: { label: 'Quick navigation' } })
+
 /** Mobile-only tab bar; the sidebar drawer covers the remaining routes. */
 export function BottomNav() {
   const pathname = usePathname()
+  const locale = useLocale()
+  const copy = useCopy(COPY)
 
   return (
     <nav
-      aria-label="التنقل السريع"
-      className="border-border bg-surface/95 fixed inset-x-0 bottom-0 z-30 flex border-t backdrop-blur-lg md:hidden"
+      aria-label={copy.label}
+      // The safe-area padding keeps the bar clear of the iPhone home indicator.
+      className="border-border bg-surface/95 fixed inset-x-0 bottom-0 z-30 flex border-t pb-[env(safe-area-inset-bottom)] backdrop-blur-lg md:hidden"
     >
       {BOTTOM_NAV_ITEMS.map((item) => {
         const isActive = isNavItemActive(item.href, pathname)
@@ -30,7 +37,7 @@ export function BottomNav() {
             )}
           >
             <Icon className="h-4.5 w-4.5" aria-hidden="true" />
-            {item.label}
+            {item.label[locale]}
           </Link>
         )
       })}

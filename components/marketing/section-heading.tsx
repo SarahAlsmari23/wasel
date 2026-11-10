@@ -5,6 +5,8 @@ type SectionHeadingProps = {
   title: string
   description?: string
   align?: 'start' | 'center'
+  /** Heading level only; the appearance is identical. */
+  as?: 'h1' | 'h2'
   className?: string
 }
 
@@ -13,6 +15,7 @@ export function SectionHeading({
   title,
   description,
   align = 'center',
+  as: Heading = 'h2',
   className = '',
 }: SectionHeadingProps) {
   return (
@@ -26,7 +29,9 @@ export function SectionHeading({
       {eyebrow ? (
         <span className="text-secondary text-xs font-semibold tracking-wide">{eyebrow}</span>
       ) : null}
-      <h2 className="text-heading text-2xl font-semibold text-balance sm:text-3xl">{title}</h2>
+      <Heading className="text-heading text-2xl font-semibold text-balance sm:text-3xl">
+        {title}
+      </Heading>
       {description ? (
         <p className="text-muted-foreground max-w-2xl text-sm leading-relaxed text-pretty sm:text-base">
           {description}

@@ -114,6 +114,8 @@ const OUT_OF_SCOPE_PATTERNS = [
   /من\s+فاز|نتيجه\s*(ال)?مباراه|هدف\s*(ال)?مباراه|الدوري\s*(ال)?سعودي\s*لكره/,
   /اكتب\s*(لي\s*)?كود|اكتب\s*(لي\s*)?برنامج|بايثون|جافا\s*سكريبت|javascript|python\s*code/i,
   /تشخيص\s*(طبي|مرض)|اعراض\s*مرض|عندي\s*مرض/,
+  /قصيده|اكتب\s*(لي\s*)?(شعر|قصيده|قصه|مقال)/,
+  /\b(write|give|make|generate)\b[\s\S]{0,40}\b(code|script|program|poem|story|essay|song)\b|\b(python|javascript|typescript)\b/i,
 ]
 
 export function isObviousOutOfScope(message: string): boolean {
