@@ -290,7 +290,9 @@ export async function countUserConversations(supabase: SupabaseServerClient): Pr
     .select('id', { count: 'exact', head: true })
 
   if (error || count === null) {
-    throw new Error('Failed to count conversations.')
+    // The code (e.g. PGRST303) makes a failure diagnosable from the logs; it
+    // never contains user content.
+    throw new Error(`Failed to count conversations (${error?.code ?? 'no count'}).`)
   }
 
   return count

@@ -1,5 +1,6 @@
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
+import { withClockSkewRetry } from '@/lib/supabase/clock-skew-fetch'
 
 export async function createClient() {
   const cookieStore = await cookies()
@@ -8,6 +9,9 @@ export async function createClient() {
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
+      // Retries the transient PGRST303 rejection of a freshly issued token
+      // (see clock-skew-fetch.ts).
+      global: { fetch: withClockSkewRetry(fetch) },
       cookies: {
         getAll() {
           return cookieStore.getAll()
