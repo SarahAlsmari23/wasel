@@ -38,7 +38,8 @@ const KNOWN_AUTHORITY_TEXT = [
 ]
 // Generic references ("الجهة المختصة", "الشركة المزودة", "شركة الاتصالات" as a
 // provider) are not authority names.
-const GENERIC_NAME = /^(?:الشركة|شركة)\s+(?:المزودة|المشغلة|المعنية|الاتصالات|التوصيل|التأمين|مزود)|^إدارة\s+(?:الرقابة|حماية)|^(?:وزارة|هيئة)\s+(?:المختصة|الحكومية|المعنية)/
+const GENERIC_NAME =
+  /^(?:الشركة|شركة)\s+(?:المزودة|المشغلة|المعنية|الاتصالات|التوصيل|التأمين|مزود)|^إدارة\s+(?:الرقابة|حماية)|^(?:وزارة|هيئة)\s+(?:المختصة|الحكومية|المعنية)/
 const OFFICIAL = Object.values(ENT).map((e) => e.officialUrl.replace(/\/$/, ''))
 
 /** Stratified default sample: per entity one case of each listed category,
@@ -205,14 +206,36 @@ function score(c, res, userText) {
   // Authority names must be one of the verified five (or the legacy names
   // the knowledge documents themselves still use). Anything else is either
   // invented ("وزارة الكهرباء") or outside the verified sources.
-  const named = answer.match(/(?:وزارة|هيئة|الهيئة|أمانة|إدارة|الشركة|شركة)\s+[\u0600-\u06FF]+(?:\s+(?:و?ال[\u0600-\u06FF]+))?/g) ?? []
-  const unknown = named.filter((n) => !KNOWN_AUTHORITY_TEXT.some((k) => k.startsWith(n) || n.startsWith(k)) && !GENERIC_NAME.test(n) && !userText.includes(n.replace(/[،,]$/, '')))
-  add('no-unverified-authority-name', unknown.length === 0, unknown.join(' | ') || 'none', 'critical')
+  const named =
+    answer.match(
+      /(?:وزارة|هيئة|الهيئة|أمانة|إدارة|الشركة|شركة)\s+[\u0600-\u06FF]+(?:\s+(?:و?ال[\u0600-\u06FF]+))?/g,
+    ) ?? []
+  const unknown = named.filter(
+    (n) =>
+      !KNOWN_AUTHORITY_TEXT.some((k) => k.startsWith(n) || n.startsWith(k)) &&
+      !GENERIC_NAME.test(n) &&
+      !userText.includes(n.replace(/[،,]$/, '')),
+  )
+  add(
+    'no-unverified-authority-name',
+    unknown.length === 0,
+    unknown.join(' | ') || 'none',
+    'critical',
+  )
   // Asking "what exactly is the problem?" after the user already described a
   // specific one (or asked a plain information question) is a redundant
   // question — the user has to repeat themselves.
-  const generic = /ما نوع المشكلة بالتحديد|ما المشكلة التي واجهتها مع المتجر بالتحديد|What exactly is the problem|What exactly was the problem with the store/.test(answer)
-  if (!['incomplete', 'vague', 'ambiguous'].includes(c.category)) add('no-redundant-question', !generic, generic ? 'asked for the problem type again' : 'ok', 'high')
+  const generic =
+    /ما نوع المشكلة بالتحديد|ما المشكلة التي واجهتها مع المتجر بالتحديد|What exactly is the problem|What exactly was the problem with the store/.test(
+      answer,
+    )
+  if (!['incomplete', 'vague', 'ambiguous'].includes(c.category))
+    add(
+      'no-redundant-question',
+      !generic,
+      generic ? 'asked for the problem type again' : 'ok',
+      'high',
+    )
   if (exp.flags.noLeak)
     add(
       'no-prompt-leak',
@@ -259,8 +282,25 @@ if (RESCORE) {
   const saved = JSON.parse(readFileSync(RESCORE, 'utf8')).results
   for (const r of saved) {
     const c = dataset.cases.find((x) => x.id === r.id)
-    const s = score(c, { status: 200, json: { answer: r.answer, routing: r.routed ? { entityName: ENT[r.routed]?.nameAr } : null, intent: r.intent, nextQuestion: null } }, c.turns.join(' '))
-    results.push({ ...r, checks: s.checks.filter((x) => x.name !== 'asks-clarification').concat(r.checks.filter((x) => x.name === 'asks-clarification')) })
+    const s = score(
+      c,
+      {
+        status: 200,
+        json: {
+          answer: r.answer,
+          routing: r.routed ? { entityName: ENT[r.routed]?.nameAr } : null,
+          intent: r.intent,
+          nextQuestion: null,
+        },
+      },
+      c.turns.join(' '),
+    )
+    results.push({
+      ...r,
+      checks: s.checks
+        .filter((x) => x.name !== 'asks-clarification')
+        .concat(r.checks.filter((x) => x.name === 'asks-clarification')),
+    })
   }
 }
 for (const c of RESCORE ? [] : sample) {
