@@ -3,7 +3,7 @@
 import { Check, Copy, ExternalLink, FileCheck, PencilLine, RefreshCw } from 'lucide-react'
 import Link from 'next/link'
 import { useState } from 'react'
-import { updateComplaintAction } from '@/app/wasal/complaint-actions'
+import { updateComplaintAction } from '@/app/(site)/wasal/complaint-actions'
 import { ComplaintEditor, type ComplaintUpdate } from '@/components/complaints/complaint-editor'
 import { GovernmentLogo } from '@/components/government/government-logo'
 import { useCopy, useLocale } from '@/components/i18n/locale-provider'

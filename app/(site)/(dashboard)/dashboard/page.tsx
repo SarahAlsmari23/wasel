@@ -6,9 +6,10 @@ import { RecentActivity } from '@/components/dashboard/recent-activity'
 import { StatCard } from '@/components/dashboard/stat-card'
 import { getUserProfile } from '@/lib/auth/user-profile'
 import { getUserComplaints } from '@/lib/db/complaints'
-import { getUserConversations, getUserDrafts } from '@/lib/db/conversations'
+import { countUserConversations, getUserDrafts } from '@/lib/db/conversations'
 import { defineCopy } from '@/lib/i18n/config'
 import { getLocale } from '@/lib/i18n/server'
+import { getCurrentUser } from '@/lib/auth/current-user'
 import { createClient } from '@/lib/supabase/server'
 
 const COPY = defineCopy({
@@ -44,9 +45,7 @@ export default async function DashboardPage() {
   const locale = await getLocale()
   const copy = COPY[locale]
   const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  const user = await getCurrentUser()
 
   // The middleware and the layout both redirect unauthenticated visitors, so
   // reaching here without a user means an unexpected state — render a neutral
@@ -55,13 +54,13 @@ export default async function DashboardPage() {
   const greetingName = profile?.firstName ?? copy.greetingFallback
 
   // Three independent, RLS-scoped reads — no service role, no fabricated content.
-  const [conversations, complaints, drafts] = user
+  const [conversationCount, complaints, drafts] = user
     ? await Promise.all([
-        getUserConversations(supabase),
+        countUserConversations(supabase),
         getUserComplaints(supabase),
         getUserDrafts(supabase),
       ])
-    : [[], [], []]
+    : [0, [], []]
 
   const latestDraft = drafts.at(0)
 
@@ -112,7 +111,7 @@ export default async function DashboardPage() {
           />
           <StatCard
             label={copy.conversations}
-            value={conversations.length}
+            value={conversationCount}
             icon={MessagesSquare}
             href="/dashboard/conversations"
             locale={locale}

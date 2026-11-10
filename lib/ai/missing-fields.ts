@@ -44,7 +44,7 @@ export function parseRequiredFields(raw: unknown): RequiredField[] {
 /**
  * Fetches and parses one complaint type's required_fields — the same read
  * app/api/ai/chat/route.ts already performs inline for a fresh turn;
- * extracted here so restoring a saved conversation (app/wasal/page.tsx) can
+ * extracted here so restoring a saved conversation (app/(site)/wasal/page.tsx) can
  * reuse it without duplicating the query. Public-read table, no
  * service-role client needed.
  */
@@ -165,7 +165,7 @@ export function buildKnownFieldKeysFromComplaintContext(
   return known
 }
 
-/** Shared by app/api/ai/chat/route.ts and app/wasal/page.tsx to build a
+/** Shared by app/api/ai/chat/route.ts and app/(site)/wasal/page.tsx to build a
  * known-field-key set directly from a persisted `collected_information` map
  * (field_key -> field_value), applying the same legacy-boolean filter. */
 export function buildKnownFieldKeysFromPersistedFields(

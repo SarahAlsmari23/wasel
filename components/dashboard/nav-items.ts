@@ -18,6 +18,8 @@ export type NavItem = {
   isPrimary?: boolean
   /** Included in the mobile bottom navigation bar. */
   inBottomNav?: boolean
+  /** Shorter label for the narrow bottom bar, where the full one would wrap. */
+  bottomNavLabel?: Record<Locale, string>
 }
 
 /**
@@ -28,7 +30,7 @@ export type NavItem = {
 export const NAV_ITEMS: NavItem[] = [
   {
     href: '/wasal?mode=complaint',
-    label: { ar: 'بلاغ جديد', en: 'New complaint' },
+    label: { ar: 'بلاغ جديد', en: 'New Complaint' },
     icon: SquarePen,
     isPrimary: true,
   },
@@ -40,9 +42,10 @@ export const NAV_ITEMS: NavItem[] = [
   },
   {
     href: '/dashboard/complaints',
-    label: { ar: 'البلاغات السابقة', en: 'My complaints' },
+    label: { ar: 'البلاغات السابقة', en: 'Previous Complaints' },
     icon: FileText,
     inBottomNav: true,
+    bottomNavLabel: { ar: 'البلاغات السابقة', en: 'Complaints' },
   },
   {
     href: '/dashboard/conversations',

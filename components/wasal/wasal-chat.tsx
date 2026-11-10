@@ -12,8 +12,11 @@ import {
   saveCollectedFieldAction,
   saveUserMessageAction,
   updateConversationTitleAction,
-} from '@/app/wasal/actions'
-import { createComplaintAction, markComplaintSubmittedAction } from '@/app/wasal/complaint-actions'
+} from '@/app/(site)/wasal/actions'
+import {
+  createComplaintAction,
+  markComplaintSubmittedAction,
+} from '@/app/(site)/wasal/complaint-actions'
 import { AuthorityModal } from '@/components/wasal/authority-modal'
 import { ChatComposer } from '@/components/wasal/chat-composer'
 import { ChatEmptyState } from '@/components/wasal/chat-empty-state'
@@ -1182,7 +1185,7 @@ export function WasalChat({
     // Phase 7.6, Part 3 — awaited, not fire-and-forget: a just-answered
     // field (e.g. city) must be durably committed to `collected_information`
     // before this turn is considered done, since that table is the single
-    // source of truth a refresh/resume reads from (app/wasal/page.tsx). Firing
+    // source of truth a refresh/resume reads from (app/(site)/wasal/page.tsx). Firing
     // this without awaiting it left a real race — a refresh landing before
     // the upsert committed would find the field still missing and ask it
     // again. Both writes are still best-effort (a failure here must never
@@ -1601,7 +1604,7 @@ export function WasalChat({
         // piece (header, messages, card, composer) simply stacks in normal
         // document flow, in DOM order, and grows to its natural content
         // height — the page/body itself is the single scroll container
-        // (enabled by the matching change in app/wasal/layout.tsx, which
+        // (enabled by the matching change in app/(site)/wasal/layout.tsx, which
         // stops constraining the page to a fixed viewport height below
         // `lg`). No independent scroll region, no fixed/sticky/absolute
         // positioning anywhere in this mobile path.

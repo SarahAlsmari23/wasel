@@ -2,7 +2,7 @@
  * Phase 8, Part 1/16 — the single, shared reconstruction of "what does this
  * complaint still need" from persisted state. Before this module, the live
  * chat turn (app/api/ai/chat/route.ts) and the resume page
- * (app/wasal/page.tsx) each independently re-implemented the same sequence
+ * (app/(site)/wasal/page.tsx) each independently re-implemented the same sequence
  * (read complaint_types.required_fields, merge known field keys, call
  * computeMissingFields, look up a clarification hint) — two call sites that
  * could silently drift apart. Both now call this one function instead.

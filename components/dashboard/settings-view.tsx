@@ -2,25 +2,18 @@
 
 import { Download, KeyRound, Monitor, Moon, ShieldCheck, Sun, Trash2 } from 'lucide-react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
-import { useState, useTransition } from 'react'
-import { exportMyDataAction } from '@/app/wasal/account-actions'
+import { useState } from 'react'
+import { exportMyDataAction } from '@/app/(site)/wasal/account-actions'
 import { ChangePasswordModal } from '@/components/dashboard/profile-view'
 import { useCopy, useLocale } from '@/components/i18n/locale-provider'
+import { useChangeLocale } from '@/components/i18n/use-change-locale'
 import { useTheme, type ThemePreference } from '@/components/theme/theme-provider'
 import { Button, buttonClasses } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Field, Select } from '@/components/ui/field'
 import { Modal } from '@/components/ui/modal'
 import { useToast } from '@/components/ui/toast'
-import {
-  defineCopy,
-  directionFor,
-  htmlLangFor,
-  LOCALE_COOKIE,
-  LOCALE_COOKIE_MAX_AGE,
-  type Locale,
-} from '@/lib/i18n/config'
+import { defineCopy, type Locale } from '@/lib/i18n/config'
 import { cn } from '@/lib/utils/cn'
 
 const COPY = defineCopy({
@@ -101,20 +94,15 @@ const THEME_ICONS: Record<ThemePreference, typeof Sun> = { light: Sun, dark: Moo
 export function SettingsView() {
   const copy = useCopy(COPY)
   const locale = useLocale()
-  const router = useRouter()
   const { showToast } = useToast()
   const { preference, resolved, setPreference } = useTheme()
   const [isPasswordOpen, setIsPasswordOpen] = useState(false)
   const [isDeleteOpen, setIsDeleteOpen] = useState(false)
   const [isExporting, setIsExporting] = useState(false)
-  const [isSwitching, startTransition] = useTransition()
+  const changeLocale = useChangeLocale()
 
   function changeLanguage(next: Locale) {
-    if (next === locale) return
-    document.cookie = `${LOCALE_COOKIE}=${next}; path=/; max-age=${LOCALE_COOKIE_MAX_AGE}; samesite=lax`
-    document.documentElement.lang = htmlLangFor(next)
-    document.documentElement.dir = directionFor(next)
-    startTransition(() => router.refresh())
+    if (next !== locale) changeLocale(next)
   }
 
   async function handleDownloadData() {
@@ -148,7 +136,6 @@ export function SettingsView() {
           <Select
             id="settings-language"
             value={locale}
-            disabled={isSwitching}
             onChange={(event) => changeLanguage(event.target.value as Locale)}
           >
             <option value="ar">العربية</option>

@@ -15,7 +15,7 @@ export type RoutingForAnalysis = {
  * Resolves a real, DB-backed routing decision into the ComplaintAnalysis
  * shape RecommendationCard expects — the single shared builder used both by
  * the live turn handler (components/wasal/wasal-chat.tsx's runComplaintTurn)
- * and the server-side resume path (app/wasal/page.tsx), so a reconstructed
+ * and the server-side resume path (app/(site)/wasal/page.tsx), so a reconstructed
  * "ready" state on resume is built exactly the same way as a freshly-reached
  * one. Never fabricates requiredDocuments/submissionSteps — always empty, no
  * real database-backed source exists yet. entityIconKey is resolved by

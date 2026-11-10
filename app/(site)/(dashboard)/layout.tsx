@@ -1,14 +1,12 @@
 import { redirect } from 'next/navigation'
 import type { ReactNode } from 'react'
 import { DashboardShell } from '@/components/dashboard/dashboard-shell'
-import { getUserProfile } from '@/lib/auth/user-profile'
-import { createClient } from '@/lib/supabase/server'
+import { getCurrentUser } from '@/lib/auth/current-user'
 
+// The shared header comes from app/(site)/layout.tsx; this layout adds the
+// dashboard sidebar and content area below it.
 export default async function DashboardLayout({ children }: { children: ReactNode }) {
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  const user = await getCurrentUser()
 
   // The dashboard is for authenticated users only (Phase 3). Guests who land
   // here are sent to sign-in and returned once they are in.
@@ -16,11 +14,5 @@ export default async function DashboardLayout({ children }: { children: ReactNod
     redirect(`/auth/sign-in?next=${encodeURIComponent('/dashboard')}`)
   }
 
-  const profile = getUserProfile(user)
-
-  return (
-    <DashboardShell userName={profile.name} userEmail={profile.email}>
-      {children}
-    </DashboardShell>
-  )
+  return <DashboardShell>{children}</DashboardShell>
 }

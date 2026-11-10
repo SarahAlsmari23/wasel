@@ -70,7 +70,7 @@ export async function updateSession(request: NextRequest) {
   if (authCheck.status === 'timeout') {
     // Fail safe, not open: the request continues without a session refresh,
     // and every protected page still runs its own server-side session check
-    // (app/(dashboard)/layout.tsx redirects when there is no user). Nothing
+    // (app/(site)/(dashboard)/layout.tsx redirects when there is no user). Nothing
     // protected is ever rendered on the strength of this middleware alone.
     console.warn('[middleware] auth check exceeded time budget; continuing without refresh')
     return supabaseResponse

@@ -279,6 +279,23 @@ export async function getUserConversations(
   )
 }
 
+/**
+ * Counts the caller's conversations without reading them (RLS-scoped, like
+ * getUserConversations). The dashboard only shows the number, so it must not
+ * pay for every conversation row plus every message used for previews.
+ */
+export async function countUserConversations(supabase: SupabaseServerClient): Promise<number> {
+  const { count, error } = await supabase
+    .from('conversations')
+    .select('id', { count: 'exact', head: true })
+
+  if (error || count === null) {
+    throw new Error('Failed to count conversations.')
+  }
+
+  return count
+}
+
 export type DraftRecord = {
   /** The conversation's own id — a draft has no complaint row yet, so this
    * doubles as the id used for both "continue" (resume) and delete. */
@@ -299,7 +316,7 @@ type DraftRow = {
 // A "draft" (Phase 6.8) is a complaint-mode conversation that has not yet
 // produced a real complaint row — `createComplaintAction` always inserts,
 // versions, and finalizes a complaint in the same call (see
-// app/wasal/complaint-actions.ts), so a conversation only ever sits in this
+// app/(site)/wasal/complaint-actions.ts), so a conversation only ever sits in this
 // state while the user is still mid-collection. There is no separate drafts
 // table and none is added here. `complaints(id)` is the same disambiguated
 // reverse-FK embed pattern already used for `current_version` above — it

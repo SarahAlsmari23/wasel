@@ -3,7 +3,7 @@
 import { ArrowLeft, ArrowRight, FolderClock, Trash2 } from 'lucide-react'
 import Link from 'next/link'
 import { useState } from 'react'
-import { deleteConversationAction } from '@/app/wasal/conversation-actions'
+import { deleteConversationAction } from '@/app/(site)/wasal/conversation-actions'
 import { GovernmentLogo } from '@/components/government/government-logo'
 import { Button, buttonClasses } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
