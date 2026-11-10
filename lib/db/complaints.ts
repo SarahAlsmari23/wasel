@@ -399,9 +399,7 @@ export async function createNextComplaintVersion(input: {
   }
 
   const latestNumber = (versions[0]?.version_number as number | undefined) ?? 0
-  const previousCurrentId = versions.find((version) => version.is_current)?.id as
-    | string
-    | undefined
+  const previousCurrentId = versions.find((version) => version.is_current)?.id as string | undefined
 
   if (previousCurrentId) {
     const { error } = await supabase

@@ -141,7 +141,8 @@ async function generateWithModel(
     try {
       return extractOutput(await postJson(url, apiToken, body, remaining))
     } catch (error) {
-      const retryable = error instanceof HttpStatusError && RETRYABLE_HTTP_STATUSES.has(error.status)
+      const retryable =
+        error instanceof HttpStatusError && RETRYABLE_HTTP_STATUSES.has(error.status)
       if (!retryable || attempt === 2) {
         if (error instanceof AiProviderError) throw error
         throw new AiProviderError(

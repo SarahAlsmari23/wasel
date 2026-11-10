@@ -1,6 +1,10 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
-import { authHrefWithReturn, DEFAULT_SIGNED_IN_PATH, resolveRedirectPath } from '@/lib/auth/redirect'
+import {
+  authHrefWithReturn,
+  DEFAULT_SIGNED_IN_PATH,
+  resolveRedirectPath,
+} from '@/lib/auth/redirect'
 
 describe('resolveRedirectPath', () => {
   it('keeps safe same-origin paths', () => {

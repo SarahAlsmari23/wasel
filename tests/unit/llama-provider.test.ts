@@ -23,7 +23,11 @@ const saved: Record<string, string | undefined> = {}
 
 function completion(content: unknown, status = 200) {
   return new Response(
-    JSON.stringify({ choices: [{ message: { content: typeof content === 'string' ? content : JSON.stringify(content) } }] }),
+    JSON.stringify({
+      choices: [
+        { message: { content: typeof content === 'string' ? content : JSON.stringify(content) } },
+      ],
+    }),
     { status, headers: { 'content-type': 'application/json' } },
   )
 }
@@ -110,7 +114,9 @@ describe('Llama provider', () => {
 describe('provider chain configuration', () => {
   const keys = ['AI_PRIMARY_PROVIDER', 'AI_FALLBACK_PROVIDER', 'AI_PROVIDER'] as const
   const before: Record<string, string | undefined> = {}
-  beforeEach(() => keys.forEach((key) => ((before[key] = process.env[key]), delete process.env[key])))
+  beforeEach(() =>
+    keys.forEach((key) => ((before[key] = process.env[key]), delete process.env[key])),
+  )
   afterEach(() =>
     keys.forEach((key) =>
       before[key] === undefined ? delete process.env[key] : (process.env[key] = before[key]),

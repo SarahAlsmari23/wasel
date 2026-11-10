@@ -55,9 +55,7 @@ export default function DashboardError({
 
       <div className="flex flex-col gap-2">
         <h1 className="text-heading text-xl font-semibold">{copy.title}</h1>
-        <p className="text-muted-foreground text-sm leading-relaxed">
-          {copy.body}
-        </p>
+        <p className="text-muted-foreground text-sm leading-relaxed">{copy.body}</p>
         {error.digest ? (
           <p className="text-muted-foreground/70 text-xs" dir="ltr">
             ref: {error.digest}

@@ -63,9 +63,7 @@ export default function Error({
 
       <div className="flex flex-col gap-2">
         <h1 className="text-heading text-2xl font-semibold sm:text-3xl">{copy.title}</h1>
-        <p className="text-muted-foreground max-w-sm text-sm leading-relaxed">
-          {copy.body}
-        </p>
+        <p className="text-muted-foreground max-w-sm text-sm leading-relaxed">{copy.body}</p>
         {error.digest ? (
           <p className="text-muted-foreground/70 mt-1 text-xs" dir="ltr">
             ref: {error.digest}

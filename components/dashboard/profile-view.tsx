@@ -262,11 +262,7 @@ export function ChangePasswordModal({ isOpen, onClose }: { isOpen: boolean; onCl
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={copy.changePassword}>
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-        <Field
-          htmlFor="new-password"
-          label={copy.newPassword}
-          hint={copy.passwordHint}
-        >
+        <Field htmlFor="new-password" label={copy.newPassword} hint={copy.passwordHint}>
           <TextInput
             id="new-password"
             type="password"
@@ -279,7 +275,11 @@ export function ChangePasswordModal({ isOpen, onClose }: { isOpen: boolean; onCl
           />
         </Field>
 
-        <Field htmlFor="confirm-new-password" label={copy.confirmPassword} error={error ?? undefined}>
+        <Field
+          htmlFor="confirm-new-password"
+          label={copy.confirmPassword}
+          error={error ?? undefined}
+        >
           <TextInput
             id="confirm-new-password"
             type="password"

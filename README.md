@@ -1,108 +1,90 @@
-An Arabic-first (RTL) platform that helps users understand their complaint, identify the right
-Saudi government authority, and draft a professional complaint before submitting it.
+# واصل · Wasel
 
-واصل ... خلها توصل صح 
-لزيارة الموقع : Open https://wisal-peach.vercel.app.
+An Arabic-first, bilingual (Arabic / English) AI assistant that helps citizens and residents of
+Saudi Arabia understand their complaint, identify the responsible government authority, and draft a
+formal complaint — which they then submit themselves through the authority's official channel.
 
+واصل ... خلها توصل صح — https://wisal-peach.vercel.app
 
+Wasel is not a government authority, does not provide legal advice, and never submits complaints on
+a user's behalf.
 
-Built with Next.js 15 (App Router), React 19, Tailwind CSS v4, Supabase Auth, and Motion.
+## Stack
+
+Next.js 15 (App Router) · React 19 · TypeScript · Tailwind CSS v4 · Supabase (Auth, Postgres, RLS,
+pgvector) · Meta Llama on Cloudflare Workers AI · Vercel.
 
 ## Getting started
 
 ```bash
 npm install
+cp .env.example .env.local   # fill in Supabase and Cloudflare values
 npm run dev
 ```
 
+## Scripts
 
-Copy `.env.example` to `.env.local` and fill in the Supabase and AI provider values.
+```bash
+npm run dev          # dev server (Turbopack)
+npm run build        # production build
+npm run lint         # ESLint
+npm run typecheck    # TypeScript
+npm test             # unit tests (node:test + tsx)
+npm run format       # Prettier
+npm run ingest:knowledge   # populate the RAG knowledge base
+```
 
 ## Access model
 
-| | Guest | Signed in |
-| --- | --- | --- |
-| Browse the site, read about authorities | ✅ | ✅ |
-| Ask Wasal general questions (`/wasal`) | ✅ | ✅ |
-| Start the Complaint Builder | ❌ | ✅ |
-| Save complaints, view the dashboard | ❌ | ✅ |
+|                                                    | Guest | Signed in |
+| -------------------------------------------------- | ----- | --------- |
+| Browse the site, read about authorities            | ✅    | ✅        |
+| Ask Wasel questions, see the responsible authority | ✅    | ✅        |
+| Create, edit, regenerate and save complaints       | ❌    | ✅        |
+| Dashboard, history, drafts, data export            | ❌    | ✅        |
 
-Authentication is required **only** to create or save a complaint. Everything else, including the
-AI assistant, is open to guests.
+A guest who decides to create a complaint is asked to sign in; the conversation, collected details
+and pending action are restored afterwards. Signing in from any public page returns the user to
+that page.
 
-## Routes
+## AI
 
-| Route | Access | Purpose |
-| --- | --- | --- |
-| `/` | public | Landing page |
-| `/about` | public | About Wasal |
-| `/entities` | public | Supported government authorities |
-| `/wasal` | public | AI assistant + Complaint Builder |
-| `/auth/sign-in`, `/auth/sign-up` | public | Authentication |
-| `/dashboard` | protected | Overview, drafts, quick actions |
-| `/dashboard/complaints` | protected | Previous complaints (search / filter / sort) |
-| `/dashboard/conversations` | protected | Conversation history |
-| `/dashboard/drafts` | protected | Saved drafts |
-| `/dashboard/profile` | protected | Account details |
-| `/dashboard/settings` | protected | Language, appearance, privacy, security |
-| `/dashboard/knowledge` | protected, unlinked | Reserved for future admin use — not in any nav |
+- **Model:** Llama 4 Scout (17B/16E) on Cloudflare Workers AI, with Llama 3.3 70B as an automatic
+  fallback. Configurable via `AI_PRIMARY_PROVIDER`, `AI_FALLBACK_PROVIDER`, `LLAMA_MODEL`,
+  `LLAMA_FALLBACK_MODEL` (see `.env.example`).
+- **Grounding:** answers use retrieved official-source documents (Cloudflare embeddings +
+  pgvector); authority routing and complaint fields are server-authoritative, never model-invented.
+- **Honest failures:** when the model is unavailable, the user sees a clear localized error with a
+  retry — never a canned answer presented as AI output.
+- **Language:** the assistant answers in the interface language.
 
-`/dashboard/*` is guarded in `middleware.ts`, which redirects guests to sign-in with a `next`
-parameter so they return to the page they wanted.
+## Internationalisation
+
+Arabic (default, RTL) and English (LTR). The choice is stored in a cookie and survives navigation,
+refreshes and sign-in. Each component keeps its Arabic and English copy side by side
+(`defineCopy`), and TypeScript rejects a missing translation.
 
 ## Project structure
 
 ```
 app/
-  (marketing)/     Landing, about, entities — public shell with header + footer
-  (dashboard)/     Authenticated area — sidebar, bottom nav, user menu
-  wasal/           Chat experience — full-height shell, no footer
-  auth/            Sign-in, sign-up, OAuth callback
-  api/ai/chat/     Chat endpoint (guests allowed, IP-rate-limited)
-components/
-  brand/ ui/ marketing/ wasal/ dashboard/ government/ knowledge/
+  (marketing)/     Home, about, entities, privacy, terms
+  (dashboard)/     Authenticated area — sidebar, bottom nav, account menu
+  wasal/           Chat experience + server actions
+  auth/            Sign-in, sign-up, OAuth/email callback
+  api/ai/chat/     Chat endpoint (guests allowed, rate-limited)
+components/        brand, ui, i18n, marketing, wasal, complaints, dashboard, auth
 lib/
-  wasal/           Mock AI engine, entity matching, chat client
-  mock/            Mock complaints, conversations, entities, stats
-  auth/ supabase/ ai/ rag/ utils/
+  ai/              providers (Llama), prompts, routing, guards, validation
+  complaints/      formal letters (ar/en), display helpers
+  db/              Supabase data access (RLS client; narrow service-role writes)
+  i18n/            locale config and server helpers
+  security/        rate limiting
+supabase/          migrations (RLS policies) and seed
+tests/unit/        unit tests
 ```
-
-## AI behaviour
-
-`Ask Wasal` calls `/api/ai/chat` (Cloudflare + RAG retrieval). If that endpoint is unconfigured,
-errors, or times out, the client silently falls back to the deterministic mock engine in
-`lib/wasal/mock-engine.ts`, so the product is always demoable.
-
-The `Complaint Builder` is fully mock-driven: a fixed question script collects the details, then
-`buildComplaintAnalysis` produces the government recommendation, confidence score, required
-documents, and submission steps.
-
-## Current MVP scope
-
-- **No database persistence.** Complaints and conversations come from `lib/mock/`; saving and
-  deleting are acknowledged in the UI only.
-- **Light mode only.** Dark mode is shown in Settings as "coming soon".
-- **Placeholder statistics** on the landing page, labelled as illustrative.
-- **Placeholder government marks** (`components/government/government-logo.tsx`) until real logo
-  assets are supplied — swap that component's body and every call site updates.
 
 ## Design system
 
-The palette is fixed by the brand spec and defined in `app/globals.css`:
-
-| Token | Value | Use |
-| --- | --- | --- |
-| background | `#FFF2E6` | off-white page (60%) |
-| primary | `#052102` | dark green (25%) |
-| secondary | `#586357` | light green (10%) |
-| accent / danger | `#3D0000` | burgundy (5%) |
-
-## Scripts
-
-```bash
-npm run dev           # dev server (Turbopack)
-npm run build         # production build
-npm run lint          # ESLint
-npm run format        # Prettier
-npm run ingest:knowledge   # populate the RAG knowledge base
-```
+Brand tokens live in `app/globals.css` (light and dark). Primary emerald `#086B4C` with derived
+hover/pressed/tint shades, the original navy `#12355B`, and a calmer teal accent.

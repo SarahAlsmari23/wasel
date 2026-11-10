@@ -66,7 +66,8 @@ const ERRORS = {
   en: {
     unauthenticated: 'You need to sign in to create a complaint.',
     conversationNotFound: "The conversation couldn't be found, or you don't have access to it.",
-    routingIncomplete: "The responsible authority hasn't been fully identified for this conversation yet.",
+    routingIncomplete:
+      "The responsible authority hasn't been fully identified for this conversation yet.",
     profileNameMissing: 'Please add your full name to your profile before creating a complaint.',
     alreadyExists: 'A complaint already exists for this conversation.',
     complaintNotFound: "The complaint couldn't be found, or you don't have access to it.",
@@ -132,8 +133,7 @@ export type ComplaintPayload = {
 }
 
 export type CreateComplaintResult =
-  | { success: true; complaint: ComplaintPayload }
-  | { success: false; error: string }
+  { success: true; complaint: ComplaintPayload } | { success: false; error: string }
 
 /**
  * Creates one real complaint record + its first formal-letter version for the
@@ -352,7 +352,8 @@ export async function getComplaintEditDataAction(
       countComplaintVersions(supabase, complaintId),
     ])
 
-    const keys = requiredFields.length > 0 ? requiredFields : [{ key: 'problem_description', required: true }]
+    const keys =
+      requiredFields.length > 0 ? requiredFields : [{ key: 'problem_description', required: true }]
     const fields = keys.map((field) => ({
       key: field.key,
       label:
@@ -423,7 +424,9 @@ export async function updateComplaintAction(
     if (!fullName) return { success: false, error: errors.profileNameMissing }
 
     const allowedKeys = new Set(
-      requiredFields.length > 0 ? requiredFields.map((field) => field.key) : ['problem_description'],
+      requiredFields.length > 0
+        ? requiredFields.map((field) => field.key)
+        : ['problem_description'],
     )
 
     const changes: Record<string, string> = {}
@@ -490,8 +493,7 @@ export async function updateComplaintAction(
 }
 
 export type MarkComplaintSubmittedResult =
-  | { success: true; submittedAt: string; updatedAt: string }
-  | { success: false; error: string }
+  { success: true; submittedAt: string; updatedAt: string } | { success: false; error: string }
 
 /**
  * Records that the user submitted their complaint to the authority

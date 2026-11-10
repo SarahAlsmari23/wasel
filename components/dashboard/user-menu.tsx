@@ -9,7 +9,12 @@ import { useCopy } from '@/components/i18n/locale-provider'
 import { defineCopy } from '@/lib/i18n/config'
 
 const COPY = defineCopy({
-  ar: { profile: 'الملف الشخصي', settings: 'الإعدادات', signOut: 'تسجيل الخروج', account: 'قائمة الحساب' },
+  ar: {
+    profile: 'الملف الشخصي',
+    settings: 'الإعدادات',
+    signOut: 'تسجيل الخروج',
+    account: 'قائمة الحساب',
+  },
   en: { profile: 'Profile', settings: 'Settings', signOut: 'Sign out', account: 'Account menu' },
 })
 

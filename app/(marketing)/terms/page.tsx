@@ -72,7 +72,9 @@ const COPY = defineCopy<LegalDocumentContent & { metaDescription: string }>({
       },
       {
         heading: 'Privacy',
-        paragraphs: ['Wasel handles your data according to the privacy policy published on the platform.'],
+        paragraphs: [
+          'Wasel handles your data according to the privacy policy published on the platform.',
+        ],
       },
     ],
   },

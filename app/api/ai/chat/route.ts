@@ -29,9 +29,7 @@ import { retrieveRelevantDocuments, RetrievalError } from '@/lib/rag/retrieve'
 import type { RetrievedDocument } from '@/lib/rag/types'
 import { createClient } from '@/lib/supabase/server'
 import { ENTITY_NAME_TO_SECTOR } from '@/lib/complaints/sectors'
-import {
-  hasSectorIssueSignal,
-} from '@/lib/complaints/issue-signal'
+import { hasSectorIssueSignal } from '@/lib/complaints/issue-signal'
 import { loadComplaintCollectionState } from '@/lib/wasal/conversation-state'
 import { isExplicitRoutingChange, wantsToCreateComplaint } from '@/lib/wasal/complaint-intent'
 import {
@@ -75,7 +73,9 @@ function debugLog(line: string) {
 }
 
 function localeFromCookie(request: Request): Locale {
-  const match = request.headers.get('cookie')?.match(new RegExp(`(?:^|;\\s*)${LOCALE_COOKIE}=([^;]+)`))
+  const match = request.headers
+    .get('cookie')
+    ?.match(new RegExp(`(?:^|;\\s*)${LOCALE_COOKIE}=([^;]+)`))
   return resolveLocale(match?.[1])
 }
 
@@ -184,7 +184,13 @@ export async function POST(request: Request) {
   // gated, and neither happens here.
   const rateLimit = await checkRateLimits(
     user
-      ? [{ key: `user:${user.id}`, limit: RATE_LIMIT_AUTHENTICATED, windowMs: RATE_LIMIT_WINDOW_MS }]
+      ? [
+          {
+            key: `user:${user.id}`,
+            limit: RATE_LIMIT_AUTHENTICATED,
+            windowMs: RATE_LIMIT_WINDOW_MS,
+          },
+        ]
       : [
           {
             key: `guest-conv:${clientConversationId.slice(0, 64)}`,
@@ -244,10 +250,9 @@ export async function POST(request: Request) {
 
   if (!hasActiveComplaintContext && !likelyComplaint) {
     if (isGreetingOnly(sanitizedMessage)) {
-      return NextResponse.json<ChatSuccessResponse>(
-        fixedIntentResponse('greeting', sc.greeting),
-        { status: 200 },
-      )
+      return NextResponse.json<ChatSuccessResponse>(fixedIntentResponse('greeting', sc.greeting), {
+        status: 200,
+      })
     }
     if (isIdentityQuestion(sanitizedMessage)) {
       return NextResponse.json<ChatSuccessResponse>(
@@ -317,9 +322,7 @@ export async function POST(request: Request) {
         debugLog('[chat] routing-resolved-by-keyword')
       }
     } catch (error) {
-      debugLog(
-        `[chat] routing-keyword-fallback-failed category=${categorizeRoutingFailure(error)}`,
-      )
+      debugLog(`[chat] routing-keyword-fallback-failed category=${categorizeRoutingFailure(error)}`)
     }
   }
 
@@ -441,6 +444,16 @@ export async function POST(request: Request) {
   // once true, the same required field must never be handed back as
   // `nextField` on the very turn that just supplied a genuine answer for it.
   let duplicateInvariantViolated = false
+  // Outside the complaint builder, a message that itself describes a problem
+  // *is* the problem description — the next question must move on (e.g. to
+  // the city) rather than ask the user to describe what they just described.
+  const knownFieldKeysThisTurn = (): Set<string> => {
+    const known = buildKnownFieldKeysFromComplaintContext(sanitizedComplaintContext)
+    if (!hasActiveComplaintContext && describesProblem(sanitizedMessage)) {
+      known.add('problem_description')
+    }
+    return known
+  }
   if (likelyComplaint && routing?.complaintTypeId) {
     try {
       const persistedFields =
@@ -451,7 +464,7 @@ export async function POST(request: Request) {
         supabase,
         routing.complaintTypeId,
         persistedFields,
-        buildKnownFieldKeysFromComplaintContext(sanitizedComplaintContext),
+        knownFieldKeysThisTurn(),
       )
 
       const answeredFieldKey = sanitizedComplaintContext?.answeredFieldKey
@@ -477,7 +490,7 @@ export async function POST(request: Request) {
           supabase,
           routing.complaintTypeId,
           freshPersistedFields,
-          buildKnownFieldKeysFromComplaintContext(sanitizedComplaintContext),
+          knownFieldKeysThisTurn(),
         )
         if (freshState) collectionState = freshState
 
@@ -914,7 +927,9 @@ export async function POST(request: Request) {
     const verifiedOfficialUrl =
       routing && routing.confidence !== 'low' && routing.officialUrl ? routing.officialUrl : null
     const withOfficialLink = (text: string): string =>
-      verifiedOfficialUrl && isInformationalIntent(finalIntent) && !text.includes(verifiedOfficialUrl)
+      verifiedOfficialUrl &&
+      isInformationalIntent(finalIntent) &&
+      !text.includes(verifiedOfficialUrl)
         ? `${text}\n\n${sc.officialSiteLabel}: ${verifiedOfficialUrl}`
         : text
 

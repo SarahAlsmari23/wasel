@@ -58,7 +58,9 @@ const ENGLISH_SUBTYPE_QUESTIONS: Partial<Record<Sector, string>> = {
 }
 
 export function subtypeClarificationQuestion(sector: Sector, locale: Locale): string | undefined {
-  return locale === 'en' ? ENGLISH_SUBTYPE_QUESTIONS[sector] : SUBTYPE_CLARIFICATION_QUESTIONS[sector]
+  return locale === 'en'
+    ? ENGLISH_SUBTYPE_QUESTIONS[sector]
+    : SUBTYPE_CLARIFICATION_QUESTIONS[sector]
 }
 
 /**

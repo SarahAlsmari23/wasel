@@ -35,12 +35,14 @@ const ERROR_CODE_MESSAGES: Record<string, string> = {
 }
 
 const ERROR_CODE_MESSAGES_EN: Record<string, string> = {
-  email_not_confirmed: "Your email hasn't been confirmed yet. Check your inbox for the confirmation email.",
+  email_not_confirmed:
+    "Your email hasn't been confirmed yet. Check your inbox for the confirmation email.",
   invalid_credentials: 'The email or password is incorrect.',
   user_already_exists: 'This email is already registered.',
   email_exists: 'This email is already registered.',
   weak_password: 'The password is too weak. Use at least 6 characters.',
-  over_email_send_rate_limit: 'Too many emails were sent. Please wait a little before trying again.',
+  over_email_send_rate_limit:
+    'Too many emails were sent. Please wait a little before trying again.',
   over_request_rate_limit: 'Too many attempts in a short time. Please wait, then try again.',
   email_address_invalid: 'The email address is invalid or its domain is not accepted.',
   validation_failed: 'Please check the information you entered.',
@@ -56,7 +58,8 @@ const ERROR_CODE_MESSAGES_EN: Record<string, string> = {
 
 const LEGACY_MESSAGE_MESSAGES_EN: Record<string, string> = {
   'Invalid login credentials': 'The email or password is incorrect.',
-  'Email not confirmed': "Your email hasn't been confirmed yet. Check your inbox for the confirmation email.",
+  'Email not confirmed':
+    "Your email hasn't been confirmed yet. Check your inbox for the confirmation email.",
   'User already registered': 'This email is already registered.',
   'Password should be at least 6 characters': 'The password must be at least 6 characters.',
   'Unsupported provider': 'This sign-in method is not enabled for this project.',
@@ -119,7 +122,9 @@ export function getAuthErrorDetails(error: unknown, locale: Locale = 'ar'): Auth
 export function getAuthErrorMessage(error: unknown, locale: Locale = 'ar'): string {
   const fallback = locale === 'en' ? FALLBACK_MESSAGE_EN : FALLBACK_MESSAGE
   if (typeof error === 'string') {
-    return (locale === 'en' ? LEGACY_MESSAGE_MESSAGES_EN : LEGACY_MESSAGE_MESSAGES)[error] ?? fallback
+    return (
+      (locale === 'en' ? LEGACY_MESSAGE_MESSAGES_EN : LEGACY_MESSAGE_MESSAGES)[error] ?? fallback
+    )
   }
   if (error === null || error === undefined) {
     return fallback

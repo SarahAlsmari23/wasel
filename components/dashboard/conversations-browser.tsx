@@ -131,11 +131,7 @@ export function ConversationsBrowser({ conversations }: ConversationsBrowserProp
       />
 
       {visible.length === 0 ? (
-        <EmptyState
-          icon={MessagesSquare}
-          title={copy.noResults}
-          description={copy.noResultsHint}
-        />
+        <EmptyState icon={MessagesSquare} title={copy.noResults} description={copy.noResultsHint} />
       ) : (
         <div className="grid gap-4 md:grid-cols-2">
           {visible.map((conversation) => (
@@ -198,9 +194,7 @@ export function ConversationsBrowser({ conversations }: ConversationsBrowserProp
         }}
         title={copy.deleteTitle}
         description={
-          pendingDelete
-            ? copy.deleteConfirm(localizeTitle(pendingDelete.title, locale))
-            : undefined
+          pendingDelete ? copy.deleteConfirm(localizeTitle(pendingDelete.title, locale)) : undefined
         }
         footer={
           <>

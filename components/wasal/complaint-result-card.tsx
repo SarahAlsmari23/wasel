@@ -41,7 +41,7 @@ const COPY = defineCopy({
   en: {
     reference: 'Internal reference',
     referenceNotice:
-      "An internal Wasel reference — not the complaint number at the government authority.",
+      'An internal Wasel reference — not the complaint number at the government authority.',
     created: 'Created',
     updated: 'Last updated',
     submittedOn: 'Submitted',
@@ -160,7 +160,10 @@ export function ComplaintResultCard({
           {displayTitle}
         </h2>
         <p className="text-muted-foreground text-xs">
-          {copy.reference}: <span dir="ltr" className="tabular-nums">{complaint.referenceNumber}</span>
+          {copy.reference}:{' '}
+          <span dir="ltr" className="tabular-nums">
+            {complaint.referenceNumber}
+          </span>
         </p>
         <p className="text-muted-foreground text-[11px] leading-relaxed">{copy.referenceNotice}</p>
       </div>

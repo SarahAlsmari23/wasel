@@ -52,7 +52,8 @@ const COPY = defineCopy({
     lead: 'Wasel is an AI-powered platform that helps you understand your complaint, identify the responsible government authority, and draft a professional complaint ready to submit — saving you time and effort.',
     whyEyebrow: 'Why Wasel?',
     whyTitle: 'Three problems the platform solves',
-    whyDescription: 'Wasel was designed to address what most often stops complaints from being resolved.',
+    whyDescription:
+      'Wasel was designed to address what most often stops complaints from being resolved.',
     reasons: [
       {
         title: 'The right authority, first time',

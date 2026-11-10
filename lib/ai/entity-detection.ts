@@ -68,9 +68,11 @@ const SECTOR_TO_ENTITY_NAME = Object.fromEntries(
  */
 const ENGLISH_SECTOR_KEYWORD_PATTERNS: Record<Sector, RegExp> = {
   water: /\b(water|sewage|sewer|nwc)\b/i,
-  telecom: /\b(internet|telecom|mobile network|network coverage|signal|broadband|fiber|fibre|sim card|cst)\b/i,
+  telecom:
+    /\b(internet|telecom|mobile network|network coverage|signal|broadband|fiber|fibre|sim card|cst)\b/i,
   commerce: /\b(store|shop|merchant|seller|refund|retailer|online order)\b/i,
-  municipality: /\b(municipality|pothole|sidewalk|pavement|garbage|rubbish|street ?light|balady)\b/i,
+  municipality:
+    /\b(municipality|pothole|sidewalk|pavement|garbage|rubbish|street ?light|balady)\b/i,
   electricity: /\b(electricity|electric|power outage|power cut|blackout|electricity meter)\b/i,
 }
 

@@ -15,22 +15,34 @@ type StatCardProps = {
   highlight?: boolean
 }
 
-export function StatCard({ label, value, icon: Icon, locale, href, highlight = false }: StatCardProps) {
+export function StatCard({
+  label,
+  value,
+  icon: Icon,
+  locale,
+  href,
+  highlight = false,
+}: StatCardProps) {
   const content = (
     <Card
       interactive={Boolean(href)}
-      className={cn('flex h-full items-center gap-4 p-5', highlight && value > 0 && 'border-primary/30')}
+      className={cn(
+        'flex h-full items-center gap-4 p-5',
+        highlight && value > 0 && 'border-primary/30',
+      )}
     >
       <span
         className={cn(
           'flex h-11 w-11 shrink-0 items-center justify-center rounded-xl',
-          highlight && value > 0 ? 'bg-primary text-primary-foreground' : 'bg-surface-tint text-primary',
+          highlight && value > 0
+            ? 'bg-primary text-primary-foreground'
+            : 'bg-surface-tint text-primary',
         )}
       >
         <Icon className="h-5 w-5" aria-hidden="true" />
       </span>
       <div className="min-w-0">
-        <p className="text-foreground tabular-nums text-2xl font-semibold">
+        <p className="text-foreground text-2xl font-semibold tabular-nums">
           {formatNumber(value, locale)}
         </p>
         <p className="text-muted-foreground text-sm leading-snug">{label}</p>

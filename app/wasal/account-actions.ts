@@ -66,7 +66,12 @@ export async function exportMyDataAction(): Promise<ExportMyDataResult> {
       submitted_at: string | null
       created_at: string
       complaint_versions:
-        | { version_number: number; complaint_text: string; created_at: string; is_current: boolean }[]
+        | {
+            version_number: number
+            complaint_text: string
+            created_at: string
+            is_current: boolean
+          }[]
         | null
     }
 

@@ -42,9 +42,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const conversation = await getConversationWithMessages(supabase, id)
   const locale = await getLocale()
   return {
-    title: conversation
-      ? localizeTitle(conversation.title, locale)
-      : COPY[locale].fallbackTitle,
+    title: conversation ? localizeTitle(conversation.title, locale) : COPY[locale].fallbackTitle,
   }
 }
 
@@ -90,9 +88,7 @@ export default async function ConversationDetailPage({ params }: PageProps) {
 
       <Card className="flex flex-col gap-5 p-5 sm:p-6">
         {messages.length === 0 ? (
-          <p className="text-muted-foreground py-6 text-center text-sm">
-            {copy.empty}
-          </p>
+          <p className="text-muted-foreground py-6 text-center text-sm">{copy.empty}</p>
         ) : (
           messages.map((message) => <ChatMessage key={message.id} message={message} />)
         )}

@@ -27,7 +27,7 @@ export async function StatisticsSection() {
         <div className="mt-10 grid gap-x-6 gap-y-10 sm:grid-cols-2 lg:grid-cols-4">
           {PLATFORM_STATS.map((stat, index) => (
             <Reveal key={stat.id} delay={index * 0.07} className="text-center">
-              <p className="tabular-nums text-3xl font-semibold sm:text-4xl" dir="ltr">
+              <p className="text-3xl font-semibold tabular-nums sm:text-4xl" dir="ltr">
                 {stat.display ?? formatNumber(stat.value ?? 0, locale)}
               </p>
               <p className="mt-2 text-sm font-medium">{stat.label[locale]}</p>

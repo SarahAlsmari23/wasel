@@ -13,13 +13,15 @@ import { clearConversation } from '@/lib/wasal/conversation-storage'
 const COPY = defineCopy({
   ar: {
     title: 'تسجيل الخروج',
-    description: 'هل أنت متأكد من رغبتك في تسجيل الخروج؟ ستحتاج إلى تسجيل الدخول مجدداً للوصول إلى بلاغاتك.',
+    description:
+      'هل أنت متأكد من رغبتك في تسجيل الخروج؟ ستحتاج إلى تسجيل الدخول مجدداً للوصول إلى بلاغاتك.',
     confirm: 'تسجيل الخروج',
     cancel: 'إلغاء',
   },
   en: {
     title: 'Sign out',
-    description: "Are you sure you want to sign out? You'll need to sign in again to access your complaints.",
+    description:
+      "Are you sure you want to sign out? You'll need to sign in again to access your complaints.",
     confirm: 'Sign out',
     cancel: 'Cancel',
   },

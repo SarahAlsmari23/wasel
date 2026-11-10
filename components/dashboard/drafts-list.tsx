@@ -36,13 +36,15 @@ const COPY = defineCopy({
     deleted: 'Draft deleted',
     deleteFailed: 'Something went wrong while deleting. Please try again.',
     emptyTitle: 'No saved drafts.',
-    emptyBody: "Drafts are complaints you haven't finished yet — you can come back to them at any time.",
+    emptyBody:
+      "Drafts are complaints you haven't finished yet — you can come back to them at any time.",
     start: 'Start a new complaint',
     lastEdited: 'Last edited',
     continue: 'Continue',
     delete: 'Delete',
     deleteTitle: 'Delete draft',
-    deleteConfirm: (title: string) => `“${title}” will be permanently deleted. This can't be undone.`,
+    deleteConfirm: (title: string) =>
+      `“${title}” will be permanently deleted. This can't be undone.`,
     cancel: 'Cancel',
   },
 })
@@ -155,9 +157,7 @@ export function DraftsList({ drafts }: DraftsListProps) {
         }}
         title={copy.deleteTitle}
         description={
-          pendingDelete
-            ? copy.deleteConfirm(localizeTitle(pendingDelete.title, locale))
-            : undefined
+          pendingDelete ? copy.deleteConfirm(localizeTitle(pendingDelete.title, locale)) : undefined
         }
         footer={
           <>

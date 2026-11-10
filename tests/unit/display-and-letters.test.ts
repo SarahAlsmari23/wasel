@@ -25,7 +25,10 @@ describe('locale helpers', () => {
 describe('display helpers', () => {
   it('localizes stored placeholder titles only', () => {
     assert.equal(localizeTitle('إعداد بلاغ جديد', 'en'), 'New complaint')
-    assert.equal(localizeTitle('انقطاع الكهرباء في حي النرجس', 'en'), 'انقطاع الكهرباء في حي النرجس')
+    assert.equal(
+      localizeTitle('انقطاع الكهرباء في حي النرجس', 'en'),
+      'انقطاع الكهرباء في حي النرجس',
+    )
     assert.equal(localizeTitle('إعداد بلاغ جديد', 'ar'), 'إعداد بلاغ جديد')
   })
 

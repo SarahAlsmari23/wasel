@@ -82,7 +82,11 @@ export const GOVERNMENT_ENTITIES: GovernmentEntity[] = [
       sector: 'Municipal services',
       description: 'Responsible for municipal services, roads, public facilities and cleanliness.',
       categories: ['Service delays', 'Cleanliness and maintenance', 'Municipal violations'],
-      requiredDocuments: ['A photo showing the problem', 'The location or address', 'Any previous request number'],
+      requiredDocuments: [
+        'A photo showing the problem',
+        'The location or address',
+        'Any previous request number',
+      ],
       submissionSteps: [
         'Sign in to the Balady platform with the National Single Sign-On (Nafath).',
         'Choose “Reports” and then the matching report type.',
@@ -115,7 +119,11 @@ export const GOVERNMENT_ENTITIES: GovernmentEntity[] = [
       sector: 'Water',
       description: 'Responsible for water and wastewater services and billing.',
       categories: ['Bill dispute', 'Service outage', 'Water leak'],
-      requiredDocuments: ['A copy of the disputed bill', 'Account or meter number', 'The current meter reading'],
+      requiredDocuments: [
+        'A copy of the disputed bill',
+        'Account or meter number',
+        'The current meter reading',
+      ],
       submissionSteps: [
         'Sign in to your account on the National Water Company platform.',
         'Choose “Submit a complaint” and select the complaint type.',
@@ -146,9 +154,14 @@ export const GOVERNMENT_ENTITIES: GovernmentEntity[] = [
     en: {
       name: 'Saudi Energy (SE)',
       sector: 'Electricity',
-      description: 'Responsible for electricity generation, transmission and distribution (formerly Saudi Electricity Company).',
+      description:
+        'Responsible for electricity generation, transmission and distribution (formerly Saudi Electricity Company).',
       categories: ['Service outage', 'Bill dispute', 'Lighting faults'],
-      requiredDocuments: ['Electricity account number', 'A copy of the bill, for billing disputes', 'A description of the fault location'],
+      requiredDocuments: [
+        'Electricity account number',
+        'A copy of the bill, for billing disputes',
+        'A description of the fault location',
+      ],
       submissionSteps: [
         'Open the Saudi Energy e-services.',
         'Choose “Complaints and reports”.',
@@ -179,7 +192,8 @@ export const GOVERNMENT_ENTITIES: GovernmentEntity[] = [
     en: {
       name: 'Communications, Space & Technology Commission (CST)',
       sector: 'Telecommunications',
-      description: 'The regulator of the telecommunications and internet services sector in the Kingdom.',
+      description:
+        'The regulator of the telecommunications and internet services sector in the Kingdom.',
       categories: ['Weak coverage', 'Bill dispute', 'Service quality'],
       requiredDocuments: [
         'The complaint number previously filed with the service provider',
@@ -218,7 +232,11 @@ export const GOVERNMENT_ENTITIES: GovernmentEntity[] = [
       sector: 'Commerce and consumer protection',
       description: 'Responsible for consumer protection and oversight of markets and businesses.',
       categories: ['Consumer protection', 'Refused refund or compensation', 'Commercial fraud'],
-      requiredDocuments: ['The invoice or proof of purchase', 'Evidence of correspondence with the store', 'Photos of the product, if any'],
+      requiredDocuments: [
+        'The invoice or proof of purchase',
+        'Evidence of correspondence with the store',
+        'Photos of the product, if any',
+      ],
       submissionSteps: [
         'Open the Ministry of Commerce platform or the “Tejarah” app.',
         'Choose “Submit a report” and select the violation type.',
@@ -250,7 +268,10 @@ export function localizeEntity(
 }
 
 /** English official name for a stored Arabic authority name, when known. */
-export function entityDisplayName(arabicName: string | null | undefined, locale: 'ar' | 'en'): string {
+export function entityDisplayName(
+  arabicName: string | null | undefined,
+  locale: 'ar' | 'en',
+): string {
   if (!arabicName) return ''
   if (locale === 'ar') return arabicName
   return getGovernmentEntityByName(arabicName)?.en.name ?? arabicName

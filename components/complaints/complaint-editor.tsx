@@ -129,7 +129,13 @@ export function ComplaintEditor({ complaintId, isOpen, onClose, onUpdated }: Com
   }
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={copy.title} description={copy.description} className="sm:max-w-lg">
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title={copy.title}
+      description={copy.description}
+      className="sm:max-w-lg"
+    >
       {loadError ? (
         <p role="alert" className="text-danger text-sm">
           {loadError}

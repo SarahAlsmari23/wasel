@@ -1,6 +1,15 @@
 'use client'
 
-import { Download, KeyRound, Languages, Monitor, Moon, ShieldCheck, Sun, Trash2 } from 'lucide-react'
+import {
+  Download,
+  KeyRound,
+  Languages,
+  Monitor,
+  Moon,
+  ShieldCheck,
+  Sun,
+  Trash2,
+} from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useState, useTransition } from 'react'
@@ -188,7 +197,12 @@ export function SettingsView() {
           title={copy.changePassword}
           description={copy.changePasswordDescription}
           action={
-            <Button type="button" variant="outline" size="sm" onClick={() => setIsPasswordOpen(true)}>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setIsPasswordOpen(true)}
+            >
               {copy.change}
             </Button>
           }

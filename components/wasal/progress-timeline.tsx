@@ -30,7 +30,13 @@ const COPY = defineCopy({
   },
 })
 
-const STAGE_ORDER: ComplaintProgressStage[] = ['analysis', 'entity', 'summary', 'ready', 'submitted']
+const STAGE_ORDER: ComplaintProgressStage[] = [
+  'analysis',
+  'entity',
+  'summary',
+  'ready',
+  'submitted',
+]
 
 const DOT_CLASSES: Record<ProgressStageState, string> = {
   done: 'bg-status-completed text-white',

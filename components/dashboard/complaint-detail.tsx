@@ -63,7 +63,8 @@ const COPY = defineCopy({
     copyFailed: "Couldn't copy the complaint. Please try again.",
     details: 'Details',
     reference: 'Internal reference',
-    referenceNotice: 'An internal Wasel reference — not the complaint number at the government authority.',
+    referenceNotice:
+      'An internal Wasel reference — not the complaint number at the government authority.',
     created: 'Created',
     updated: 'Last updated',
     submittedOn: 'Submitted on',
@@ -315,7 +316,7 @@ function DetailRow({ label, value, ltr = false }: { label: string; value: string
   return (
     <div className="flex items-baseline justify-between gap-3">
       <span className="text-muted-foreground shrink-0 text-xs">{label}</span>
-      <span dir={ltr ? 'ltr' : undefined} className="text-foreground tabular-nums text-end text-sm">
+      <span dir={ltr ? 'ltr' : undefined} className="text-foreground text-end text-sm tabular-nums">
         {value}
       </span>
     </div>

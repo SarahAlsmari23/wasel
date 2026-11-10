@@ -171,11 +171,7 @@ export function ComplaintsBrowser({ complaints }: ComplaintsBrowserProps) {
       </div>
 
       {visible.length === 0 ? (
-        <EmptyState
-          icon={FileText}
-          title={copy.noResults}
-          description={copy.noResultsHint}
-        />
+        <EmptyState icon={FileText} title={copy.noResults} description={copy.noResultsHint} />
       ) : (
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {visible.map((complaint) => {
@@ -225,7 +221,7 @@ export function ComplaintsBrowser({ complaints }: ComplaintsBrowserProps) {
                 <div className="text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
                   <span
                     dir="ltr"
-                    className="bg-secondary/10 text-secondary tabular-nums rounded-full px-2 py-0.5 font-medium"
+                    className="bg-secondary/10 text-secondary rounded-full px-2 py-0.5 font-medium tabular-nums"
                   >
                     {complaint.referenceNumber}
                   </span>

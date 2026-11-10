@@ -39,7 +39,8 @@ export type AssistantResult = {
   intent?: ChatIntent
 }
 
-export type AssistantFailureKind = 'rate_limited' | 'unavailable' | 'timeout' | 'network' | 'invalid'
+export type AssistantFailureKind =
+  'rate_limited' | 'unavailable' | 'timeout' | 'network' | 'invalid'
 
 /**
  * Thrown whenever a genuine AI answer could not be obtained. There is
@@ -126,7 +127,9 @@ export async function requestAssistantAnswer({
     }
 
     const serverMessage =
-      payload && typeof payload === 'object' && typeof (payload as { error?: unknown }).error === 'string'
+      payload &&
+      typeof payload === 'object' &&
+      typeof (payload as { error?: unknown }).error === 'string'
         ? (payload as { error: string }).error
         : undefined
     throw new AssistantRequestError(

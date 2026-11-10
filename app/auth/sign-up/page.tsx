@@ -254,11 +254,7 @@ function SignUpForm() {
           />
         </Field>
 
-        <Field
-          htmlFor="password"
-          label={copy.password}
-          hint={copy.passwordHint}
-        >
+        <Field htmlFor="password" label={copy.password} hint={copy.passwordHint}>
           <TextInput
             id="password"
             name="password"

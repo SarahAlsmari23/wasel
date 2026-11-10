@@ -90,7 +90,8 @@ const CHAT_COPY = defineCopy({
     typing: 'واصل يكتب...',
     failure: {
       rate_limited: 'تجاوزت الحد المسموح من الرسائل مؤقتاً. انتظر دقيقة ثم أعد المحاولة.',
-      unavailable: 'المساعد الذكي غير متاح حالياً، ولم يتم توليد أي إجابة. رسالتك محفوظة — أعد المحاولة بعد قليل.',
+      unavailable:
+        'المساعد الذكي غير متاح حالياً، ولم يتم توليد أي إجابة. رسالتك محفوظة — أعد المحاولة بعد قليل.',
       timeout: 'استغرق الرد وقتاً أطول من المعتاد ولم يكتمل. رسالتك محفوظة — أعد المحاولة.',
       network: 'تعذر الاتصال بالخادم. تحقق من اتصالك بالإنترنت ثم أعد المحاولة.',
       invalid: 'تعذر معالجة هذه الرسالة. عدّل صياغتها ثم أعد المحاولة.',
@@ -128,7 +129,8 @@ const CHAT_COPY = defineCopy({
       rate_limited: "You've reached the temporary message limit. Wait a minute, then try again.",
       unavailable:
         'The AI assistant is unavailable right now, and no answer was generated. Your message is kept — please try again shortly.',
-      timeout: 'The response took longer than usual and did not complete. Your message is kept — please try again.',
+      timeout:
+        'The response took longer than usual and did not complete. Your message is kept — please try again.',
       network: "Couldn't reach the server. Check your internet connection and try again.",
       invalid: "This message couldn't be processed. Please rephrase it and try again.",
     } satisfies Record<AssistantFailureKind, string>,
@@ -1542,9 +1544,7 @@ export function WasalChat({
       // Collected fields, analysis, and the conversation itself are never
       // touched here — a retry (below) simply calls this same function again.
       setCreateComplaintError(
-        error instanceof ActionTimeoutError
-          ? copy.createTimeout
-          : copy.unexpectedError,
+        error instanceof ActionTimeoutError ? copy.createTimeout : copy.unexpectedError,
       )
     } finally {
       setIsCreatingComplaint(false)
@@ -1639,7 +1639,9 @@ export function WasalChat({
                 {copy.preparingComplaint}
               </span>
             ) : (
-              <span className="text-muted-foreground text-sm font-medium">{copy.assistantLabel}</span>
+              <span className="text-muted-foreground text-sm font-medium">
+                {copy.assistantLabel}
+              </span>
             )}
           </div>
 
@@ -1680,9 +1682,7 @@ export function WasalChat({
           apply. */}
       <div className="flex-1 px-4 py-6 sm:px-6 lg:col-start-1 lg:row-start-2 lg:min-h-0 lg:overflow-y-auto">
         <div className="mx-auto flex w-full max-w-3xl flex-col gap-5">
-          {isEmpty && status === 'idle' ? (
-            <ChatEmptyState />
-          ) : null}
+          {isEmpty && status === 'idle' ? <ChatEmptyState /> : null}
 
           {messages.map((message) => (
             <ChatMessage
@@ -1736,7 +1736,7 @@ export function WasalChat({
           // the header/messages/composer column, scrolling independently via
           // `lg:overflow-y-auto` exactly as before. No fixed/absolute/sticky
           // positioning anywhere at any breakpoint.
-          <aside className="border-border w-full max-w-full shrink-0 border-t p-4 sm:p-6 lg:col-start-2 lg:row-span-3 lg:row-start-1 lg:w-96 lg:overflow-y-auto lg:border-t-0 lg:border-s">
+          <aside className="border-border w-full max-w-full shrink-0 border-t p-4 sm:p-6 lg:col-start-2 lg:row-span-3 lg:row-start-1 lg:w-96 lg:overflow-y-auto lg:border-s lg:border-t-0">
             <div className="flex flex-col gap-4">
               {status === 'analyzing' ? (
                 <RecommendationSkeleton />

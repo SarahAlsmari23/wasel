@@ -377,7 +377,9 @@ body {
       color-mix(in srgb, var(--color-surface) 92%, transparent) 100%
     ),
     var(--canvas-image);
-  background-position: center, center 35%;
+  background-position:
+    center,
+    center 35%;
   background-size: cover, cover;
   background-repeat: no-repeat;
 }
