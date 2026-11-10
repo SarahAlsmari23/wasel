@@ -279,6 +279,23 @@ export async function getUserConversations(
   )
 }
 
+/**
+ * Counts the caller's conversations without reading them (RLS-scoped, like
+ * getUserConversations). The dashboard only shows the number, so it must not
+ * pay for every conversation row plus every message used for previews.
+ */
+export async function countUserConversations(supabase: SupabaseServerClient): Promise<number> {
+  const { count, error } = await supabase
+    .from('conversations')
+    .select('id', { count: 'exact', head: true })
+
+  if (error || count === null) {
+    throw new Error('Failed to count conversations.')
+  }
+
+  return count
+}
+
 export type DraftRecord = {
   /** The conversation's own id — a draft has no complaint row yet, so this
    * doubles as the id used for both "continue" (resume) and delete. */

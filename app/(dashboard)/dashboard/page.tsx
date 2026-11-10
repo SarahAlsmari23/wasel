@@ -6,7 +6,7 @@ import { RecentActivity } from '@/components/dashboard/recent-activity'
 import { StatCard } from '@/components/dashboard/stat-card'
 import { getUserProfile } from '@/lib/auth/user-profile'
 import { getUserComplaints } from '@/lib/db/complaints'
-import { getUserConversations, getUserDrafts } from '@/lib/db/conversations'
+import { countUserConversations, getUserDrafts } from '@/lib/db/conversations'
 import { defineCopy } from '@/lib/i18n/config'
 import { getLocale } from '@/lib/i18n/server'
 import { createClient } from '@/lib/supabase/server'
@@ -55,13 +55,13 @@ export default async function DashboardPage() {
   const greetingName = profile?.firstName ?? copy.greetingFallback
 
   // Three independent, RLS-scoped reads — no service role, no fabricated content.
-  const [conversations, complaints, drafts] = user
+  const [conversationCount, complaints, drafts] = user
     ? await Promise.all([
-        getUserConversations(supabase),
+        countUserConversations(supabase),
         getUserComplaints(supabase),
         getUserDrafts(supabase),
       ])
-    : [[], [], []]
+    : [0, [], []]
 
   const latestDraft = drafts.at(0)
 
@@ -112,7 +112,7 @@ export default async function DashboardPage() {
           />
           <StatCard
             label={copy.conversations}
-            value={conversations.length}
+            value={conversationCount}
             icon={MessagesSquare}
             href="/dashboard/conversations"
             locale={locale}
