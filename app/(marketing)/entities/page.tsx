@@ -76,11 +76,13 @@ export default async function EntitiesPage() {
         description={copy.description}
       />
 
-      <Reveal className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {GOVERNMENT_ENTITIES.map((entity) => (
-          <AuthorityCard key={entity.id} entity={entity} locale={locale} showLink />
+      <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+        {GOVERNMENT_ENTITIES.map((entity, index) => (
+          <Reveal key={entity.id} delay={index * 0.06}>
+            <AuthorityCard entity={entity} locale={locale} showLink />
+          </Reveal>
         ))}
-      </Reveal>
+      </div>
     </div>
   )
 }

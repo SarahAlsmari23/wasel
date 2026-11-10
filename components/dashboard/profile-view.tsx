@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useState, type FormEvent } from 'react'
 import { UserAvatar } from '@/components/dashboard/user-avatar'
 import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
 import { Field, TextInput } from '@/components/ui/field'
 import { Modal } from '@/components/ui/modal'
 import { useToast } from '@/components/ui/toast'
@@ -115,18 +116,15 @@ export function ProfileView({ profile }: ProfileViewProps) {
 
   return (
     <>
-      {/* Identity: one horizontal row — avatar, name and email, then actions. */}
-      <div className="wasel-brand-band border-border flex flex-col gap-5 rounded-2xl border p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
-        <div className="flex min-w-0 items-center gap-4">
-          <UserAvatar name={profile.name} size="lg" />
-          <div className="min-w-0">
-            <h2 className="text-heading truncate text-lg font-semibold">{profile.name}</h2>
-            <p className="text-muted-foreground truncate text-sm" dir="ltr">
-              {profile.email}
-            </p>
-          </div>
+      <Card className="flex flex-col items-center gap-4 p-8 text-center">
+        <UserAvatar name={profile.name} size="lg" />
+        <div>
+          <h2 className="text-heading text-lg font-semibold">{profile.name}</h2>
+          <p className="text-muted-foreground text-sm" dir="ltr">
+            {profile.email}
+          </p>
         </div>
-        <div className="flex flex-col gap-2 sm:flex-row">
+        <div className="mt-2 flex flex-col gap-2 sm:flex-row">
           <Button type="button" variant="primary" size="sm" onClick={() => setIsEditOpen(true)}>
             <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
             {copy.edit}
@@ -136,22 +134,20 @@ export function ProfileView({ profile }: ProfileViewProps) {
             {copy.changePassword}
           </Button>
         </div>
-      </div>
+      </Card>
 
-      <section className="flex flex-col gap-3">
+      <Card className="flex flex-col gap-4">
         <h2 className="text-heading text-sm font-semibold">{copy.accountDetails}</h2>
-        <dl className="bg-surface border-border divide-border divide-y rounded-2xl border">
-          <InfoRow label={copy.fullName} value={profile.name} />
-          <InfoRow label={copy.email} value={profile.email} isLtr />
-          <InfoRow
-            label={copy.phone}
-            value={profile.phone === NOT_PROVIDED ? copy.notProvided : profile.phone}
-            isLtr={profile.phone !== NOT_PROVIDED}
-          />
-          <InfoRow label={copy.createdAt} value={formatDate(profile.createdAt, locale)} />
-          <InfoRow label={copy.language} value={copy.languageName} />
-        </dl>
-      </section>
+        <InfoRow label={copy.fullName} value={profile.name} />
+        <InfoRow label={copy.email} value={profile.email} isLtr />
+        <InfoRow
+          label={copy.phone}
+          value={profile.phone === NOT_PROVIDED ? copy.notProvided : profile.phone}
+          isLtr={profile.phone !== NOT_PROVIDED}
+        />
+        <InfoRow label={copy.createdAt} value={formatDate(profile.createdAt, locale)} />
+        <InfoRow label={copy.language} value={copy.languageName} />
+      </Card>
 
       <Modal
         isOpen={isEditOpen}
@@ -214,11 +210,11 @@ function InfoRow({
   isLtr?: boolean
 }) {
   return (
-    <div className="grid gap-1 px-5 py-3.5 sm:grid-cols-[12rem_minmax(0,1fr)] sm:items-baseline sm:gap-4">
-      <dt className="text-muted-foreground text-xs sm:text-sm">{label}</dt>
-      <dd className="text-heading min-w-0 truncate text-sm font-medium">
-        <span dir={isLtr ? 'ltr' : undefined}>{value}</span>
-      </dd>
+    <div className="border-border flex flex-wrap items-baseline justify-between gap-2 border-b pb-3 last:border-0 last:pb-0">
+      <span className="text-muted-foreground text-xs">{label}</span>
+      <span className="text-foreground text-sm" dir={isLtr ? 'ltr' : undefined}>
+        {value}
+      </span>
     </div>
   )
 }

@@ -164,7 +164,7 @@ function SignUpForm() {
       // Supabase project. Otherwise the user must click the emailed link first.
       if (data.session) {
         showToast(copy.created)
-        router.push(nextPath)
+        router.replace(nextPath)
         router.refresh()
         return
       }

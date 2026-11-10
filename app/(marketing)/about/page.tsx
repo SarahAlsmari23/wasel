@@ -1,6 +1,4 @@
 import type { Metadata } from 'next'
-import { ShieldCheck } from 'lucide-react'
-import Link from 'next/link'
 import { AboutSection } from '@/components/marketing/about-section'
 import { CtaSection } from '@/components/marketing/cta-section'
 import { HowItWorks } from '@/components/marketing/how-it-works'
@@ -15,7 +13,7 @@ const COPY = defineCopy({
     metaTitle: 'عن واصل',
     metaDescription: 'تعرّف على واصل، ولماذا أُنشئ، وكيف يعمل.',
     title: 'عن واصل',
-    lead: 'واصل منصة تعتمد على الذكاء الاصطناعي لمساعدتك في فهم شكواك، وتحديد الجهة الحكومية المختصة، وصياغة بلاغ احترافي جاهز للتقديم — باختصار الوقت والجهد.',
+    lead: 'واصل منصة ذكية تعتمد على الذكاء الاصطناعي لمساعدتك في فهم شكواك، وتحديد الجهة الحكومية المختصة، وصياغة بلاغ احترافي جاهز للتقديم — باختصار الوقت والجهد.',
     whyEyebrow: 'لماذا واصل؟',
     whyTitle: 'ثلاث مشكلات تحلّها المنصة',
     whyDescription: 'صُمّم واصل لمعالجة أكثر ما يعطّل وصول البلاغات إلى حلّ.',
@@ -36,15 +34,7 @@ const COPY = defineCopy({
           'يسأل واصل عمّا ينقص بلاغك قبل إرساله، ويوضح لك المستندات المطلوبة وخطوات التقديم لدى كل جهة.',
       },
     ],
-    responsibleTitle: 'ذكاء اصطناعي مسؤول',
-    responsible: [
-      'واصل مساعد ذكي وليس جهة حكومية، ولا يقدّم البلاغ نيابةً عنك — أنت من يراجع البلاغ ويقدّمه عبر القناة الرسمية.',
-      'يعتمد واصل في معلومات الجهات على مصادر رسمية موثّقة، ويصرّح بوضوح عندما لا تتوفر لديه معلومة موثوقة بدلاً من التخمين.',
-      'لا يقدّم واصل استشارات قانونية، وقد يخطئ؛ راجع البلاغ وتحقق من المعلومات قبل تقديمه.',
-    ],
-    privacyLink: 'اطّلع على سياسة الخصوصية',
     howTitle: 'كيف يعمل واصل؟',
-    howEyebrow: 'الخطوات',
   },
   en: {
     metaTitle: 'About Wasel',
@@ -72,15 +62,7 @@ const COPY = defineCopy({
           "Wasel asks for what your complaint is missing before you submit it, and explains each authority's required documents and submission steps.",
       },
     ],
-    responsibleTitle: 'Responsible AI',
-    responsible: [
-      'Wasel is an AI assistant, not a government authority, and it never submits complaints on your behalf — you review the complaint and submit it yourself through the official channel.',
-      "Authority information comes from verified official sources, and Wasel says so plainly when it doesn't have reliable information instead of guessing.",
-      'Wasel does not provide legal advice and can make mistakes; review the complaint and verify the details before you submit it.',
-    ],
-    privacyLink: 'Read the privacy policy',
     howTitle: 'How does Wasel work?',
-    howEyebrow: 'The steps',
   },
 })
 
@@ -94,12 +76,14 @@ export default async function AboutPage() {
 
   return (
     <div className="flex flex-col gap-24 pb-24 md:gap-28">
-      {/* Hero + purpose cards share a tighter gap than the rest of the page. */}
-      <div className="flex flex-col gap-6 md:gap-8">
+      {/*
+        Hero + the purpose cards share a smaller, dedicated gap than the rest
+        of the page's sections (gap-24/28 below).
+      */}
+      <div className="flex flex-col gap-16 md:gap-20">
         <section>
           <div className="mx-auto flex max-w-4xl flex-col gap-5 px-5 pt-16 pb-6 text-center md:px-6 md:pt-24 md:pb-8">
-            <span className="eyebrow animate-fade-in self-center">واصل · Wasel</span>
-            <h1 className="font-arabic text-heading animate-fade-up text-4xl font-semibold text-balance sm:text-5xl">
+            <h1 className="font-arabic text-primary animate-fade-up text-4xl font-semibold text-balance sm:text-5xl">
               {copy.title}
             </h1>
             <p className="text-muted-foreground animate-fade-up text-base leading-relaxed text-pretty [animation-delay:100ms] sm:text-lg">
@@ -118,46 +102,24 @@ export default async function AboutPage() {
           description={copy.whyDescription}
         />
 
-        <Reveal className="mt-10 grid gap-x-8 gap-y-2 md:grid-cols-3">
+        <div className="mt-10 grid gap-5 md:grid-cols-3">
           {copy.reasons.map((reason, index) => (
-            <div
-              key={reason.title}
-              className="border-border flex flex-col gap-2 border-t pt-6 md:pt-7"
-            >
-              <span className="text-primary text-xs font-semibold tabular-nums">0{index + 1}</span>
-              <h3 className="text-heading text-base font-semibold">{reason.title}</h3>
-              <p className="text-muted-foreground text-sm leading-relaxed">{reason.description}</p>
-            </div>
+            <Reveal key={reason.title} delay={index * 0.08}>
+              <Card className="flex h-full flex-col gap-3">
+                <h3 className="text-heading text-base font-semibold">{reason.title}</h3>
+                <p className="text-muted-foreground text-sm leading-relaxed">
+                  {reason.description}
+                </p>
+              </Card>
+            </Reveal>
           ))}
-        </Reveal>
-      </section>
-
-      <section className="mx-auto w-full max-w-4xl px-5 md:px-6">
-        <Reveal>
-          <Card className="border-primary/20 flex flex-col gap-4 border-s-4">
-            <div className="flex items-center gap-3">
-              <span className="bg-surface-tint text-primary flex h-10 w-10 items-center justify-center rounded-xl">
-                <ShieldCheck className="h-5 w-5" aria-hidden="true" />
-              </span>
-              <h2 className="text-heading text-lg font-semibold">{copy.responsibleTitle}</h2>
-            </div>
-            <ul className="text-muted-foreground flex list-disc flex-col gap-2 ps-5 text-sm leading-relaxed">
-              {copy.responsible.map((item) => (
-                <li key={item}>{item}</li>
-              ))}
-            </ul>
-            <Link
-              href="/privacy"
-              className="text-primary hover:text-primary-hover text-sm font-medium transition-colors"
-            >
-              {copy.privacyLink}
-            </Link>
-          </Card>
-        </Reveal>
+        </div>
       </section>
 
       <section className="mx-auto w-full max-w-6xl px-5 md:px-6">
-        <SectionHeading eyebrow={copy.howEyebrow} title={copy.howTitle} />
+        <h3 className="text-heading text-center text-xl font-semibold sm:text-2xl">
+          {copy.howTitle}
+        </h3>
 
         <Reveal className="mt-8">
           <HowItWorks />

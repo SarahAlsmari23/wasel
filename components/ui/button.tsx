@@ -7,14 +7,14 @@ export type ButtonSize = 'sm' | 'md' | 'lg'
 
 const VARIANT_CLASSES: Record<ButtonVariant, string> = {
   primary:
-    'bg-primary text-primary-foreground shadow-soft hover:bg-primary-hover hover:shadow-lift active:bg-primary-pressed active:shadow-soft',
+    'bg-primary text-primary-foreground shadow-soft hover:bg-primary-hover hover:shadow-lift active:translate-y-px',
   secondary:
-    'bg-secondary text-secondary-foreground shadow-soft hover:bg-secondary/90 active:bg-secondary/80',
+    'bg-secondary text-secondary-foreground shadow-soft hover:bg-secondary/90 active:translate-y-px',
   outline:
-    'border border-border bg-surface text-heading hover:border-primary/35 hover:bg-surface-tint hover:text-primary active:bg-primary/10',
-  danger: 'bg-danger text-danger-foreground shadow-soft hover:bg-danger/90 active:bg-danger/80',
-  ghost: 'text-foreground hover:bg-surface-tint hover:text-primary active:bg-primary/10',
-  subtle: 'bg-surface-tint text-primary hover:bg-primary/12 active:bg-primary/16',
+    'border border-border bg-surface text-heading hover:border-primary/30 hover:bg-surface-tint hover:text-primary',
+  danger: 'bg-danger text-danger-foreground shadow-soft hover:bg-danger/90 active:translate-y-px',
+  ghost: 'text-foreground hover:bg-surface-tint hover:text-primary',
+  subtle: 'bg-surface-tint text-primary hover:bg-primary/12',
 }
 
 const SIZE_CLASSES: Record<ButtonSize, string> = {
@@ -33,10 +33,7 @@ export function buttonClasses(
   className = '',
 ): string {
   return cn(
-    // Colour/shadow/transform only (never `all`), so layout never animates;
-    // a 1px press offset gives tactile feedback without bouncing.
-    'inline-flex shrink-0 items-center justify-center gap-2 rounded-xl font-medium select-none',
-    'transition-[background-color,border-color,color,box-shadow,transform] duration-200 ease-[var(--ease-out-soft)] active:translate-y-px',
+    'inline-flex shrink-0 items-center justify-center gap-2 rounded-xl font-medium transition-all duration-200',
     'disabled:pointer-events-none disabled:opacity-50',
     VARIANT_CLASSES[variant],
     SIZE_CLASSES[size],

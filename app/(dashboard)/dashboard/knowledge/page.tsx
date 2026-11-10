@@ -2,12 +2,27 @@ import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { PageHeader } from '@/components/dashboard/page-header'
 import { KnowledgeDocumentList } from '@/components/knowledge/knowledge-document-list'
+import { defineCopy } from '@/lib/i18n/config'
+import { getLocale } from '@/lib/i18n/server'
 import { MOCK_KNOWLEDGE_DOCUMENTS } from '@/lib/mock/knowledge-documents'
 
-export const metadata: Metadata = {
-  title: 'إدارة المعرفة',
-  // Reachable by direct URL only — keep it out of search results too.
-  robots: { index: false, follow: false },
+const COPY = defineCopy({
+  ar: {
+    title: 'إدارة المعرفة',
+    description: 'مستندات قاعدة المعرفة المستخدمة في الإجابة على الاستفسارات. صفحة مخصصة للإدارة.',
+  },
+  en: {
+    title: 'Knowledge management',
+    description: 'Knowledge-base documents used to answer enquiries. For administrators.',
+  },
+})
+
+export async function generateMetadata(): Promise<Metadata> {
+  return {
+    title: COPY[await getLocale()].title,
+    // Reachable by direct URL only — keep it out of search results too.
+    robots: { index: false, follow: false },
+  }
 }
 
 /**
@@ -21,14 +36,12 @@ export const metadata: Metadata = {
  * so it is only available in local development — never in a production
  * deployment, where it could be mistaken for real data.
  */
-export default function KnowledgePage() {
+export default async function KnowledgePage() {
   if (process.env.NODE_ENV === 'production') notFound()
+  const copy = COPY[await getLocale()]
   return (
     <div className="animate-fade-in mx-auto flex w-full max-w-4xl flex-col gap-8">
-      <PageHeader
-        title="إدارة المعرفة"
-        description="مستندات قاعدة المعرفة المستخدمة في الإجابة على الاستفسارات. صفحة مخصصة للإدارة."
-      />
+      <PageHeader title={copy.title} description={copy.description} />
       <KnowledgeDocumentList documents={MOCK_KNOWLEDGE_DOCUMENTS} />
     </div>
   )

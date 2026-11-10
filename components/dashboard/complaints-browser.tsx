@@ -6,6 +6,7 @@ import { useMemo, useState } from 'react'
 import { GovernmentLogo } from '@/components/government/government-logo'
 import { Badge } from '@/components/ui/badge'
 import { buttonClasses } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
 import { EmptyState } from '@/components/ui/empty-state'
 import { Select } from '@/components/ui/field'
 import { SearchInput } from '@/components/ui/search-input'
@@ -41,7 +42,7 @@ const COPY = defineCopy({
     noResultsHint: 'جرّب تعديل كلمات البحث أو تغيير التصفية.',
     created: 'أُنشئ',
     updated: 'آخر تحديث',
-    open: 'فتح البلاغ',
+    open: 'فتح',
   },
   en: {
     filters: {
@@ -65,7 +66,7 @@ const COPY = defineCopy({
     noResultsHint: 'Try different search words or another filter.',
     created: 'Created',
     updated: 'Last updated',
-    open: 'Open complaint',
+    open: 'Open',
   },
 })
 
@@ -172,7 +173,7 @@ export function ComplaintsBrowser({ complaints }: ComplaintsBrowserProps) {
       {visible.length === 0 ? (
         <EmptyState icon={FileText} title={copy.noResults} description={copy.noResultsHint} />
       ) : (
-        <ul className="bg-surface border-border divide-border divide-y overflow-hidden rounded-2xl border">
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {visible.map((complaint) => {
             const displayTitle = getDisplayTitle(
               { title: complaint.title, complaintSubject: complaint.subject },
@@ -188,52 +189,53 @@ export function ComplaintsBrowser({ complaints }: ComplaintsBrowserProps) {
               : undefined
 
             return (
-              <li
-                key={complaint.id}
-                className="group hover:bg-primary/4 relative transition-colors duration-200"
-              >
-                <div className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:gap-5 sm:px-5">
-                  <div className="flex min-w-0 flex-1 items-start gap-3.5 sm:items-center">
-                    <GovernmentLogo iconKey={entity?.iconKey} size="sm" />
-                    <div className="min-w-0 flex-1">
-                      <h3
-                        dir="auto"
-                        className="text-match-parent text-heading text-sm leading-snug font-semibold"
-                      >
-                        <Link
-                          href={`/dashboard/complaints/${complaint.id}`}
-                          className="group-hover:text-primary transition-colors after:absolute after:inset-0"
-                        >
-                          {displayTitle}
-                        </Link>
-                      </h3>
-                      <p className="text-muted-foreground mt-1 truncate text-xs">
-                        {entityDisplayName(complaint.entityName, locale)}
-                        <span aria-hidden="true"> · </span>
-                        <span dir="ltr" className="tabular-nums">
-                          {complaint.referenceNumber}
-                        </span>
-                      </p>
-                    </div>
+              <Card key={complaint.id} interactive className="flex h-full flex-col gap-4 p-5">
+                <div className="flex items-start gap-3">
+                  <GovernmentLogo iconKey={entity?.iconKey} size="sm" />
+                  <div className="min-w-0 flex-1">
+                    <h3
+                      dir="auto"
+                      className="text-match-parent text-heading text-sm leading-snug font-semibold text-balance"
+                    >
+                      {displayTitle}
+                    </h3>
+                    <p className="text-muted-foreground mt-1 truncate text-xs">
+                      {entityDisplayName(complaint.entityName, locale)}
+                    </p>
                   </div>
-
-                  <div className="text-muted-foreground flex items-center justify-between gap-4 ps-12 text-xs sm:justify-end sm:ps-0">
-                    <span className="sm:w-36 sm:text-end">
-                      <span className="sr-only">{copy.updated}: </span>
-                      {formatDate(complaint.updatedAt, locale)}
-                    </span>
-                    <span className="sm:w-32 sm:text-end">
-                      <Badge variant={presentation.badgeVariant}>
-                        <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-current" />
-                        {presentation.label}
-                      </Badge>
-                    </span>
-                  </div>
+                  <Badge variant={presentation.badgeVariant}>
+                    <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-current" />
+                    {presentation.label}
+                  </Badge>
                 </div>
-              </li>
+
+                <div className="text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+                  <span
+                    dir="ltr"
+                    className="bg-secondary/10 text-secondary rounded-full px-2 py-0.5 font-medium"
+                  >
+                    {complaint.referenceNumber}
+                  </span>
+                  <span>
+                    {copy.created}: {formatDate(complaint.createdAt, locale)}
+                  </span>
+                  <span>
+                    {copy.updated}: {formatDate(complaint.updatedAt, locale)}
+                  </span>
+                </div>
+
+                <div className="border-border mt-auto flex items-center gap-1 border-t pt-3">
+                  <Link
+                    href={`/dashboard/complaints/${complaint.id}`}
+                    className="text-foreground hover:bg-primary/6 inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium transition-colors"
+                  >
+                    {copy.open}
+                  </Link>
+                </div>
+              </Card>
             )
           })}
-        </ul>
+        </div>
       )}
     </div>
   )

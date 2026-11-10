@@ -1,15 +1,6 @@
 'use client'
 
-import {
-  Download,
-  KeyRound,
-  Languages,
-  Monitor,
-  Moon,
-  ShieldCheck,
-  Sun,
-  Trash2,
-} from 'lucide-react'
+import { Download, KeyRound, Monitor, Moon, ShieldCheck, Sun, Trash2 } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useState, useTransition } from 'react'
@@ -18,6 +9,7 @@ import { ChangePasswordModal } from '@/components/dashboard/profile-view'
 import { useCopy, useLocale } from '@/components/i18n/locale-provider'
 import { useTheme, type ThemePreference } from '@/components/theme/theme-provider'
 import { Button, buttonClasses } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
 import { Field, Select } from '@/components/ui/field'
 import { Modal } from '@/components/ui/modal'
 import { useToast } from '@/components/ui/toast'
@@ -33,9 +25,9 @@ import { cn } from '@/lib/utils/cn'
 
 const COPY = defineCopy({
   ar: {
-    general: 'اللغة',
-    generalDescription: 'لغة واجهة واصل وردود المساعد.',
-    language: 'لغة الواجهة',
+    general: 'عام',
+    generalDescription: 'تفضيلات اللغة.',
+    language: 'اللغة',
     appearance: 'المظهر',
     appearanceDescription: 'مظهر واجهة واصل.',
     themes: { light: 'الوضع الفاتح', dark: 'الوضع الداكن', system: 'حسب النظام' },
@@ -59,18 +51,18 @@ const COPY = defineCopy({
     downloaded: 'تم تنزيل بياناتك.',
     downloadFailed: 'تعذر تجهيز بياناتك. حاول مرة أخرى.',
     deleteAccount: 'حذف الحساب',
+    deleteShort: 'حذف',
     deleteAccountDescription: 'حذف حسابك وجميع بياناتك نهائياً.',
     deleteTitle: 'حذف الحساب غير متاح بعد',
     deleteBody:
       'حذف الحساب بالكامل ذاتياً غير متاح بعد في المنصة. يمكنك الآن حذف أي محادثة — مع رسائلها وتفاصيلها والبلاغ المرتبط بها — نهائياً من صفحة المحادثات.',
     goToConversations: 'الذهاب إلى المحادثات',
     close: 'إغلاق',
-    privacyPolicy: 'سياسة الخصوصية',
   },
   en: {
-    general: 'Language',
-    generalDescription: "The language of Wasel's interface and assistant replies.",
-    language: 'Interface language',
+    general: 'General',
+    generalDescription: 'Language preferences.',
+    language: 'Language',
     appearance: 'Appearance',
     appearanceDescription: "How Wasel's interface looks.",
     themes: { light: 'Light mode', dark: 'Dark mode', system: 'Match system' },
@@ -94,13 +86,13 @@ const COPY = defineCopy({
     downloaded: 'Your data was downloaded.',
     downloadFailed: "Your data couldn't be prepared. Please try again.",
     deleteAccount: 'Delete account',
+    deleteShort: 'Delete',
     deleteAccountDescription: 'Permanently delete your account and all your data.',
     deleteTitle: "Account deletion isn't available yet",
     deleteBody:
       "Full self-service account deletion isn't available in the platform yet. You can already permanently delete any conversation — with its messages, details and linked complaint — from the Conversations page.",
     goToConversations: 'Go to conversations',
     close: 'Close',
-    privacyPolicy: 'Privacy policy',
   },
 })
 
@@ -153,18 +145,15 @@ export function SettingsView() {
     <>
       <SettingsSection title={copy.general} description={copy.generalDescription}>
         <Field htmlFor="settings-language" label={copy.language}>
-          <div className="flex items-center gap-3">
-            <Languages className="text-muted-foreground h-4 w-4 shrink-0" aria-hidden="true" />
-            <Select
-              id="settings-language"
-              value={locale}
-              disabled={isSwitching}
-              onChange={(event) => changeLanguage(event.target.value as Locale)}
-            >
-              <option value="ar">العربية</option>
-              <option value="en">English</option>
-            </Select>
-          </div>
+          <Select
+            id="settings-language"
+            value={locale}
+            disabled={isSwitching}
+            onChange={(event) => changeLanguage(event.target.value as Locale)}
+          >
+            <option value="ar">العربية</option>
+            <option value="en">English</option>
+          </Select>
         </Field>
       </SettingsSection>
 
@@ -241,17 +230,11 @@ export function SettingsView() {
           description={copy.deleteAccountDescription}
           isDanger
           action={
-            <Button type="button" variant="outline" size="sm" onClick={() => setIsDeleteOpen(true)}>
-              {copy.deleteAccount}
+            <Button type="button" variant="danger" size="sm" onClick={() => setIsDeleteOpen(true)}>
+              {copy.deleteShort}
             </Button>
           }
         />
-        <Link
-          href="/privacy"
-          className="text-primary hover:text-primary-hover w-fit text-xs font-medium transition-colors"
-        >
-          {copy.privacyPolicy}
-        </Link>
       </SettingsSection>
 
       <ChangePasswordModal isOpen={isPasswordOpen} onClose={() => setIsPasswordOpen(false)} />
@@ -294,17 +277,13 @@ function SettingsSection({
   children: React.ReactNode
 }) {
   return (
-    // Two columns from lg: what the section is about on the start side, its
-    // controls in a single panel beside it — sections ruled, not boxed.
-    <section className="border-border grid gap-4 border-t pt-8 first-of-type:border-t-0 first-of-type:pt-2 lg:grid-cols-[15rem_minmax(0,1fr)] lg:gap-10">
+    <Card className="flex flex-col gap-5">
       <div>
-        <h2 className="text-heading text-base font-semibold">{title}</h2>
-        <p className="text-muted-foreground mt-1 text-sm leading-relaxed">{description}</p>
+        <h2 className="text-heading text-sm font-semibold">{title}</h2>
+        <p className="text-muted-foreground mt-0.5 text-xs">{description}</p>
       </div>
-      <div className="bg-surface border-border flex flex-col gap-5 rounded-2xl border p-5">
-        {children}
-      </div>
-    </section>
+      <div className="flex flex-col gap-5">{children}</div>
+    </Card>
   )
 }
 
@@ -322,12 +301,12 @@ function SettingsRow({
   isDanger?: boolean
 }) {
   return (
-    <div className="flex flex-wrap items-center justify-between gap-4">
-      <div className="flex min-w-0 flex-1 items-start gap-3">
+    <div className="flex items-center justify-between gap-4">
+      <div className="flex min-w-0 items-start gap-3">
         <span
           className={cn(
             'flex h-9 w-9 shrink-0 items-center justify-center rounded-xl',
-            isDanger ? 'bg-danger/8 text-danger' : 'bg-surface-tint text-primary',
+            isDanger ? 'bg-danger/8 text-danger' : 'bg-secondary/12 text-secondary',
           )}
         >
           <Icon className="h-4 w-4" aria-hidden="true" />
@@ -361,7 +340,7 @@ function ThemeOption({
       onClick={onSelect}
       aria-pressed={isActive}
       className={cn(
-        'flex items-center gap-3 rounded-xl border p-3.5 text-start transition-colors duration-200',
+        'flex items-center gap-3 rounded-xl border p-3.5 text-start transition-colors',
         isActive
           ? 'border-primary bg-surface-tint'
           : 'border-border hover:border-primary/30 hover:bg-surface-tint/60',

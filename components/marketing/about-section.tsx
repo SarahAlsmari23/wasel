@@ -1,17 +1,16 @@
 import { FileSignature, MessageSquareText } from 'lucide-react'
 import { HowItWorks } from '@/components/marketing/how-it-works'
 import { SectionHeading } from '@/components/marketing/section-heading'
+import { Card } from '@/components/ui/card'
 import { Reveal } from '@/components/ui/reveal'
 import { defineCopy } from '@/lib/i18n/config'
 import { getLocale } from '@/lib/i18n/server'
 
 const COPY = defineCopy({
   ar: {
-    eyebrow: 'عن واصل',
-    title: 'من وصف عادي إلى بلاغ رسمي واضح',
+    title: 'عن واصل',
     description:
       'واصل منصة ذكية تقف بين المستفيد والجهة الحكومية، لتحوّل شكوى مكتوبة بلغة عادية إلى بلاغ واضح موجّه إلى الجهة الصحيحة.',
-    howEyebrow: 'الخطوات',
     howTitle: 'كيف يعمل واصل؟',
     purposes: [
       {
@@ -27,11 +26,9 @@ const COPY = defineCopy({
     ],
   },
   en: {
-    eyebrow: 'About Wasel',
-    title: 'From everyday words to a clear, formal complaint',
+    title: 'About Wasel',
     description:
       'Wasel is an AI platform that sits between you and the government authority, turning a complaint written in everyday language into a clear complaint directed to the right authority.',
-    howEyebrow: 'The steps',
     howTitle: 'How does Wasel work?',
     purposes: [
       {
@@ -51,7 +48,10 @@ const COPY = defineCopy({
 const PURPOSE_ICONS = [MessageSquareText, FileSignature] as const
 
 type AboutSectionProps = {
+  // /about already has its own "about" heading + description right above
+  // where this section is rendered, so it hides this one.
   showHeading?: boolean
+  // /about renders "How it works" itself, further down the page.
   showHowItWorks?: boolean
 }
 
@@ -63,46 +63,37 @@ export async function AboutSection({
 
   return (
     <section id="how-it-works" className="mx-auto w-full max-w-6xl px-5 md:px-6">
-      {showHeading ? (
-        <SectionHeading eyebrow={copy.eyebrow} title={copy.title} description={copy.description} />
-      ) : null}
+      {showHeading ? <SectionHeading title={copy.title} description={copy.description} /> : null}
 
-      {/* Two purposes as a ruled pair, not two more cards. */}
-      <Reveal
-        className={`border-border grid border-t md:grid-cols-2 ${showHeading ? 'mt-10' : ''}`}
-      >
+      <div className="mt-10 grid gap-5 md:grid-cols-2">
         {copy.purposes.map((purpose, index) => {
           const Icon = PURPOSE_ICONS[index]
           return (
-            <div
-              key={purpose.title}
-              className={
-                index === 1
-                  ? 'border-border flex gap-4 border-t py-7 md:border-s md:border-t-0 md:ps-8'
-                  : 'flex gap-4 py-7 md:pe-8'
-              }
-            >
-              <span className="bg-surface-tint text-primary flex h-10 w-10 shrink-0 items-center justify-center rounded-xl">
-                <Icon className="h-5 w-5" aria-hidden="true" />
-              </span>
-              <div className="flex flex-col gap-1.5">
-                <h3 className="text-heading text-base font-semibold">{purpose.title}</h3>
+            <Reveal key={purpose.title} delay={index * 0.08}>
+              <Card className="flex h-full flex-col gap-4">
+                <span className="bg-secondary/12 text-secondary flex h-12 w-12 items-center justify-center rounded-2xl">
+                  <Icon className="h-5 w-5" aria-hidden="true" />
+                </span>
+                <h3 className="text-heading text-lg font-semibold">{purpose.title}</h3>
                 <p className="text-muted-foreground text-sm leading-relaxed">
                   {purpose.description}
                 </p>
-              </div>
-            </div>
+              </Card>
+            </Reveal>
           )
         })}
-      </Reveal>
+      </div>
 
       {showHowItWorks ? (
-        <div className="mt-20 flex flex-col gap-8">
-          <SectionHeading eyebrow={copy.howEyebrow} title={copy.howTitle} />
-          <Reveal>
+        <>
+          <h3 className="text-heading mt-16 text-center text-xl font-semibold sm:text-2xl">
+            {copy.howTitle}
+          </h3>
+
+          <Reveal className="mt-8">
             <HowItWorks />
           </Reveal>
-        </div>
+        </>
       ) : null}
     </section>
   )

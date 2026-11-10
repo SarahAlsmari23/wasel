@@ -31,7 +31,6 @@ const COPY = defineCopy({
     details: 'التفاصيل المجمّعة',
     noDetails: 'سيظهر هنا ما تقدّمه من تفاصيل أثناء المحادثة.',
     officialChannel: 'قناة التقديم الرسمية',
-    verified: 'رابط رسمي موثّق',
     unverifiedNote:
       'المستندات المطلوبة وخطوات التقديم ومدة المعالجة وبيانات التواصل غير متوفرة بعد في مصادر واصل الموثّقة — راجعها في الموقع الرسمي للجهة.',
     openOfficial: 'الانتقال إلى الموقع الرسمي',
@@ -50,7 +49,6 @@ const COPY = defineCopy({
     details: 'Details collected',
     noDetails: 'The details you provide during the conversation will appear here.',
     officialChannel: 'Official submission channel',
-    verified: 'Verified official link',
     unverifiedNote:
       "Required documents, submission steps, processing times and contact details aren't yet available in Wasel's verified sources — please check them on the authority's official website.",
     openOfficial: 'Go to the official website',
@@ -128,9 +126,9 @@ export function RecommendationCard({
 
   return (
     <motion.div
-      initial={prefersReducedMotion ? false : { opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+      initial={prefersReducedMotion ? false : { opacity: 0, x: locale === 'ar' ? 24 : -24 }}
+      animate={{ opacity: 1, x: 0 }}
+      transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
       className="bg-surface border-border shadow-soft flex flex-col gap-5 rounded-2xl border p-5"
     >
       <div className="flex items-start gap-3">
@@ -177,48 +175,37 @@ export function RecommendationCard({
         )}
       </Section>
 
-      <Section title={copy.officialChannel}>
+      <p className="text-muted-foreground flex items-start gap-1.5 text-xs leading-relaxed">
+        <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+        {copy.unverifiedNote}
+      </p>
+
+      <div className="border-border flex flex-col gap-2 border-t pt-4">
         <a
           href={analysis.officialUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="text-primary hover:text-primary-hover inline-flex w-fit items-center gap-1.5 text-sm font-medium transition-colors"
+          className="bg-primary text-primary-foreground hover:bg-primary/90 inline-flex h-11 items-center justify-center gap-2 rounded-xl px-4 text-sm font-medium transition-colors"
         >
-          <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
-          <span dir="ltr">{analysis.officialUrl.replace(/^https?:\/\//, '')}</span>
+          <ExternalLink className="h-4 w-4" aria-hidden="true" />
+          {copy.openOfficial}
         </a>
-        <span className="text-status-success text-[11px] font-medium">{copy.verified}</span>
-        <p className="text-muted-foreground flex items-start gap-1.5 text-xs leading-relaxed">
-          <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-          {copy.unverifiedNote}
-        </p>
-      </Section>
 
-      <div className="border-border flex flex-col gap-2 border-t pt-4">
         {saveDisabledNotice ? (
           <p className="text-muted-foreground text-center text-xs">{saveDisabledNotice}</p>
         ) : null}
 
         <Button
           type="button"
+          variant="outline"
           onClick={onSave}
           isLoading={isSaving}
           disabled={Boolean(saveDisabledNotice)}
-          className="w-full"
+          className="lg:self-center"
         >
           {isSaving ? null : <FileSignature className="h-4 w-4" aria-hidden="true" />}
           {isSaving ? copy.creating : copy.create}
         </Button>
-
-        <a
-          href={analysis.officialUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="border-border bg-surface text-heading hover:border-primary/35 hover:bg-surface-tint hover:text-primary inline-flex h-11 items-center justify-center gap-2 rounded-xl border px-4 text-sm font-medium transition-colors"
-        >
-          <ExternalLink className="h-4 w-4" aria-hidden="true" />
-          {copy.openOfficial}
-        </a>
 
         {details.length > 0 ? (
           <Button type="button" variant="ghost" onClick={handleCopy} className="w-full">

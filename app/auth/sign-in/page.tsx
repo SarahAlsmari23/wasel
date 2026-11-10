@@ -130,12 +130,13 @@ function SignInForm() {
       }
 
       showToast(copy.signedIn)
-      // push() before refresh(): the browser client has already written the
-      // auth cookie synchronously, so navigating first gets the user moving
-      // immediately. Refreshing first re-fetches the *sign-in* route and
+      // replace() (not push) so Back from the destination returns to where
+      // the user was before signing in, not to this form. Navigate before
+      // refresh(): the browser client has already written the auth cookie
+      // synchronously, so navigating first gets the user moving immediately. Refreshing first re-fetches the *sign-in* route and
       // measurably delays the push, which left users sitting on this page for
       // seconds after a successful login.
-      router.push(nextPath)
+      router.replace(nextPath)
       router.refresh()
     } catch (unexpectedError) {
       setError(getAuthErrorDetails(unexpectedError, locale))

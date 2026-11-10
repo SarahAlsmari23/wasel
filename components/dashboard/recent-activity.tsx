@@ -14,16 +14,16 @@ import { entityDisplayName, getGovernmentEntityByName } from '@/lib/mock/governm
 
 const COPY = defineCopy({
   ar: {
-    heading: 'آخر البلاغات',
+    heading: 'آخر النشاطات',
     viewAll: 'عرض الكل',
-    emptyTitle: 'لا توجد بلاغات بعد.',
-    emptyBody: 'ستظهر هنا آخر بلاغاتك وحالتها.',
+    emptyTitle: 'لا يوجد نشاط بعد.',
+    emptyBody: 'ستظهر هنا آخر بلاغاتك وتحديثاتها.',
   },
   en: {
-    heading: 'Recent complaints',
+    heading: 'Recent activity',
     viewAll: 'View all',
-    emptyTitle: 'No complaints yet.',
-    emptyBody: 'Your latest complaints and their status will appear here.',
+    emptyTitle: 'No activity yet.',
+    emptyBody: 'Your latest complaints and their updates will appear here.',
   },
 })
 
@@ -40,15 +40,13 @@ export function RecentActivity({ complaints }: RecentActivityProps) {
     <section className="flex flex-col gap-3">
       <div className="flex items-center justify-between gap-3">
         <h2 className="text-heading text-sm font-semibold">{copy.heading}</h2>
-        {complaints.length > 0 ? (
-          <Link
-            href="/dashboard/complaints"
-            className="text-primary inline-flex items-center gap-1.5 text-xs font-medium hover:underline"
-          >
-            {copy.viewAll}
-            <ForwardArrow className="h-3 w-3" aria-hidden="true" />
-          </Link>
-        ) : null}
+        <Link
+          href="/dashboard/complaints"
+          className="text-primary inline-flex items-center gap-1.5 text-xs font-medium hover:underline"
+        >
+          {copy.viewAll}
+          <ForwardArrow className="h-3 w-3" aria-hidden="true" />
+        </Link>
       </div>
 
       {complaints.length === 0 ? (
@@ -73,7 +71,7 @@ export function RecentActivity({ complaints }: RecentActivityProps) {
               <li key={complaint.id}>
                 <Link
                   href={`/dashboard/complaints/${complaint.id}`}
-                  className="hover:bg-primary/4 flex items-center gap-4 p-4 transition-colors duration-200"
+                  className="hover:bg-primary/4 flex items-center gap-4 p-4 transition-colors"
                 >
                   <GovernmentLogo iconKey={entity?.iconKey} size="sm" />
 

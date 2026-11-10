@@ -39,6 +39,13 @@ export function RecommendationSkeleton() {
         <Skeleton className="h-3 w-4/5" />
       </div>
 
+      <div className="flex flex-col gap-2">
+        <Skeleton className="h-3 w-28" />
+        <Skeleton className="h-3 w-3/4" />
+        <Skeleton className="h-3 w-2/3" />
+        <Skeleton className="h-3 w-3/5" />
+      </div>
+
       <div className="border-border flex flex-col gap-2 border-t pt-4">
         <Skeleton className="h-11 w-full rounded-xl" />
         <Skeleton className="h-11 w-full rounded-xl" />

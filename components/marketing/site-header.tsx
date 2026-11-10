@@ -22,6 +22,8 @@ export const PUBLIC_NAV_COPY = defineCopy({
       { href: '/entities', label: 'الجهات الحكومية' },
       { href: '/about', label: 'عن واصل' },
     ],
+    /** Shown only to signed-in users, after the public links. */
+    conversations: { href: '/dashboard/conversations', label: 'محادثاتي' },
     homeAria: 'واصل — الصفحة الرئيسية',
     mainNav: 'التنقل الرئيسي',
     mobileNav: 'التنقل للجوال',
@@ -38,6 +40,7 @@ export const PUBLIC_NAV_COPY = defineCopy({
       { href: '/entities', label: 'Government authorities' },
       { href: '/about', label: 'About Wasel' },
     ],
+    conversations: { href: '/dashboard/conversations', label: 'My conversations' },
     homeAria: 'Wasel — home',
     mainNav: 'Main navigation',
     mobileNav: 'Mobile navigation',
@@ -73,26 +76,29 @@ export function SiteHeader({ isAuthenticated }: SiteHeaderProps) {
     setIsMenuOpen(false)
   }, [pathname])
 
-  // Signing in from any public page returns the user to that same page.
+  // Signing in from any public page returns the user to that same page,
+  // rather than dropping them into the dashboard.
   const signInHref = authHrefWithReturn('/auth/sign-in', pathname)
   const signUpHref = authHrefWithReturn('/auth/sign-up', pathname)
+
+  const links = isAuthenticated ? [...copy.links, copy.conversations] : copy.links
 
   return (
     <header
       className={cn(
-        'sticky top-0 z-40 transition-[background-color,border-color,backdrop-filter] duration-300',
+        'sticky top-0 z-40 transition-all duration-300',
         isScrolled
           ? 'bg-background/85 border-border border-b backdrop-blur-lg'
           : 'border-b border-transparent',
       )}
     >
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-5 py-4 md:px-6">
-        <Link href="/" aria-label={copy.homeAria} className="shrink-0">
+        <Link href="/" aria-label={copy.homeAria}>
           <WaselLogo variant="horizontal" size="sm" priority />
         </Link>
 
         <nav aria-label={copy.mainNav} className="hidden items-center gap-1 lg:flex">
-          {copy.links.map((link) => {
+          {links.map((link) => {
             const isActive = link.href === '/' ? pathname === '/' : pathname.startsWith(link.href)
             return (
               <Link
@@ -100,11 +106,10 @@ export function SiteHeader({ isAuthenticated }: SiteHeaderProps) {
                 href={link.href}
                 aria-current={isActive ? 'page' : undefined}
                 className={cn(
-                  'relative px-3.5 py-2 text-sm font-medium transition-colors duration-200',
-                  'after:bg-primary after:absolute after:inset-x-3.5 after:-bottom-[1.0625rem] after:h-0.5 after:rounded-full after:transition-opacity after:duration-200',
+                  'rounded-lg px-3.5 py-2 text-sm font-medium transition-colors',
                   isActive
-                    ? 'text-heading after:opacity-100'
-                    : 'text-muted-foreground hover:text-heading after:opacity-0',
+                    ? 'text-primary bg-primary/8'
+                    : 'text-foreground/80 hover:text-primary hover:bg-primary/5',
                 )}
               >
                 {link.label}
@@ -113,12 +118,11 @@ export function SiteHeader({ isAuthenticated }: SiteHeaderProps) {
           })}
         </nav>
 
-        <div className="hidden items-center gap-1.5 lg:flex">
+        <div className="hidden items-center gap-2.5 lg:flex">
           <LanguageSwitcher />
           <ThemeToggle />
-          <span aria-hidden="true" className="bg-border mx-1.5 h-5 w-px" />
           {isAuthenticated ? (
-            <Link href="/dashboard" className={buttonClasses('primary', 'sm', 'ms-1')}>
+            <Link href="/dashboard" className={buttonClasses('primary', 'sm')}>
               <LayoutDashboard className="h-4 w-4" aria-hidden="true" />
               {copy.dashboard}
             </Link>
@@ -140,7 +144,7 @@ export function SiteHeader({ isAuthenticated }: SiteHeaderProps) {
           <button
             type="button"
             onClick={() => setIsMenuOpen((open) => !open)}
-            className="text-foreground border-border hover:bg-primary/5 rounded-xl border p-2.5 transition-colors duration-200"
+            className="text-foreground border-border hover:bg-primary/5 rounded-xl border p-2.5 transition-colors lg:hidden"
             aria-label={isMenuOpen ? copy.closeMenu : copy.openMenu}
             aria-expanded={isMenuOpen}
             aria-controls="site-mobile-menu"
@@ -161,27 +165,19 @@ export function SiteHeader({ isAuthenticated }: SiteHeaderProps) {
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+            transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
             className="bg-surface border-border overflow-hidden border-t lg:hidden"
           >
             <nav aria-label={copy.mobileNav} className="flex flex-col gap-1 px-5 py-4">
-              {copy.links.map((link) => {
-                const isActive =
-                  link.href === '/' ? pathname === '/' : pathname.startsWith(link.href)
-                return (
-                  <Link
-                    key={link.href}
-                    href={link.href}
-                    aria-current={isActive ? 'page' : undefined}
-                    className={cn(
-                      'rounded-lg px-3 py-2.5 text-sm font-medium transition-colors duration-200',
-                      isActive ? 'text-primary bg-primary/8' : 'text-foreground hover:bg-primary/5',
-                    )}
-                  >
-                    {link.label}
-                  </Link>
-                )
-              })}
+              {links.map((link) => (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  className="text-foreground hover:bg-primary/5 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors"
+                >
+                  {link.label}
+                </Link>
+              ))}
 
               <div className="border-border mt-3 flex flex-col gap-2 border-t pt-4">
                 {isAuthenticated ? (

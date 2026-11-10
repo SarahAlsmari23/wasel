@@ -28,7 +28,7 @@ export default async function ProfilePage() {
   }
 
   return (
-    <div className="animate-fade-in mx-auto flex w-full max-w-3xl flex-col gap-8">
+    <div className="animate-fade-in mx-auto flex w-full max-w-2xl flex-col gap-8">
       <PageHeader title={copy.title} description={copy.description} />
       <ProfileView profile={getUserProfile(user)} />
     </div>

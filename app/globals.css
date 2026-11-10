@@ -8,18 +8,16 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 /*
- * واصل · Wasel — brand tokens.
+ * واصل · Wasel — official brand tokens.
  *
- * Palette (refined institutional emerald + the original navy family):
- *   #086B4C Emerald      — primary (approved), buttons, links, active states
- *   #065A40 / #054A35    — hover / pressed
- *   #17806B Deep teal    — accent, highlights (calmer than the former #22B8A0)
- *   #12355B Deep Navy    — headings, secondary elements (unchanged)
- *   #E7F3EE Emerald mist — active states, tinted surfaces
+ * Palette (Saudi Inspired):
+ *   #086B4C Emerald      — primary (approved), 25%; white text 6.5:1
+ *   #22B8A0 Teal         — accent / highlights, 10%
+ *   #12355B Deep Navy    — headings, charts, secondary elements
+ *   #E6F4EF Mint Green   — active states, tinted surfaces, 5%
  *   #E6EDF2 Light Gray   — borders, rules
- *   #F7F9FA Off White    — page background
+ *   #F7F9FA Off White    — page background, 60%
  *
- * Contrast (WCAG): white on #086B4C 6.5:1; #086B4C on the page 6.2:1.
  * Dark mode re-declares the same token names, so every component follows
  * automatically: only colours change, never spacing, layout or hierarchy.
  */
@@ -27,75 +25,50 @@
   color-scheme: light;
   --background: #f7f9fa; /* off-white page background */
   --surface: #ffffff; /* card/panel surface */
-  --surface-muted: #f1f5f8; /* subtle inset panels */
-  --surface-tint: #e7f3ee; /* emerald mist — active/selected surfaces */
+  --surface-muted: #f1f5f9; /* subtle inset panels */
+  --surface-tint: #e6f4ef; /* mint — active/selected surfaces */
 
   --foreground: #334155; /* primary body text */
   --heading: #12355b; /* headings — deep navy */
-  --muted-foreground: #5f6f84; /* secondary text (4.9:1 on the page) */
+  --muted-foreground: #64748b; /* secondary text */
   --subtle-foreground: #94a3b8; /* light/disabled text */
 
-  --primary: #086b4c; /* approved institutional emerald */
+  --primary: #086b4c; /* approved emerald */
   --primary-foreground: #ffffff;
-  --primary-hover: #065a40;
-  --primary-pressed: #054a35;
+  --primary-hover: #06573e; /* darker emerald for hover */
 
   --secondary: #12355b; /* deep navy */
   --secondary-foreground: #ffffff;
 
-  --accent: #17806b; /* deep teal */
+  --accent: #22b8a0; /* teal */
   --accent-foreground: #ffffff;
 
-  --danger: #c93a40;
+  --danger: #e5484d;
   --danger-foreground: #ffffff;
 
-  --border: #e3eaf0; /* light gray hairline */
-  --border-strong: #cbd6e2;
+  --border: #e6edf2; /* light gray hairline */
+  --border-strong: #cfd9e4;
   --ring: #086b4c;
-
-  /* Modal / drawer scrim — navy-tinted, never pure black. */
-  --overlay: rgb(18 53 91 / 0.38);
 
   /* Dark surface used by the brand's navy panels. */
   --surface-dark: #0f2d52;
   --surface-dark-foreground: #f7f9fa;
 
-  /*
-   * Dashboard sidebar — the brand navy, in both themes, so the authenticated
-   * area carries the identity instead of a generic white admin rail.
-   * Muted text on it is 6.9:1; the call-to-action uses the lifted emerald
-   * with deep text (6.7:1) so it reads clearly on navy.
-   */
-  --sidebar: #12355b;
-  --sidebar-foreground: #f2f6fa;
-  --sidebar-muted: #b4c3d4;
-  --sidebar-border: rgb(255 255 255 / 0.09);
-  --sidebar-hover: rgb(255 255 255 / 0.06);
-  --sidebar-active: rgb(255 255 255 / 0.1);
-  --sidebar-indicator: #5fd0b5;
-  --sidebar-cta: #2aad85;
-  --sidebar-cta-hover: #36bb92;
-  --sidebar-cta-foreground: #04140d;
-
-  /* Network-motif line colour (hero curves, dashboard header). */
-  --network-line: rgb(8 107 76 / 0.16);
-  --network-node: rgb(18 53 91 / 0.22);
-
-  /* Status colours. */
+  /* Status colours, matching the identity sheet. */
   --status-success: #086b4c;
   --status-info: #12355b;
-  --status-warning: #a8691a;
-  --status-error: #c93a40;
+  --status-warning: #b7791f;
+  --status-error: #e5484d;
 
   /* Complaint statuses — one distinct hue each. */
   --status-draft: #64748b;
-  --status-ready: #17806b;
+  --status-ready: #22b8a0;
   --status-submitted: #12355b;
   --status-completed: #086b4c;
-  --status-pending: #a8691a;
+  --status-pending: #b7791f;
 
-  /* Signature brand gradient: emerald → deep teal (restrained). */
-  --brand-gradient: linear-gradient(135deg, #086b4c 0%, #17806b 100%);
+  /* Signature brand gradient: green → teal. */
+  --brand-gradient: linear-gradient(135deg, #086b4c 0%, #22b8a0 100%);
 
   /* Which artwork the shared landing canvas paints. */
   --canvas-image: url('/brand/hero-bg-light.jpeg');
@@ -105,18 +78,12 @@
     rgb(247 249 250 / 0.62) 55%,
     rgb(247 249 250 / 0.86) 100%
   );
-
-  /* Motion — short and calm. */
-  --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
-  --duration-fast: 150ms;
-  --duration-base: 200ms;
 }
 
 /*
- * Dark mode. The emerald is lifted within the same hue family so it keeps
- * its contrast against navy (5.4:1 as text on the page); primary buttons use
- * deep-navy text on that emerald (6.9:1) rather than white, which would fail
- * contrast at this lightness.
+ * Dark mode. Greens and teals are lifted a step so they keep their contrast
+ * against a navy page — the same hues, tuned for a dark surface rather than a
+ * different palette.
  */
 .dark {
   color-scheme: dark;
@@ -124,54 +91,47 @@
   --background: #081c34; /* deep navy page */
   --surface: #0f2d52; /* the identity sheet's navy — cards sit here */
   --surface-muted: #143761;
-  --surface-tint: #0d3a35; /* deep emerald — active/selected surfaces */
+  --surface-tint: #0e3a30; /* dark mint — active/selected surfaces */
 
   --foreground: #d8e2ec;
   --heading: #f2f6fa;
-  --muted-foreground: #9db0c6;
+  --muted-foreground: #93a6bd;
   --subtle-foreground: #6b819b;
 
-  --primary: #2aad85; /* emerald, lifted for navy surfaces */
+  /* Emerald, lifted for dark surfaces. Deep-green button text (6.2:1);
+     white would only reach 3:1 at this lightness. */
+  --primary: #1aa878;
   --primary-foreground: #04140d;
-  --primary-hover: #36bb92;
-  --primary-pressed: #229673;
+  --primary-hover: #22b385;
 
   --secondary: #7ba5d0; /* navy is invisible on navy — use its light tint */
   --secondary-foreground: #081c34;
 
-  --accent: #3cc2a6; /* deep teal, lifted */
+  --accent: #2ed3b7; /* teal, lifted */
   --accent-foreground: #081c34;
 
-  --danger: #ff6b70;
+  --danger: #ff6369;
   --danger-foreground: #240709;
 
   --border: #1e3d63;
   --border-strong: #2b5183;
-  --ring: #3cc2a6;
-
-  --overlay: rgb(2 10 22 / 0.62);
+  --ring: #2ed3b7;
 
   --surface-dark: #0b2444;
   --surface-dark-foreground: #f2f6fa;
 
-  --sidebar: #05152a; /* a step deeper than the page navy */
-  --sidebar-border: rgb(123 165 208 / 0.14);
-
-  --network-line: rgb(60 194 166 / 0.14);
-  --network-node: rgb(123 165 208 / 0.28);
-
-  --status-success: #2aad85;
+  --status-success: #1aa878;
   --status-info: #7ba5d0;
   --status-warning: #e0a53c;
-  --status-error: #ff6b70;
+  --status-error: #ff6369;
 
   --status-draft: #93a6bd;
-  --status-ready: #3cc2a6;
+  --status-ready: #2ed3b7;
   --status-submitted: #7ba5d0;
-  --status-completed: #2aad85;
+  --status-completed: #1aa878;
   --status-pending: #e0a53c;
 
-  --brand-gradient: linear-gradient(135deg, #2aad85 0%, #3cc2a6 100%);
+  --brand-gradient: linear-gradient(135deg, #1aa878 0%, #2ed3b7 100%);
 
   --canvas-image: url('/brand/hero-bg-dark.png');
   --canvas-scrim: linear-gradient(
@@ -198,19 +158,6 @@
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
   --color-primary-hover: var(--primary-hover);
-  --color-primary-pressed: var(--primary-pressed);
-  --color-overlay: var(--overlay);
-  --color-sidebar: var(--sidebar);
-  --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-sidebar-muted: var(--sidebar-muted);
-  --color-sidebar-border: var(--sidebar-border);
-  --color-sidebar-hover: var(--sidebar-hover);
-  --color-sidebar-active: var(--sidebar-active);
-  --color-sidebar-indicator: var(--sidebar-indicator);
-  --color-sidebar-cta: var(--sidebar-cta);
-  --color-sidebar-cta-hover: var(--sidebar-cta-hover);
-  --color-sidebar-cta-foreground: var(--sidebar-cta-foreground);
-  --color-network-line: var(--network-line);
   --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
   --color-accent: var(--accent);
@@ -239,9 +186,8 @@
   --radius-pill: 999px;
 
   /* Shadows tinted with the navy rather than neutral black. */
-  /* Quiet by default: hairline borders carry structure, shadows only hint. */
-  --shadow-soft: 0 1px 2px rgb(18 53 91 / 0.04), 0 4px 14px -8px rgb(18 53 91 / 0.1);
-  --shadow-lift: 0 2px 4px rgb(18 53 91 / 0.05), 0 14px 32px -16px rgb(18 53 91 / 0.2);
+  --shadow-soft: 0 1px 2px rgb(18 53 91 / 0.04), 0 8px 24px -12px rgb(18 53 91 / 0.12);
+  --shadow-lift: 0 2px 4px rgb(18 53 91 / 0.06), 0 18px 40px -18px rgb(18 53 91 / 0.22);
 
   --animate-fade-in: fade-in 0.5s ease-out both;
   --animate-fade-up: fade-up 0.5s ease-out both;
@@ -395,96 +341,33 @@ body {
 }
 
 /*
- * Brand band — the existing network-lines artwork, cropped and heavily
- * scrimmed, used as a quiet header backdrop in the authenticated area so the
- * dashboard visibly belongs to the same product as the landing page. Only
- * ever behind headings, never behind data-dense content.
- */
-.wasel-brand-band {
-  background-color: var(--color-surface);
-  background-image:
-    linear-gradient(
-      to bottom,
-      color-mix(in srgb, var(--color-surface) 78%, transparent) 0%,
-      color-mix(in srgb, var(--color-surface) 92%, transparent) 100%
-    ),
-    var(--canvas-image);
-  background-position:
-    center,
-    center 35%;
-  background-size: cover, cover;
-  background-repeat: no-repeat;
-}
-
-/*
- * Scroll reveal — a CSS scroll-driven fade-up. Content is never hidden by
- * script: browsers without scroll timelines (and anyone who prefers reduced
- * motion) simply see it in place.
- */
-@supports (animation-timeline: view()) {
-  @media (prefers-reduced-motion: no-preference) {
-    .wasel-reveal {
-      animation: fade-up linear both;
-      animation-timeline: view();
-      animation-range: entry 0% entry 35%;
-    }
-  }
-}
-
-/* Small section label — an emerald rule followed by the text. */
-@utility eyebrow {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: 0.75rem;
-  line-height: 1rem;
-  font-weight: 600;
-  color: var(--color-primary);
-
-  &::before {
-    content: '';
-    width: 1rem;
-    height: 2px;
-    border-radius: 999px;
-    background: currentColor;
-    opacity: 0.7;
-  }
-}
-
-/* The dashboard rail: brand navy with the network artwork rising from below. */
-.wasel-sidebar {
-  background-color: var(--sidebar);
-  background-image:
-    linear-gradient(
-      to bottom,
-      var(--sidebar) 40%,
-      color-mix(in srgb, var(--sidebar) 82%, transparent) 100%
-    ),
-    url('/brand/hero-bg-dark.png');
-  background-position:
-    center,
-    center bottom;
-  background-size:
-    cover,
-    220% auto;
-  background-repeat: no-repeat;
-}
-
-/* The emerald ring would vanish on navy; use the rail's own indicator colour. */
-.wasel-sidebar :focus-visible {
-  outline-color: var(--sidebar-indicator);
-}
-
-/*
- * For user content shown with dir="auto": the text keeps its own direction
- * (an Arabic title stays RTL) but aligns with the surrounding layout, so an
- * Arabic title in the English interface doesn't jump to the far edge.
+ * For user content shown with dir="auto" (titles a user typed): the text keeps
+ * its own direction but aligns with the surrounding layout.
  */
 @utility text-match-parent {
   text-align: match-parent;
 }
 
-/* Tabular figures for statistics and reference numbers. */
-.tabular-nums {
-  font-variant-numeric: tabular-nums;
+/*
+ * Hero journey line draw-in: a clip that opens from the "You" end (local
+ * right edge; the SVG is mirrored in English). CSS rather than script, so the
+ * line never waits on hydration and always ends fully drawn.
+ */
+@keyframes journey-draw {
+  from {
+    clip-path: inset(0 0 0 100%);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+
+.wasel-journey-line {
+  animation: journey-draw 1.6s ease-in-out 0.4s both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wasel-journey-line {
+    animation: none;
+  }
 }

@@ -9,12 +9,10 @@ const COPY = defineCopy({
   ar: {
     greeting: 'مرحبًا، كيف يمكنني مساعدتك اليوم؟',
     lead: 'اشرح مشكلتك بلغتك الطبيعية، وسيساعدك واصل في تحديد الجهة الحكومية المختصة وخطوات التقديم.',
-    note: 'واصل مساعد ذكي وليس جهة حكومية؛ راجع المعلومات قبل تقديم أي بلاغ.',
   },
   en: {
     greeting: 'Hello, how can I help you today?',
     lead: 'Describe your problem in your own words, and Wasel will help you identify the responsible government authority and how to submit.',
-    note: 'Wasel is an AI assistant, not a government authority; review the information before submitting any complaint.',
   },
 })
 
@@ -29,9 +27,9 @@ export function ChatEmptyState() {
 
   return (
     <motion.div
-      initial={prefersReducedMotion ? false : { opacity: 0, y: 10 }}
+      initial={prefersReducedMotion ? false : { opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+      transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
       className="flex flex-col items-center gap-6 py-10 text-center sm:py-16"
     >
       <WaselLogo size="lg" />
@@ -42,9 +40,6 @@ export function ChatEmptyState() {
         </h1>
         <p className="text-muted-foreground mx-auto max-w-md text-sm leading-relaxed text-pretty">
           {copy.lead}
-        </p>
-        <p className="text-subtle-foreground mx-auto mt-1 max-w-md text-xs leading-relaxed">
-          {copy.note}
         </p>
       </div>
     </motion.div>

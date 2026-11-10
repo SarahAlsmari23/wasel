@@ -1704,7 +1704,7 @@ export function WasalChat({
           {failedMessage ? (
             <div
               role="alert"
-              className="border-danger/25 bg-danger/5 animate-fade-in flex flex-wrap items-center justify-between gap-3 rounded-2xl border px-4 py-3"
+              className="border-danger/25 bg-danger/5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border px-4 py-3"
             >
               <p className="text-danger text-sm leading-relaxed">{copy.failure[failureKind]}</p>
               <Button type="button" variant="outline" size="sm" onClick={handleRetry}>

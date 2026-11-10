@@ -32,9 +32,9 @@ export function ChatMessage({ message, onCreateComplaint }: ChatMessageProps) {
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 6 }}
+      initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
+      transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
       className={cn('flex w-full gap-2.5', isUser ? 'justify-start' : 'justify-end')}
     >
       {isUser ? null : <WaselLogo size="sm" variant="mark" className="mt-1 shrink-0" />}
@@ -69,7 +69,7 @@ export function ChatMessage({ message, onCreateComplaint }: ChatMessageProps) {
             <button
               type="button"
               onClick={onCreateComplaint}
-              className="bg-primary text-primary-foreground hover:bg-primary-hover shadow-soft mt-3 inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl px-4 text-sm font-medium transition-colors"
+              className="bg-primary text-primary-foreground hover:bg-primary/90 shadow-soft mt-3 inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl px-4 text-sm font-medium transition-colors"
             >
               <FileSignature className="h-4 w-4" aria-hidden="true" />
               {copy.createComplaint}

@@ -2,7 +2,7 @@
 
 import { motion, useReducedMotion } from 'motion/react'
 import { Check } from 'lucide-react'
-import { useCopy } from '@/components/i18n/locale-provider'
+import { useCopy, useLocale } from '@/components/i18n/locale-provider'
 import { defineCopy } from '@/lib/i18n/config'
 import { cn } from '@/lib/utils/cn'
 import type { ComplaintProgressStage, ProgressStageState } from '@/types/wasal'
@@ -52,6 +52,7 @@ type ProgressTimelineProps = {
 export function ProgressTimeline({ currentStage, className = '' }: ProgressTimelineProps) {
   const copy = useCopy(COPY)
   const prefersReducedMotion = useReducedMotion()
+  const slideFrom = useLocale() === 'ar' ? 8 : -8
   const currentIndex = STAGE_ORDER.indexOf(currentStage)
 
   return (
@@ -67,16 +68,16 @@ export function ProgressTimeline({ currentStage, className = '' }: ProgressTimel
           return (
             <motion.li
               key={stageKey}
-              initial={prefersReducedMotion ? false : { opacity: 0, y: 4 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.25, delay: index * 0.05 }}
+              initial={prefersReducedMotion ? false : { opacity: 0, x: slideFrom }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.3, delay: index * 0.07 }}
               aria-current={state === 'current' ? 'step' : undefined}
               className="flex gap-3"
             >
               <div className="flex flex-col items-center">
                 <span
                   className={cn(
-                    'flex h-5 w-5 shrink-0 items-center justify-center rounded-full transition-colors duration-200',
+                    'flex h-5 w-5 shrink-0 items-center justify-center rounded-full',
                     DOT_CLASSES[state],
                   )}
                 >

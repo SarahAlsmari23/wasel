@@ -99,7 +99,7 @@ export function Modal({
             exit={{ opacity: 0 }}
             transition={{ duration: 0.18 }}
             onClick={onClose}
-            className="bg-overlay absolute inset-0 backdrop-blur-[2px]"
+            className="absolute inset-0 bg-[#12355B]/35 backdrop-blur-[2px]"
             aria-hidden="true"
           />
 

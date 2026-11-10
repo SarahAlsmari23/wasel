@@ -8,7 +8,6 @@ import { ComplaintEditor, type ComplaintUpdate } from '@/components/complaints/c
 import { GovernmentLogo } from '@/components/government/government-logo'
 import { useCopy, useLocale } from '@/components/i18n/locale-provider'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import { useToast } from '@/components/ui/toast'
 import { getComplaintStatusPresentation, getDisplayTitle } from '@/lib/complaints/display'
 import { defineCopy } from '@/lib/i18n/config'
@@ -34,7 +33,7 @@ const COPY = defineCopy({
     edit: 'تعديل التفاصيل',
     regenerate: 'إعادة الإنشاء',
     regenerated: 'تمت إعادة إنشاء البلاغ.',
-    markSubmitted: 'لقد قدّمت البلاغ',
+    markSubmitted: 'تحديد كمُقدَّم',
     alreadySubmitted: 'تم تقديم البلاغ',
     backToComplaints: 'عرض بلاغاتي في لوحة التحكم',
   },
@@ -57,7 +56,7 @@ const COPY = defineCopy({
     edit: 'Edit details',
     regenerate: 'Regenerate',
     regenerated: 'The complaint was regenerated.',
-    markSubmitted: "I've submitted it",
+    markSubmitted: 'Mark as submitted',
     alreadySubmitted: 'Complaint submitted',
     backToComplaints: 'View my complaints in the dashboard',
   },
@@ -154,7 +153,7 @@ export function ComplaintResultCard({
   }
 
   return (
-    <div className="bg-surface border-border shadow-soft animate-fade-in flex flex-col gap-5 rounded-2xl border p-5">
+    <div className="bg-surface border-border shadow-soft flex flex-col gap-5 rounded-2xl border p-5">
       <div className="flex flex-col gap-1">
         <h2 dir="auto" className="text-heading text-base leading-snug font-semibold">
           {displayTitle}
@@ -169,7 +168,9 @@ export function ComplaintResultCard({
       </div>
 
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
-        <Badge variant={status.badgeVariant}>{status.label}</Badge>
+        <span className="bg-secondary/12 text-secondary inline-flex rounded-full px-2.5 py-1 font-medium">
+          {status.label}
+        </span>
         <span className="text-muted-foreground">
           {copy.created}: {formatDate(complaint.createdAt, locale)}
         </span>
@@ -198,17 +199,15 @@ export function ComplaintResultCard({
       </Section>
 
       <Section title={copy.letter}>
-        <div className="bg-surface-muted border-border rounded-xl border p-4">
-          <p dir="auto" className="text-foreground text-sm font-medium break-words">
-            {complaint.subject}
-          </p>
-          <p
-            dir="auto"
-            className="text-muted-foreground mt-2 text-sm leading-relaxed break-words whitespace-pre-wrap"
-          >
-            {complaint.complaintText}
-          </p>
-        </div>
+        <p dir="auto" className="text-foreground text-sm font-medium break-words">
+          {complaint.subject}
+        </p>
+        <p
+          dir="auto"
+          className="text-muted-foreground text-sm leading-relaxed break-words whitespace-pre-wrap"
+        >
+          {complaint.complaintText}
+        </p>
       </Section>
 
       <div className="border-border flex flex-col gap-2 border-t pt-4">
@@ -216,7 +215,7 @@ export function ComplaintResultCard({
           href={complaint.officialUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="bg-primary text-primary-foreground hover:bg-primary-hover active:bg-primary-pressed inline-flex h-11 items-center justify-center gap-2 rounded-xl px-4 text-sm font-medium transition-colors"
+          className="bg-primary text-primary-foreground hover:bg-primary/90 inline-flex h-11 items-center justify-center gap-2 rounded-xl px-4 text-sm font-medium transition-colors"
         >
           <ExternalLink className="h-4 w-4" aria-hidden="true" />
           {copy.openOfficial}
@@ -249,7 +248,7 @@ export function ComplaintResultCard({
 
         <Button
           type="button"
-          variant="subtle"
+          variant="ghost"
           onClick={onMarkSubmitted}
           isLoading={isMarkingSubmitted}
           disabled={Boolean(complaint.submittedAt)}
@@ -261,7 +260,7 @@ export function ComplaintResultCard({
 
         <Link
           href="/dashboard/complaints"
-          className="text-muted-foreground hover:text-primary mt-1 text-center text-xs font-medium transition-colors"
+          className="text-muted-foreground hover:text-primary text-center text-xs font-medium"
         >
           {copy.backToComplaints}
         </Link>

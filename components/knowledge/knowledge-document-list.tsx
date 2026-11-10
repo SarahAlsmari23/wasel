@@ -6,21 +6,43 @@ import { KnowledgeDocumentListItem } from '@/components/knowledge/knowledge-docu
 import { EmptyState } from '@/components/ui/empty-state'
 import { SearchInput } from '@/components/ui/search-input'
 import { Tabs } from '@/components/ui/tabs'
+import { useCopy } from '@/components/i18n/locale-provider'
+import { defineCopy } from '@/lib/i18n/config'
 import type { KnowledgeDocumentStatus, MockKnowledgeDocument } from '@/types/knowledge'
 
 type TabValue = 'all' | KnowledgeDocumentStatus
 
-const TABS: { value: TabValue; label: string }[] = [
-  { value: 'all', label: 'الكل' },
-  { value: 'active', label: 'نشط' },
-  { value: 'inactive', label: 'غير نشط' },
-]
+const COPY = defineCopy({
+  ar: {
+    tabs: [
+      { value: 'all' as TabValue, label: 'الكل' },
+      { value: 'active' as TabValue, label: 'نشط' },
+      { value: 'inactive' as TabValue, label: 'غير نشط' },
+    ],
+    filter: 'تصفية',
+    search: 'ابحث في مستندات المعرفة...',
+    noResults: 'لا توجد نتائج',
+    noResultsHint: 'لم يتم العثور على مستندات مطابقة لبحثك.',
+  },
+  en: {
+    tabs: [
+      { value: 'all' as TabValue, label: 'All' },
+      { value: 'active' as TabValue, label: 'Active' },
+      { value: 'inactive' as TabValue, label: 'Inactive' },
+    ],
+    filter: 'Filter',
+    search: 'Search knowledge documents...',
+    noResults: 'No results',
+    noResultsHint: 'No documents match your search.',
+  },
+})
 
 type KnowledgeDocumentListProps = {
   documents: MockKnowledgeDocument[]
 }
 
 export function KnowledgeDocumentList({ documents }: KnowledgeDocumentListProps) {
+  const copy = useCopy(COPY)
   const [query, setQuery] = useState('')
   const [activeTab, setActiveTab] = useState<TabValue>('all')
 
@@ -41,10 +63,16 @@ export function KnowledgeDocumentList({ documents }: KnowledgeDocumentListProps)
       <SearchInput
         value={query}
         onChange={(event) => setQuery(event.target.value)}
-        placeholder="ابحث في مستندات المعرفة..."
+        placeholder={copy.search}
+        aria-label={copy.search}
       />
 
-      <Tabs items={TABS} value={activeTab} onChange={(value) => setActiveTab(value as TabValue)} />
+      <Tabs
+        items={copy.tabs}
+        label={copy.filter}
+        value={activeTab}
+        onChange={(value) => setActiveTab(value as TabValue)}
+      />
 
       {filtered.length > 0 ? (
         <div className="flex flex-col gap-3">
@@ -53,11 +81,7 @@ export function KnowledgeDocumentList({ documents }: KnowledgeDocumentListProps)
           ))}
         </div>
       ) : (
-        <EmptyState
-          icon={BookOpen}
-          title="لا توجد نتائج"
-          description="لم يتم العثور على مستندات مطابقة لبحثك."
-        />
+        <EmptyState icon={BookOpen} title={copy.noResults} description={copy.noResultsHint} />
       )}
     </div>
   )

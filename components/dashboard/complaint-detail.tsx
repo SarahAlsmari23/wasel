@@ -30,7 +30,7 @@ import { formatDate } from '@/lib/utils/format'
 const COPY = defineCopy({
   ar: {
     back: 'العودة إلى البلاغات',
-    letter: 'نص البلاغ الرسمي',
+    letter: 'نص البلاغ',
     copy: 'نسخ النص',
     copied: 'تم النسخ',
     copiedToast: 'تم نسخ البلاغ.',
@@ -41,14 +41,11 @@ const COPY = defineCopy({
     created: 'تاريخ الإنشاء',
     updated: 'آخر تعديل',
     submittedOn: 'تاريخ التقديم',
-    nextSteps: 'الخطوات التالية',
-    submitHint:
-      'قدّم البلاغ بنفسك عبر الموقع الرسمي للجهة، ثم سجّل هنا أنك قدّمته لتتابع حالته في لوحة التحكم.',
     openOfficial: 'الانتقال إلى الموقع الرسمي',
     edit: 'تعديل التفاصيل',
     regenerate: 'إعادة الإنشاء',
     regenerated: 'تمت إعادة إنشاء البلاغ.',
-    markSubmitted: 'لقد قدّمت البلاغ',
+    markSubmitted: 'تحديد كمُقدَّم',
     alreadySubmitted: 'تم تقديم البلاغ',
     statusUpdated: 'تم تحديث حالة البلاغ.',
     unexpected: 'حدث خطأ غير متوقع. حاول مرة أخرى.',
@@ -56,7 +53,7 @@ const COPY = defineCopy({
   },
   en: {
     back: 'Back to complaints',
-    letter: 'Formal complaint text',
+    letter: 'Complaint text',
     copy: 'Copy text',
     copied: 'Copied',
     copiedToast: 'Complaint copied.',
@@ -68,14 +65,11 @@ const COPY = defineCopy({
     created: 'Created',
     updated: 'Last updated',
     submittedOn: 'Submitted on',
-    nextSteps: 'Next steps',
-    submitHint:
-      "Submit the complaint yourself on the authority's official website, then record it here to track its status in your dashboard.",
     openOfficial: 'Go to the official website',
     edit: 'Edit details',
     regenerate: 'Regenerate',
     regenerated: 'The complaint was regenerated.',
-    markSubmitted: "I've submitted it",
+    markSubmitted: 'Mark as submitted',
     alreadySubmitted: 'Complaint submitted',
     statusUpdated: 'Complaint status updated.',
     unexpected: 'Something went wrong. Please try again.',
@@ -207,46 +201,49 @@ export function ComplaintDetail({ complaint: initialComplaint }: ComplaintDetail
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[1.6fr_1fr]">
-        <Card className="flex flex-col gap-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <h2 className="text-heading text-sm font-semibold">{copy.letter}</h2>
-            <div className="flex flex-wrap items-center gap-1.5">
-              <Button type="button" variant="ghost" size="sm" onClick={() => setIsEditorOpen(true)}>
-                <PencilLine className="h-3.5 w-3.5" aria-hidden="true" />
-                {copy.edit}
-              </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={handleRegenerate}
-                isLoading={isRegenerating}
-              >
-                {isRegenerating ? null : <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />}
-                {copy.regenerate}
-              </Button>
-              <Button type="button" variant="outline" size="sm" onClick={handleCopy}>
-                {justCopied ? (
-                  <Check className="h-3.5 w-3.5" aria-hidden="true" />
-                ) : (
-                  <Copy className="h-3.5 w-3.5" aria-hidden="true" />
-                )}
-                {justCopied ? copy.copied : copy.copy}
-              </Button>
+        <div className="flex flex-col gap-6">
+          <Card className="flex flex-col gap-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <h2 className="text-heading text-sm font-semibold">{copy.letter}</h2>
+              <div className="flex flex-wrap items-center gap-1.5">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setIsEditorOpen(true)}
+                >
+                  <PencilLine className="h-3.5 w-3.5" aria-hidden="true" />
+                  {copy.edit}
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleRegenerate}
+                  isLoading={isRegenerating}
+                >
+                  {isRegenerating ? null : <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />}
+                  {copy.regenerate}
+                </Button>
+                <Button type="button" variant="outline" size="sm" onClick={handleCopy}>
+                  {justCopied ? (
+                    <Check className="h-3.5 w-3.5" aria-hidden="true" />
+                  ) : (
+                    <Copy className="h-3.5 w-3.5" aria-hidden="true" />
+                  )}
+                  {justCopied ? copy.copied : copy.copy}
+                </Button>
+              </div>
             </div>
-          </div>
-          <div className="bg-surface-muted rounded-xl p-4">
-            <p dir="auto" className="text-foreground text-sm font-semibold">
-              {complaint.subject}
-            </p>
-            <p
+            <pre
               dir="auto"
-              className="text-foreground mt-3 text-sm leading-relaxed break-words whitespace-pre-wrap"
+              className="bg-surface-muted text-foreground overflow-x-auto rounded-xl p-4 font-sans text-sm leading-relaxed whitespace-pre-wrap"
             >
+              {complaint.subject ? `${complaint.subject}\n\n` : ''}
               {complaint.complaintText}
-            </p>
-          </div>
-        </Card>
+            </pre>
+          </Card>
+        </div>
 
         <div className="flex flex-col gap-6">
           <Card className="flex flex-col gap-4">
@@ -265,15 +262,13 @@ export function ComplaintDetail({ complaint: initialComplaint }: ComplaintDetail
             ) : null}
           </Card>
 
-          <Card className="flex flex-col gap-3">
-            <h2 className="text-heading text-sm font-semibold">{copy.nextSteps}</h2>
-            <p className="text-muted-foreground text-xs leading-relaxed">{copy.submitHint}</p>
+          <div className="flex flex-col gap-2">
             {complaint.officialUrl ? (
               <a
                 href={complaint.officialUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="bg-primary text-primary-foreground hover:bg-primary-hover active:bg-primary-pressed inline-flex h-11 items-center justify-center gap-2 rounded-xl px-4 text-sm font-medium transition-colors"
+                className="bg-primary text-primary-foreground hover:bg-primary/90 inline-flex h-11 items-center justify-center gap-2 rounded-xl px-4 text-sm font-medium transition-colors"
               >
                 <ExternalLink className="h-4 w-4" aria-hidden="true" />
                 {copy.openOfficial}
@@ -282,7 +277,7 @@ export function ComplaintDetail({ complaint: initialComplaint }: ComplaintDetail
 
             <Button
               type="button"
-              variant="subtle"
+              variant="outline"
               onClick={handleMarkSubmitted}
               isLoading={isMarkingSubmitted}
               disabled={Boolean(complaint.submittedAt)}
@@ -295,13 +290,13 @@ export function ComplaintDetail({ complaint: initialComplaint }: ComplaintDetail
             {complaint.conversationId ? (
               <Link
                 href={`/dashboard/conversations/${complaint.conversationId}`}
-                className="border-border bg-surface text-foreground hover:bg-surface-tint hover:text-primary inline-flex h-11 items-center justify-center gap-2 rounded-xl border px-4 text-sm font-medium transition-colors"
+                className="border-border bg-surface text-foreground hover:bg-surface-muted inline-flex h-11 items-center justify-center gap-2 rounded-xl border px-4 text-sm font-medium transition-colors"
               >
                 <MessagesSquare className="h-4 w-4" aria-hidden="true" />
                 {copy.conversation}
               </Link>
             ) : null}
-          </Card>
+          </div>
         </div>
       </div>
 

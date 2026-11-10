@@ -13,13 +13,18 @@ import type { Locale } from '@/lib/i18n/config'
 export type NavItem = {
   href: string
   label: Record<Locale, string>
-  /** Shorter label for the mobile bottom bar, where space is tight. */
-  shortLabel?: Record<Locale, string>
   icon: LucideIcon
+  /** Highlighted as the primary action at the top of the sidebar. */
   isPrimary?: boolean
+  /** Included in the mobile bottom navigation bar. */
   inBottomNav?: boolean
 }
 
+/**
+ * The dashboard navigation. /dashboard/knowledge is deliberately absent —
+ * the knowledge page is reserved for future admin functionality and is not
+ * surfaced anywhere in the user interface.
+ */
 export const NAV_ITEMS: NavItem[] = [
   {
     href: '/wasal?mode=complaint',
@@ -36,14 +41,12 @@ export const NAV_ITEMS: NavItem[] = [
   {
     href: '/dashboard/complaints',
     label: { ar: 'البلاغات السابقة', en: 'My complaints' },
-    shortLabel: { ar: 'البلاغات', en: 'Complaints' },
     icon: FileText,
     inBottomNav: true,
   },
   {
     href: '/dashboard/conversations',
     label: { ar: 'المحادثات', en: 'Conversations' },
-    shortLabel: { ar: 'المحادثات', en: 'Chats' },
     icon: MessagesSquare,
     inBottomNav: true,
   },
@@ -51,12 +54,12 @@ export const NAV_ITEMS: NavItem[] = [
     href: '/dashboard/drafts',
     label: { ar: 'المسودات', en: 'Drafts' },
     icon: FolderClock,
-    inBottomNav: true,
   },
   {
     href: '/dashboard/profile',
     label: { ar: 'الملف الشخصي', en: 'Profile' },
     icon: UserRound,
+    inBottomNav: true,
   },
   {
     href: '/dashboard/settings',

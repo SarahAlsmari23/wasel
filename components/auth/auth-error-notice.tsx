@@ -23,7 +23,7 @@ export function AuthErrorNotice({ details, action }: AuthErrorNoticeProps) {
   return (
     <div
       role="alert"
-      className="border-danger/25 bg-danger/5 animate-fade-in flex flex-col gap-2 rounded-xl border px-3.5 py-3"
+      className="border-danger/25 bg-danger/5 flex flex-col gap-2 rounded-xl border px-3.5 py-3"
     >
       <div className="flex items-start gap-2.5">
         <AlertCircle className="text-danger mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />

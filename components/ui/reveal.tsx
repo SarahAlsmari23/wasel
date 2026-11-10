@@ -1,17 +1,29 @@
+'use client'
+
+import { motion } from 'motion/react'
 import type { ReactNode } from 'react'
-import { cn } from '@/lib/utils/cn'
 
 type RevealProps = {
   children: ReactNode
+  /** Stagger sibling sections by passing an increasing delay. */
+  delay?: number
   className?: string
 }
 
 /**
- * Gentle fade-up as the block scrolls into view, driven purely by CSS
- * (`.wasel-reveal`, a scroll-driven animation). Nothing is hidden by script,
- * so content is always visible without JavaScript, in browsers without scroll
- * timelines, and for anyone who prefers reduced motion.
+ * Fades a section up the first time it scrolls into view. Deliberately subtle
+ * and one-shot — the Phase 1 brief asks for calm motion, not a scroll show.
  */
-export function Reveal({ children, className = '' }: RevealProps) {
-  return <div className={cn('wasel-reveal', className)}>{children}</div>
+export function Reveal({ children, delay = 0, className = '' }: RevealProps) {
+  return (
+    <motion.div
+      className={className}
+      initial={{ opacity: 0, y: 16 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, amount: 0.15 }}
+      transition={{ duration: 0.5, delay, ease: [0.22, 1, 0.36, 1] }}
+    >
+      {children}
+    </motion.div>
+  )
 }

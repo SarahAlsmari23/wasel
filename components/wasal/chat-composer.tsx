@@ -77,7 +77,7 @@ export function ChatComposer({
     // home-indicator inset when the browser renders edge-to-edge.
     <div className="border-border bg-background/85 border-t px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur-lg sm:px-6">
       <div className="mx-auto w-full max-w-3xl">
-        <div className="border-border bg-surface shadow-soft focus-within:border-primary/50 focus-within:ring-primary/10 flex items-end gap-2 rounded-2xl border p-2 transition-[border-color,box-shadow] duration-200 focus-within:ring-4">
+        <div className="border-border bg-surface shadow-soft focus-within:border-primary/50 flex items-end gap-2 rounded-2xl border p-2 transition-colors">
           <textarea
             ref={textareaRef}
             value={value}
@@ -97,9 +97,9 @@ export function ChatComposer({
             disabled={!canSend}
             aria-label={copy.send}
             className={cn(
-              'shrink-0 rounded-xl p-2.5 transition-[background-color,transform] duration-200 active:scale-95',
+              'shrink-0 rounded-xl p-2.5 transition-all duration-200',
               canSend
-                ? 'bg-primary text-primary-foreground hover:bg-primary-hover'
+                ? 'bg-primary text-primary-foreground hover:bg-primary/90'
                 : 'bg-primary/10 text-muted-foreground cursor-not-allowed',
             )}
           >
@@ -107,9 +107,7 @@ export function ChatComposer({
           </button>
         </div>
 
-        <p className="text-muted-foreground mt-2 hidden text-center text-[11px] sm:block">
-          {copy.hint}
-        </p>
+        <p className="text-muted-foreground mt-2 text-center text-[11px]">{copy.hint}</p>
       </div>
     </div>
   )
