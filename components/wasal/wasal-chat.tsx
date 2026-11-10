@@ -32,6 +32,7 @@ import { buildComplaintAnalysisFromRouting } from '@/lib/complaints/analysis'
 import { deriveComplaintTitleFromFields } from '@/lib/complaints/formal-letter'
 import { normalizeArabicInput } from '@/lib/ai/arabic-normalize'
 import { describesProblem } from '@/lib/ai/problem-signal'
+import { assessIntent } from '@/lib/ai/intent'
 import {
   inferFieldAnswerShape,
   isGreetingOnly,
@@ -1040,7 +1041,7 @@ export function WasalChat({
       !correction &&
       !isGreetingInterruption &&
       !isIdentityInterruption &&
-      isObviousOutOfScope(content)
+      (isObviousOutOfScope(content) || assessIntent(content).kind === 'out_of_scope')
     const isSideQuestionInterruption =
       !complaintAlreadyGenerated &&
       !correction &&

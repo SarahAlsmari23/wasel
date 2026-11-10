@@ -68,5 +68,9 @@ export function isOnlyComplaintRequest(message: string): boolean {
     .replace(/[^؀-ۿA-Za-z0-9]+/g, ' ')
     .trim()
   const words = rest.split(' ').filter((w) => w.length > 1)
-  return words.length === 0 && /[؀-ۿA-Za-z]/.test(message)
+  // It must actually ask to complain ("هههههه" leaves nothing either).
+  const asksToComplain =
+    new RegExp(COMPLAINT_REQUEST.source).test(normalizeArabicInput(message)) ||
+    /\b(?:complain\w*|complaint|file|report)\b/i.test(message)
+  return words.length === 0 && asksToComplain
 }

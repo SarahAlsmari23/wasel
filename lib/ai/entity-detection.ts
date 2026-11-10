@@ -66,7 +66,7 @@ const re = (parts: string[]) => new RegExp(parts.join('|'))
 
 // Written in normalised form (ة→ه, أ/إ/آ→ا, ى→ي).
 const ARABIC: Record<Sector, Patterns> = {
-  water: { strong: re([stem('مياه'), word('مويه'), 'صرف صحي', stem('مجاري')]) },
+  water: { strong: re([stem('مياه'), word('مويه'), '(?:ال)?صرف (?:ال)?صحي', stem('مجاري')]) },
   telecom: {
     strong: re([
       word('نت'),

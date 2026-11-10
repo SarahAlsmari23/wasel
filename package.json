@@ -16,7 +16,8 @@
     "eval:build": "node evals/build-dataset.mjs",
     "eval:offline": "tsx evals/offline-eval.ts",
     "eval:live": "node evals/live-eval.mjs",
-    "eval:drafting": "tsx evals/drafting/run.ts"
+    "eval:drafting": "tsx evals/drafting/run.ts",
+    "eval:intent": "tsx evals/intent/run.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.3",
