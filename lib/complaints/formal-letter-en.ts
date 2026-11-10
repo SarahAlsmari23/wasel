@@ -36,11 +36,22 @@ function clean(value: string | undefined): string {
 function describePriorContact(raw: string): string | null {
   const value = clean(raw)
   if (value === '') return null
-  if (/^(yes|y|نعم|ايه|إيه|أيوه|ايوه|اي)\b/i.test(value)) {
-    return 'I have already contacted the service provider about this matter, but it has not been resolved.'
+  // Anything said after the yes/no ("Yes, called customer care on 4 March")
+  // is kept verbatim — evaluation case CST-041 lost that date.
+  const detailAfter = (pattern: RegExp) => {
+    const rest = value
+      .replace(pattern, '')
+      .replace(/^[\s,.:;-]+/, '')
+      .trim()
+    return rest ? ` Details: ${rest.replace(/[.]$/, '')}.` : ''
   }
-  if (/^(no|n|لا)\b/i.test(value)) {
-    return 'I have not yet contacted the service provider directly about this matter.'
+  const yes = /^(yes|y|نعم|ايه|إيه|أيوه|ايوه|اي)\b/i
+  if (yes.test(value)) {
+    return `I have already contacted the service provider about this matter, but it has not been resolved.${detailAfter(yes)}`
+  }
+  const no = /^(no|n|لا)\b/i
+  if (no.test(value)) {
+    return `I have not yet contacted the service provider directly about this matter.${detailAfter(no)}`
   }
   return `Previous contact with the service provider: ${value}`
 }

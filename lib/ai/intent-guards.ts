@@ -71,12 +71,17 @@ const MAX_TOKENS_FOR_FUZZY_IDENTITY = 6
 // English fallback (Phase 7.3, Part 8 explicitly requires "Who are you").
 // Arabic-only normalization doesn't touch Latin text, so this is checked
 // against a separately lower-cased copy.
-const ENGLISH_IDENTITY_PATTERN = /^\s*who\s+are\s+you\s*\??\s*$/i
+const ENGLISH_IDENTITY_PATTERN =
+  /^\s*(who\s+are\s+you|what\s+are\s+you|what\s+can\s+you\s+do|are\s+you\s+(a\s+)?(bot|robot|human|real person|government (employee|official)))\s*\??\s*$/i
+// "هل أنت موظف حكومي؟" — evaluation case X-048: asked whether the assistant
+// is a government employee; the fixed identity answer makes clear it is not.
+const ARABIC_IDENTITY_ROLE_PATTERN = /^هل (انت|انتي) (موظف|موظفه|جهه|مسوول|من)(\s|$)/
 
 export function isIdentityQuestion(message: string): boolean {
   if (ENGLISH_IDENTITY_PATTERN.test(message)) return true
 
   const normalized = normalizeArabicInput(message)
+  if (ARABIC_IDENTITY_ROLE_PATTERN.test(normalized)) return true
   const tokens = tokenizeNormalized(normalized)
   const allowFuzzy = tokens.length > 0 && tokens.length <= MAX_TOKENS_FOR_FUZZY_IDENTITY
 
@@ -152,9 +157,13 @@ const GREETING_PHRASES = [
 
 export const GREETING_RESPONSE = 'أهلاً وسهلاً بك في واصل! كيف أقدر أساعدك اليوم؟'
 
+const ENGLISH_GREETING_PATTERN =
+  /^\s*(hi|hello|hey|hiya|good (morning|afternoon|evening))(\s+there)?\s*[!.]*\s*$/i
+
 export function isGreetingOnly(message: string): boolean {
   const normalized = normalizeArabicInput(message)
   if (normalized === '') return false
+  if (ENGLISH_GREETING_PATTERN.test(message)) return true
 
   // Whole-message equality (never substring) — "مرحبا، ابي أجدد رخصتي" must
   // never be swallowed by the greeting reply just for containing "مرحبا".

@@ -108,10 +108,13 @@ type SubjectRule = { keywords: string[]; subject: string }
  * Every subject here is a fixed, formal, generic phrase — never a provider
  * or merchant name, even when one was supplied in collectedFields. */
 const SECTOR_SUBJECT_RULES: Record<Sector, SubjectRule[]> = {
+  // Same order as narrative.ts's issue clauses (outage, connection, bill),
+  // so the subject and the body never describe two different problems —
+  // evals: "انقطاع المياه … رغم سداد الفواتير" was titled as a bill objection.
   water: [
-    { keywords: ['فاتورة', 'فواتير'], subject: 'اعتراض على فاتورة مياه' },
     { keywords: ['انقطاع', 'انقطعت', 'منقطعة', 'منقطع'], subject: 'شكوى بشأن انقطاع خدمة المياه' },
     { keywords: ['توصيل', 'تركيب', 'خط مياه'], subject: 'شكوى بشأن خدمة توصيل المياه' },
+    { keywords: ['فاتورة', 'فواتير'], subject: 'اعتراض على فاتورة مياه' },
   ],
   telecom: [
     // Emergency release fix — interruption and weak coverage are now two
@@ -137,8 +140,15 @@ const SECTOR_SUBJECT_RULES: Record<Sector, SubjectRule[]> = {
       ],
       subject: 'اعتراض على فاتورة اتصالات',
     },
+    // Slowness is not weak coverage (evaluation case CST-040: "بطء شديد في
+    // الإنترنت" was titled as weak coverage) — kept in lockstep with
+    // narrative.ts's telecom issue clauses.
     {
-      keywords: ['ضعيف', 'ضعف', 'بطيء', 'بطء', 'سيئ', 'سيئة'],
+      keywords: ['بطيء', 'بطء', 'بطيئة', 'بطيئ'],
+      subject: 'شكوى بشأن بطء خدمة الإنترنت',
+    },
+    {
+      keywords: ['ضعيف', 'ضعف', 'سيئ', 'سيئة', 'تغطية'],
       subject: 'شكوى بشأن ضعف تغطية الإنترنت',
     },
   ],
@@ -161,10 +171,11 @@ const SECTOR_SUBJECT_RULES: Record<Sector, SubjectRule[]> = {
     { keywords: ['رصيف', 'الأرصفة'], subject: 'بلاغ عن تلف في الرصيف' },
     { keywords: ['نظافة', 'قمامة', 'نفايات'], subject: 'بلاغ عن مشكلة في النظافة العامة' },
   ],
+  // Same order as narrative.ts (outage, meter, bill) — evals SEC-042.
   electricity: [
     { keywords: ['انقطاع', 'انقطعت', 'منقطعة'], subject: 'بلاغ عن انقطاع الكهرباء' },
-    { keywords: ['فاتورة', 'فواتير'], subject: 'اعتراض على فاتورة كهرباء' },
     { keywords: ['عداد'], subject: 'شكوى بشأن عداد الكهرباء' },
+    { keywords: ['فاتورة', 'فواتير'], subject: 'اعتراض على فاتورة كهرباء' },
   ],
 }
 

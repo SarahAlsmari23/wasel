@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { validateChatRequest } from '@/lib/ai/contracts'
 import { AiProviderError } from '@/lib/ai/generation-shared'
 import { generateAnswer } from '@/lib/ai/provider'
-import { describesProblem } from '@/lib/ai/problem-signal'
+import { describesProblem, isInformationQuestion } from '@/lib/ai/problem-signal'
 import {
   localizedFieldQuestion,
   SERVER_COPY,
@@ -15,6 +15,7 @@ import {
   type MissingFieldsResult,
 } from '@/lib/ai/missing-fields'
 import { buildPrompt } from '@/lib/ai/prompts'
+import { entityDisplayName } from '@/lib/mock/government-entities'
 import { getCollectedInformationForConversation } from '@/lib/db/collected-information'
 import { getSavedRouting, updateConversationRouting } from '@/lib/db/conversations'
 import {
@@ -23,7 +24,12 @@ import {
   resolveRouting,
   resolveRoutingByEntityName,
 } from '@/lib/ai/routing'
-import { detectSectorByKeyword, getEntityNameForSector } from '@/lib/ai/entity-detection'
+import {
+  detectSectorByKeyword,
+  getEntityNameForSector,
+  hasCorrectionMarker,
+  mentionsSupportedSector,
+} from '@/lib/ai/entity-detection'
 import { sanitizeComplaintContext, sanitizeHistory, sanitizeMessage } from '@/lib/ai/sanitize'
 import { retrieveRelevantDocuments, RetrievalError } from '@/lib/rag/retrieve'
 import type { RetrievedDocument } from '@/lib/rag/types'
@@ -246,7 +252,9 @@ export async function POST(request: Request) {
     intent === 'complaint_side_question' ||
     explicitCreateComplaint ||
     grievanceSignal ||
-    keywordSector !== null
+    // Any sector mention, even an ambiguous one (two sectors), keeps the
+    // message out of the greeting/identity/out-of-scope shortcuts.
+    mentionsSupportedSector(sanitizedMessage)
 
   if (!hasActiveComplaintContext && !likelyComplaint) {
     if (isGreetingOnly(sanitizedMessage)) {
@@ -347,7 +355,10 @@ export async function POST(request: Request) {
     const describesNewProblemElsewhere =
       keywordEntityName !== null &&
       keywordEntityName !== activeEntityName &&
-      describesProblem(sanitizedMessage)
+      // A self-correction ("لا قصدي الموية مو الكهربا", "I mean the water")
+      // naming another sector is new information too (evals SEC-032: the
+      // reply understood the correction but the authority stayed unchanged).
+      (describesProblem(sanitizedMessage) || hasCorrectionMarker(sanitizedMessage))
     const newInformationJustifiesChange =
       isExplicitRoutingChange(sanitizedMessage) || describesNewProblemElsewhere
     if (!newInformationJustifiesChange && routing?.entityName !== activeEntityName) {
@@ -717,6 +728,9 @@ export async function POST(request: Request) {
   const genericStarterSector = (() => {
     if (complaintInterruption === 'complaint_side_question') return null
     if (missingFieldsResult?.readyToGenerateComplaint) return null
+    // A plain information question ("ما رقم بلاغات وزارة التجارة؟") is
+    // answered, never met with "what exactly is the problem?" (evals).
+    if (!hasActiveComplaintContext && isInformationQuestion(sanitizedMessage)) return null
     if (!routing?.entityName) return null
     const sector = ENTITY_NAME_TO_SECTOR[routing.entityName]
     if (!sector) return null
@@ -814,6 +828,16 @@ export async function POST(request: Request) {
     complaintContext: promptComplaintContext,
     retrievedDocuments,
     locale,
+    verifiedAuthority:
+      routing?.entityName && routing.confidence !== 'low'
+        ? {
+            nameAr: routing.entityName,
+            nameEn:
+              entityDisplayName(routing.entityName, 'en') !== routing.entityName
+                ? entityDisplayName(routing.entityName, 'en')
+                : undefined,
+          }
+        : undefined,
   })
   debugLog(
     `[chat] prompt-built length=${prompt.length} retrievedDocumentCount=${retrievedDocuments.length}`,
