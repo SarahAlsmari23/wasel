@@ -30,8 +30,11 @@ export function BottomNav() {
             href={item.href}
             aria-current={isActive ? 'page' : undefined}
             className={cn(
-              'flex min-h-14 flex-1 flex-col items-center justify-center gap-1 py-2 text-[11px] font-medium transition-colors duration-200',
-              isActive ? 'text-primary' : 'text-muted-foreground',
+              'relative flex min-h-14 flex-1 flex-col items-center justify-center gap-1 py-2 text-[11px] font-medium transition-colors duration-200',
+              'before:bg-primary before:absolute before:inset-x-5 before:top-0 before:h-0.5 before:rounded-b-full before:transition-opacity',
+              isActive
+                ? 'text-primary before:opacity-100'
+                : 'text-muted-foreground before:opacity-0',
             )}
           >
             <Icon className="h-4.5 w-4.5" aria-hidden="true" />

@@ -44,6 +44,7 @@ const COPY = defineCopy({
     ],
     privacyLink: 'اطّلع على سياسة الخصوصية',
     howTitle: 'كيف يعمل واصل؟',
+    howEyebrow: 'الخطوات',
   },
   en: {
     metaTitle: 'About Wasel',
@@ -79,6 +80,7 @@ const COPY = defineCopy({
     ],
     privacyLink: 'Read the privacy policy',
     howTitle: 'How does Wasel work?',
+    howEyebrow: 'The steps',
   },
 })
 
@@ -93,10 +95,11 @@ export default async function AboutPage() {
   return (
     <div className="flex flex-col gap-24 pb-24 md:gap-28">
       {/* Hero + purpose cards share a tighter gap than the rest of the page. */}
-      <div className="flex flex-col gap-16 md:gap-20">
+      <div className="flex flex-col gap-6 md:gap-8">
         <section>
           <div className="mx-auto flex max-w-4xl flex-col gap-5 px-5 pt-16 pb-6 text-center md:px-6 md:pt-24 md:pb-8">
-            <h1 className="font-arabic text-primary animate-fade-up text-4xl font-semibold text-balance sm:text-5xl">
+            <span className="eyebrow animate-fade-in self-center">واصل · Wasel</span>
+            <h1 className="font-arabic text-heading animate-fade-up text-4xl font-semibold text-balance sm:text-5xl">
               {copy.title}
             </h1>
             <p className="text-muted-foreground animate-fade-up text-base leading-relaxed text-pretty [animation-delay:100ms] sm:text-lg">
@@ -115,23 +118,23 @@ export default async function AboutPage() {
           description={copy.whyDescription}
         />
 
-        <div className="mt-10 grid gap-5 md:grid-cols-3">
+        <Reveal className="mt-10 grid gap-x-8 gap-y-2 md:grid-cols-3">
           {copy.reasons.map((reason, index) => (
-            <Reveal key={reason.title} delay={index * 0.08}>
-              <Card className="flex h-full flex-col gap-3">
-                <h3 className="text-heading text-base font-semibold">{reason.title}</h3>
-                <p className="text-muted-foreground text-sm leading-relaxed">
-                  {reason.description}
-                </p>
-              </Card>
-            </Reveal>
+            <div
+              key={reason.title}
+              className="border-border flex flex-col gap-2 border-t pt-6 md:pt-7"
+            >
+              <span className="text-primary text-xs font-semibold tabular-nums">0{index + 1}</span>
+              <h3 className="text-heading text-base font-semibold">{reason.title}</h3>
+              <p className="text-muted-foreground text-sm leading-relaxed">{reason.description}</p>
+            </div>
           ))}
-        </div>
+        </Reveal>
       </section>
 
       <section className="mx-auto w-full max-w-4xl px-5 md:px-6">
         <Reveal>
-          <Card className="flex flex-col gap-4">
+          <Card className="border-primary/20 flex flex-col gap-4 border-s-4">
             <div className="flex items-center gap-3">
               <span className="bg-surface-tint text-primary flex h-10 w-10 items-center justify-center rounded-xl">
                 <ShieldCheck className="h-5 w-5" aria-hidden="true" />
@@ -154,9 +157,7 @@ export default async function AboutPage() {
       </section>
 
       <section className="mx-auto w-full max-w-6xl px-5 md:px-6">
-        <h3 className="text-heading text-center text-xl font-semibold sm:text-2xl">
-          {copy.howTitle}
-        </h3>
+        <SectionHeading eyebrow={copy.howEyebrow} title={copy.howTitle} />
 
         <Reveal className="mt-8">
           <HowItWorks />

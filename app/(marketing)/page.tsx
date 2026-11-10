@@ -6,10 +6,13 @@ import { StatisticsSection } from '@/components/marketing/statistics-section'
 
 export default function LandingPage() {
   return (
-    <div className="flex flex-col gap-24 pb-24 md:gap-32">
-      <HeroSection />
+    <div className="flex flex-col gap-20 pb-24 md:gap-28">
+      <div className="flex flex-col gap-4">
+        <HeroSection />
+        {/* Product facts sit directly under the hero, as its footnote. */}
+        <StatisticsSection />
+      </div>
       <AuthoritiesSection />
-      <StatisticsSection />
       <AboutSection />
       <CtaSection />
     </div>

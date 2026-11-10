@@ -78,7 +78,10 @@ export function RecentActivity({ complaints }: RecentActivityProps) {
                   <GovernmentLogo iconKey={entity?.iconKey} size="sm" />
 
                   <div className="min-w-0 flex-1">
-                    <p dir="auto" className="text-foreground truncate text-sm font-medium">
+                    <p
+                      dir="auto"
+                      className="text-match-parent text-foreground truncate text-sm font-medium"
+                    >
                       {displayTitle}
                     </p>
                     <p className="text-muted-foreground mt-0.5 truncate text-xs">

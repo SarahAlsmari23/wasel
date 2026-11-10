@@ -50,22 +50,19 @@ export async function SiteFooter() {
 
   return (
     <footer className="border-border bg-surface border-t">
-      <div className="mx-auto grid max-w-6xl gap-10 px-5 py-14 md:grid-cols-[1.5fr_1fr_1fr] md:px-6">
-        <div className="flex flex-col gap-3">
+      <div className="mx-auto grid max-w-6xl gap-10 px-5 pt-14 pb-10 md:grid-cols-[1.6fr_1fr_1fr] md:px-6">
+        <div className="flex flex-col gap-4">
           <WaselLogo variant="horizontal" size="sm" />
-          <p className="text-muted-foreground max-w-xs text-sm leading-relaxed">{copy.about}</p>
-          <p className="text-muted-foreground/80 max-w-xs text-xs leading-relaxed">
-            {copy.disclaimer}
-          </p>
+          <p className="text-muted-foreground max-w-sm text-sm leading-relaxed">{copy.about}</p>
         </div>
 
         <nav aria-label={copy.footerNav} className="flex flex-col gap-3">
-          <p className="text-foreground text-sm font-semibold">{copy.quickLinks}</p>
+          <p className="text-heading text-sm font-semibold">{copy.quickLinks}</p>
           {copy.links.map((link) => (
             <Link
               key={link.href}
               href={link.href}
-              className="text-muted-foreground hover:text-primary text-sm transition-colors duration-200"
+              className="text-muted-foreground hover:text-primary w-fit text-sm transition-colors duration-200"
             >
               {link.label}
             </Link>
@@ -73,12 +70,12 @@ export async function SiteFooter() {
         </nav>
 
         <div className="flex flex-col gap-3">
-          <p className="text-foreground text-sm font-semibold">{copy.legal}</p>
+          <p className="text-heading text-sm font-semibold">{copy.legal}</p>
           {copy.legalLinks.map((link) => (
             <Link
               key={link.href}
               href={link.href}
-              className="text-muted-foreground hover:text-primary text-sm transition-colors duration-200"
+              className="text-muted-foreground hover:text-primary w-fit text-sm transition-colors duration-200"
             >
               {link.label}
             </Link>
@@ -86,8 +83,13 @@ export async function SiteFooter() {
         </div>
       </div>
 
-      <div className="border-border text-muted-foreground border-t px-5 py-5 text-center text-xs md:px-6">
-        {copy.rights} {new Date().getFullYear()}
+      <div className="border-border border-t">
+        <div className="text-muted-foreground mx-auto flex max-w-6xl flex-col gap-2 px-5 py-5 text-xs leading-relaxed sm:flex-row sm:items-center sm:justify-between md:px-6">
+          <p>{copy.disclaimer}</p>
+          <p className="shrink-0">
+            {copy.rights} {new Date().getFullYear()}
+          </p>
+        </div>
       </div>
     </footer>
   )

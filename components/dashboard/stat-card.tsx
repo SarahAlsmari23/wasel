@@ -1,6 +1,5 @@
 import type { LucideIcon } from 'lucide-react'
 import Link from 'next/link'
-import { Card } from '@/components/ui/card'
 import type { Locale } from '@/lib/i18n/config'
 import { formatNumber } from '@/lib/utils/format'
 import { cn } from '@/lib/utils/cn'
@@ -15,6 +14,11 @@ type StatCardProps = {
   highlight?: boolean
 }
 
+/**
+ * One figure in the overview's stats strip: a cell, not a card. The strip's
+ * hairlines come from the parent (`divide-*`), so four figures read as one
+ * calm row instead of four boxes.
+ */
 export function StatCard({
   label,
   value,
@@ -23,38 +27,37 @@ export function StatCard({
   href,
   highlight = false,
 }: StatCardProps) {
+  const isCalling = highlight && value > 0
   const content = (
-    <Card
-      interactive={Boolean(href)}
-      className={cn(
-        'flex h-full items-center gap-4 p-5',
-        highlight && value > 0 && 'border-primary/30',
-      )}
-    >
-      <span
-        className={cn(
-          'flex h-11 w-11 shrink-0 items-center justify-center rounded-xl',
-          highlight && value > 0
-            ? 'bg-primary text-primary-foreground'
-            : 'bg-surface-tint text-primary',
-        )}
-      >
-        <Icon className="h-5 w-5" aria-hidden="true" />
+    <>
+      <span className="flex items-center justify-between gap-3">
+        <span className="text-muted-foreground text-xs font-medium sm:text-sm">{label}</span>
+        <Icon
+          className={cn(
+            'h-4 w-4 shrink-0',
+            isCalling ? 'text-primary' : 'text-subtle-foreground group-hover:text-primary',
+          )}
+          aria-hidden="true"
+        />
       </span>
-      <div className="min-w-0">
-        <p className="text-foreground text-2xl font-semibold tabular-nums">
+      <span className="flex items-center gap-2">
+        <span className="text-heading text-[1.75rem] leading-none font-semibold tabular-nums">
           {formatNumber(value, locale)}
-        </p>
-        <p className="text-muted-foreground text-sm leading-snug">{label}</p>
-      </div>
-    </Card>
+        </span>
+        {isCalling ? (
+          <span aria-hidden="true" className="bg-primary h-1.5 w-1.5 rounded-full" />
+        ) : null}
+      </span>
+    </>
   )
 
+  const cellClasses = 'group flex flex-col gap-3 px-5 py-5 transition-colors duration-200 sm:px-6'
+
   return href ? (
-    <Link href={href} className="block h-full rounded-2xl">
+    <Link href={href} className={cn(cellClasses, 'hover:!bg-surface-tint/60')}>
       {content}
     </Link>
   ) : (
-    content
+    <div className={cellClasses}>{content}</div>
   )
 }

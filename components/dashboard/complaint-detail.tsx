@@ -189,7 +189,10 @@ export function ComplaintDetail({ complaint: initialComplaint }: ComplaintDetail
         <div className="flex items-start gap-4">
           <GovernmentLogo iconKey={entity?.iconKey} />
           <div>
-            <h1 dir="auto" className="text-heading text-2xl font-semibold text-balance">
+            <h1
+              dir="auto"
+              className="text-match-parent text-heading text-2xl font-semibold text-balance"
+            >
               {displayTitle}
             </h1>
             <p className="text-muted-foreground mt-1 text-sm">

@@ -31,8 +31,13 @@ export function htmlLangFor(locale: Locale): string {
 }
 
 /** Locale tag for Intl date/number formatting. */
+/**
+ * Arabic formatting uses Western digits (`nu-latn`) — the convention on Saudi
+ * government portals, and consistent with the dashboard's figures — while
+ * keeping ar-SA's month names and calendar.
+ */
 export function intlLocaleFor(locale: Locale): string {
-  return locale === 'ar' ? 'ar-SA' : 'en-GB'
+  return locale === 'ar' ? 'ar-SA-u-nu-latn' : 'en-GB'
 }
 
 /**

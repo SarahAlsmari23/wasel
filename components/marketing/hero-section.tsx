@@ -32,8 +32,8 @@ export async function HeroSection() {
 
   return (
     <section className="relative">
-      <div className="mx-auto flex max-w-4xl flex-col items-center gap-6 px-5 pt-16 pb-20 text-center md:px-6 md:pt-24 md:pb-28">
-        <span className="border-primary/15 bg-surface/80 text-primary animate-fade-in shadow-soft inline-flex items-center gap-2 rounded-full border px-4 py-1.5 text-xs font-medium">
+      <div className="mx-auto flex max-w-4xl flex-col items-center gap-6 px-5 pt-14 pb-14 text-center md:px-6 md:pt-24 md:pb-20">
+        <span className="border-primary/15 bg-surface/80 text-primary animate-fade-in inline-flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-xs font-medium">
           <ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" />
           {copy.badge}
         </span>
@@ -62,8 +62,8 @@ export async function HeroSection() {
         </div>
       </div>
 
-      <div className="mx-auto w-full max-w-6xl px-5 pb-16 md:px-6 md:pb-24">
-        <HeroIllustration />
+      <div className="mx-auto w-full max-w-6xl px-5 pb-8 md:px-6 md:pb-12">
+        <HeroIllustration locale={locale} />
       </div>
     </section>
   )

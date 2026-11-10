@@ -5,7 +5,6 @@ import Link from 'next/link'
 import { useMemo, useState } from 'react'
 import { deleteConversationAction } from '@/app/wasal/conversation-actions'
 import { Button, buttonClasses } from '@/components/ui/button'
-import { Card } from '@/components/ui/card'
 import { EmptyState } from '@/components/ui/empty-state'
 import { Modal } from '@/components/ui/modal'
 import { RelativeTime } from '@/components/ui/relative-time'
@@ -133,38 +132,50 @@ export function ConversationsBrowser({ conversations }: ConversationsBrowserProp
       {visible.length === 0 ? (
         <EmptyState icon={MessagesSquare} title={copy.noResults} description={copy.noResultsHint} />
       ) : (
-        <div className="grid gap-4 md:grid-cols-2">
+        <ul className="bg-surface border-border divide-border divide-y overflow-hidden rounded-2xl border">
           {visible.map((conversation) => (
-            <Card key={conversation.id} interactive className="flex h-full flex-col gap-3 p-5">
-              <div className="flex items-start justify-between gap-3">
-                <h3
+            <li
+              key={conversation.id}
+              className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:gap-5 sm:px-5"
+            >
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h3
+                    dir="auto"
+                    className="text-match-parent text-heading text-sm leading-snug font-semibold"
+                  >
+                    <Link
+                      href={`/dashboard/conversations/${conversation.id}`}
+                      className="hover:text-primary transition-colors"
+                    >
+                      {localizeTitle(conversation.title, locale)}
+                    </Link>
+                  </h3>
+                  <ConversationStatusBadge status={conversation.status} locale={locale} />
+                </div>
+                <p
                   dir="auto"
-                  className="text-heading text-sm leading-snug font-semibold text-balance"
+                  className="text-match-parent text-muted-foreground mt-1 truncate text-sm"
                 >
-                  {localizeTitle(conversation.title, locale)}
-                </h3>
-                <ConversationStatusBadge status={conversation.status} locale={locale} />
-              </div>
-
-              <p dir="auto" className="text-muted-foreground line-clamp-2 text-sm leading-relaxed">
-                {conversation.preview}
-              </p>
-
-              <div className="flex flex-wrap items-center gap-2 text-xs">
-                {conversation.entityName ? (
-                  <span className="bg-secondary/10 text-secondary rounded-full px-2 py-0.5 font-medium">
-                    {entityDisplayName(conversation.entityName, locale)}
-                  </span>
-                ) : null}
-                <span className="text-muted-foreground">
+                  {conversation.preview}
+                </p>
+                <p className="text-muted-foreground mt-1.5 text-xs">
+                  {conversation.entityName ? (
+                    <>
+                      <span className="text-secondary font-medium">
+                        {entityDisplayName(conversation.entityName, locale)}
+                      </span>
+                      <span aria-hidden="true"> · </span>
+                    </>
+                  ) : null}
                   <RelativeTime iso={conversation.updatedAt} />
-                </span>
+                </p>
               </div>
 
-              <div className="border-border mt-auto flex items-center gap-1 border-t pt-3">
+              <div className="flex shrink-0 items-center gap-1 self-end sm:self-auto">
                 <Link
                   href={`/dashboard/conversations/${conversation.id}`}
-                  className="text-foreground hover:bg-primary/6 inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium transition-colors"
+                  className="text-primary hover:bg-surface-tint inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium transition-colors"
                 >
                   {copy.continue}
                   {locale === 'ar' ? (
@@ -176,15 +187,16 @@ export function ConversationsBrowser({ conversations }: ConversationsBrowserProp
                 <button
                   type="button"
                   onClick={() => setPendingDelete(conversation)}
-                  className="text-danger hover:bg-danger/6 ms-auto inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium transition-colors"
+                  aria-label={`${copy.delete}: ${localizeTitle(conversation.title, locale)}`}
+                  className="text-muted-foreground hover:text-danger hover:bg-danger/6 inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium transition-colors"
                 >
                   <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
                   {copy.delete}
                 </button>
               </div>
-            </Card>
+            </li>
           ))}
-        </div>
+        </ul>
       )}
 
       <Modal

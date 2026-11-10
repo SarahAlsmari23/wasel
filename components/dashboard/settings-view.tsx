@@ -18,7 +18,6 @@ import { ChangePasswordModal } from '@/components/dashboard/profile-view'
 import { useCopy, useLocale } from '@/components/i18n/locale-provider'
 import { useTheme, type ThemePreference } from '@/components/theme/theme-provider'
 import { Button, buttonClasses } from '@/components/ui/button'
-import { Card } from '@/components/ui/card'
 import { Field, Select } from '@/components/ui/field'
 import { Modal } from '@/components/ui/modal'
 import { useToast } from '@/components/ui/toast'
@@ -295,13 +294,17 @@ function SettingsSection({
   children: React.ReactNode
 }) {
   return (
-    <Card className="flex flex-col gap-5">
+    // Two columns from lg: what the section is about on the start side, its
+    // controls in a single panel beside it — sections ruled, not boxed.
+    <section className="border-border grid gap-4 border-t pt-8 first-of-type:border-t-0 first-of-type:pt-2 lg:grid-cols-[15rem_minmax(0,1fr)] lg:gap-10">
       <div>
-        <h2 className="text-heading text-sm font-semibold">{title}</h2>
-        <p className="text-muted-foreground mt-0.5 text-xs">{description}</p>
+        <h2 className="text-heading text-base font-semibold">{title}</h2>
+        <p className="text-muted-foreground mt-1 text-sm leading-relaxed">{description}</p>
       </div>
-      <div className="flex flex-col gap-5">{children}</div>
-    </Card>
+      <div className="bg-surface border-border flex flex-col gap-5 rounded-2xl border p-5">
+        {children}
+      </div>
+    </section>
   )
 }
 

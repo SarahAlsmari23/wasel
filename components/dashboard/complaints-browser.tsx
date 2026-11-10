@@ -6,7 +6,6 @@ import { useMemo, useState } from 'react'
 import { GovernmentLogo } from '@/components/government/government-logo'
 import { Badge } from '@/components/ui/badge'
 import { buttonClasses } from '@/components/ui/button'
-import { Card } from '@/components/ui/card'
 import { EmptyState } from '@/components/ui/empty-state'
 import { Select } from '@/components/ui/field'
 import { SearchInput } from '@/components/ui/search-input'
@@ -173,7 +172,7 @@ export function ComplaintsBrowser({ complaints }: ComplaintsBrowserProps) {
       {visible.length === 0 ? (
         <EmptyState icon={FileText} title={copy.noResults} description={copy.noResultsHint} />
       ) : (
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <ul className="bg-surface border-border divide-border divide-y overflow-hidden rounded-2xl border">
           {visible.map((complaint) => {
             const displayTitle = getDisplayTitle(
               { title: complaint.title, complaintSubject: complaint.subject },
@@ -189,57 +188,52 @@ export function ComplaintsBrowser({ complaints }: ComplaintsBrowserProps) {
               : undefined
 
             return (
-              <Card
+              <li
                 key={complaint.id}
-                interactive
-                className="relative flex h-full flex-col gap-4 p-5"
+                className="group hover:bg-primary/4 relative transition-colors duration-200"
               >
-                <div className="flex items-start gap-3">
-                  <GovernmentLogo iconKey={entity?.iconKey} size="sm" />
-                  <div className="min-w-0 flex-1">
-                    <h3
-                      dir="auto"
-                      className="text-heading text-sm leading-snug font-semibold text-balance"
-                    >
-                      <Link
-                        href={`/dashboard/complaints/${complaint.id}`}
-                        className="hover:text-primary transition-colors after:absolute after:inset-0"
+                <div className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:gap-5 sm:px-5">
+                  <div className="flex min-w-0 flex-1 items-start gap-3.5 sm:items-center">
+                    <GovernmentLogo iconKey={entity?.iconKey} size="sm" />
+                    <div className="min-w-0 flex-1">
+                      <h3
+                        dir="auto"
+                        className="text-match-parent text-heading text-sm leading-snug font-semibold"
                       >
-                        {displayTitle}
-                      </Link>
-                    </h3>
-                    <p className="text-muted-foreground mt-1 truncate text-xs">
-                      {entityDisplayName(complaint.entityName, locale)}
-                    </p>
+                        <Link
+                          href={`/dashboard/complaints/${complaint.id}`}
+                          className="group-hover:text-primary transition-colors after:absolute after:inset-0"
+                        >
+                          {displayTitle}
+                        </Link>
+                      </h3>
+                      <p className="text-muted-foreground mt-1 truncate text-xs">
+                        {entityDisplayName(complaint.entityName, locale)}
+                        <span aria-hidden="true"> · </span>
+                        <span dir="ltr" className="tabular-nums">
+                          {complaint.referenceNumber}
+                        </span>
+                      </p>
+                    </div>
                   </div>
-                  <Badge variant={presentation.badgeVariant}>
-                    <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-current" />
-                    {presentation.label}
-                  </Badge>
-                </div>
 
-                <div className="text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
-                  <span
-                    dir="ltr"
-                    className="bg-secondary/10 text-secondary rounded-full px-2 py-0.5 font-medium tabular-nums"
-                  >
-                    {complaint.referenceNumber}
-                  </span>
-                  <span>
-                    {copy.created}: {formatDate(complaint.createdAt, locale)}
-                  </span>
-                  <span>
-                    {copy.updated}: {formatDate(complaint.updatedAt, locale)}
-                  </span>
+                  <div className="text-muted-foreground flex items-center justify-between gap-4 ps-12 text-xs sm:justify-end sm:ps-0">
+                    <span className="sm:w-36 sm:text-end">
+                      <span className="sr-only">{copy.updated}: </span>
+                      {formatDate(complaint.updatedAt, locale)}
+                    </span>
+                    <span className="sm:w-32 sm:text-end">
+                      <Badge variant={presentation.badgeVariant}>
+                        <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-current" />
+                        {presentation.label}
+                      </Badge>
+                    </span>
+                  </div>
                 </div>
-
-                <div className="border-border text-primary mt-auto flex items-center gap-1 border-t pt-3 text-xs font-medium">
-                  {copy.open}
-                </div>
-              </Card>
+              </li>
             )
           })}
-        </div>
+        </ul>
       )}
     </div>
   )

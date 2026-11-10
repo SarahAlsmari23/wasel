@@ -48,24 +48,31 @@ export function ContinueCard({ draft, showViewAllDrafts }: ContinueCardProps) {
     <section className="flex flex-col gap-3">
       <h2 className="text-heading text-sm font-semibold">{copy.heading}</h2>
 
-      <div className="bg-primary text-primary-foreground shadow-lift flex flex-col gap-5 rounded-2xl p-6 sm:flex-row sm:items-center sm:justify-between">
+      {/*
+        A quiet surface with an emerald leading edge: it is the one card on
+        the page that asks the user to act, without shouting in solid green.
+      */}
+      <div className="bg-surface border-border relative flex flex-col gap-5 overflow-hidden rounded-2xl border p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
+        <span aria-hidden="true" className="bg-primary absolute inset-y-0 start-0 w-1" />
         <div className="flex min-w-0 items-start gap-4">
-          {/* The logo keeps its own white plate so it never blends into the green. */}
-          <GovernmentLogo iconKey={entity?.iconKey} className="border-transparent" />
-          <div className="flex min-w-0 flex-col gap-1.5">
-            <h3 dir="auto" className="text-base font-semibold text-balance">
+          <GovernmentLogo iconKey={entity?.iconKey} />
+          <div className="flex min-w-0 flex-col gap-1">
+            <h3
+              dir="auto"
+              className="text-match-parent text-heading text-base font-semibold text-balance"
+            >
               {localizeTitle(draft.title, locale)}
             </h3>
-            <p className="text-primary-foreground/75 text-sm">
+            <p className="text-muted-foreground text-sm">
               {entityDisplayName(draft.entityName, locale)}
             </p>
-            <div className="text-primary-foreground/75 mt-1 flex flex-wrap items-center gap-3 text-xs">
+            <div className="text-muted-foreground mt-1.5 flex flex-wrap items-center gap-3 text-xs">
+              <span className="bg-status-draft/12 text-status-draft rounded-full px-2 py-0.5 font-medium">
+                {copy.draft}
+              </span>
               <span className="inline-flex items-center gap-1.5">
                 <Clock className="h-3 w-3" aria-hidden="true" />
                 {copy.lastEdited} <RelativeTime iso={draft.updatedAt} />
-              </span>
-              <span className="bg-primary-foreground/12 rounded-full px-2 py-0.5 font-medium">
-                {copy.draft}
               </span>
             </div>
           </div>
@@ -73,7 +80,7 @@ export function ContinueCard({ draft, showViewAllDrafts }: ContinueCardProps) {
 
         <Link
           href={`/wasal?conversationId=${draft.id}`}
-          className="bg-primary-foreground text-primary hover:bg-primary-foreground/90 inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-xl px-5 text-sm font-medium transition-colors"
+          className={buttonClasses('primary', 'md', 'w-full sm:w-auto')}
         >
           {copy.continue}
           <ForwardArrow className="h-4 w-4" aria-hidden="true" />
@@ -83,10 +90,10 @@ export function ContinueCard({ draft, showViewAllDrafts }: ContinueCardProps) {
       {showViewAllDrafts ? (
         <Link
           href="/dashboard/drafts"
-          className={buttonClasses('ghost', 'sm', 'self-start px-0 hover:bg-transparent')}
+          className="text-primary hover:text-primary-hover inline-flex items-center gap-1.5 self-start text-xs font-medium transition-colors"
         >
           {copy.viewAll}
-          <ForwardArrow className="h-3.5 w-3.5" aria-hidden="true" />
+          <ForwardArrow className="h-3 w-3" aria-hidden="true" />
         </Link>
       ) : null}
     </section>

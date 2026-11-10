@@ -73,7 +73,10 @@ export default async function ConversationDetailPage({ params }: PageProps) {
 
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 dir="auto" className="text-heading text-2xl font-semibold text-balance">
+          <h1
+            dir="auto"
+            className="text-match-parent text-heading text-2xl font-semibold text-balance"
+          >
             {title}
           </h1>
           <p className="text-muted-foreground mt-1 text-sm">

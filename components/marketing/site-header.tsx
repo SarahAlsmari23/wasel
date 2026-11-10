@@ -100,10 +100,11 @@ export function SiteHeader({ isAuthenticated }: SiteHeaderProps) {
                 href={link.href}
                 aria-current={isActive ? 'page' : undefined}
                 className={cn(
-                  'rounded-lg px-3.5 py-2 text-sm font-medium transition-colors duration-200',
+                  'relative px-3.5 py-2 text-sm font-medium transition-colors duration-200',
+                  'after:bg-primary after:absolute after:inset-x-3.5 after:-bottom-[1.0625rem] after:h-0.5 after:rounded-full after:transition-opacity after:duration-200',
                   isActive
-                    ? 'text-primary bg-primary/8'
-                    : 'text-foreground/80 hover:text-primary hover:bg-primary/5',
+                    ? 'text-heading after:opacity-100'
+                    : 'text-muted-foreground hover:text-heading after:opacity-0',
                 )}
               >
                 {link.label}
@@ -115,6 +116,7 @@ export function SiteHeader({ isAuthenticated }: SiteHeaderProps) {
         <div className="hidden items-center gap-1.5 lg:flex">
           <LanguageSwitcher />
           <ThemeToggle />
+          <span aria-hidden="true" className="bg-border mx-1.5 h-5 w-px" />
           {isAuthenticated ? (
             <Link href="/dashboard" className={buttonClasses('primary', 'sm', 'ms-1')}>
               <LayoutDashboard className="h-4 w-4" aria-hidden="true" />

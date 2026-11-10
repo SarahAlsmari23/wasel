@@ -29,6 +29,9 @@ type WaselLogoProps = {
   variant?: LogoVariant
   className?: string
   priority?: boolean
+  /** `inverse` — for dark brand surfaces (the dashboard rail): the mark sits on
+   * a white plate, as on the hero, and the wordmark turns light. */
+  tone?: 'default' | 'inverse'
 }
 
 /** The symbol occupies roughly the top 62% of the artwork. */
@@ -60,6 +63,7 @@ export function WaselLogo({
   variant = 'full',
   className = '',
   priority = false,
+  tone = 'default',
 }: WaselLogoProps) {
   const px = SIZE_PX[size]
 
@@ -74,10 +78,17 @@ export function WaselLogo({
   if (variant === 'horizontal') {
     return (
       <span className={cn('inline-flex items-center gap-2.5', className)}>
-        <Mark px={px} priority={priority} />
+        {tone === 'inverse' ? (
+          <span className="flex items-center justify-center rounded-lg bg-white p-1">
+            <Mark px={px - 4} priority={priority} />
+          </span>
+        ) : (
+          <Mark px={px} priority={priority} />
+        )}
         <span
           className={cn(
-            'font-arabic text-heading font-bold tracking-tight',
+            'font-arabic font-bold tracking-tight',
+            tone === 'inverse' ? 'text-white' : 'text-heading',
             size === 'sm' ? 'text-lg' : 'text-2xl',
           )}
         >

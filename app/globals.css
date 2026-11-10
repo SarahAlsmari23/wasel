@@ -60,6 +60,23 @@
   --surface-dark: #0f2d52;
   --surface-dark-foreground: #f7f9fa;
 
+  /*
+   * Dashboard sidebar — the brand navy, in both themes, so the authenticated
+   * area carries the identity instead of a generic white admin rail.
+   * Muted text on it is 6.0:1; the call-to-action uses the lifted emerald
+   * with deep text (7.1:1) so it reads clearly on navy.
+   */
+  --sidebar: #12355b;
+  --sidebar-foreground: #f2f6fa;
+  --sidebar-muted: #b4c3d4;
+  --sidebar-border: rgb(255 255 255 / 0.09);
+  --sidebar-hover: rgb(255 255 255 / 0.06);
+  --sidebar-active: rgb(255 255 255 / 0.1);
+  --sidebar-indicator: #5fd0b5;
+  --sidebar-cta: #2aad85;
+  --sidebar-cta-hover: #36bb92;
+  --sidebar-cta-foreground: #04140d;
+
   /* Network-motif line colour (hero curves, dashboard header). */
   --network-line: rgb(8 107 76 / 0.16);
   --network-node: rgb(18 53 91 / 0.22);
@@ -137,6 +154,9 @@
   --surface-dark: #0b2444;
   --surface-dark-foreground: #f2f6fa;
 
+  --sidebar: #05152a; /* a step deeper than the page navy */
+  --sidebar-border: rgb(123 165 208 / 0.14);
+
   --network-line: rgb(60 194 166 / 0.14);
   --network-node: rgb(123 165 208 / 0.28);
 
@@ -180,6 +200,17 @@
   --color-primary-hover: var(--primary-hover);
   --color-primary-pressed: var(--primary-pressed);
   --color-overlay: var(--overlay);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-muted: var(--sidebar-muted);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-hover: var(--sidebar-hover);
+  --color-sidebar-active: var(--sidebar-active);
+  --color-sidebar-indicator: var(--sidebar-indicator);
+  --color-sidebar-cta: var(--sidebar-cta);
+  --color-sidebar-cta-hover: var(--sidebar-cta-hover);
+  --color-sidebar-cta-foreground: var(--sidebar-cta-foreground);
+  --color-network-line: var(--network-line);
   --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
   --color-accent: var(--accent);
@@ -208,8 +239,9 @@
   --radius-pill: 999px;
 
   /* Shadows tinted with the navy rather than neutral black. */
-  --shadow-soft: 0 1px 2px rgb(18 53 91 / 0.04), 0 8px 24px -12px rgb(18 53 91 / 0.12);
-  --shadow-lift: 0 2px 4px rgb(18 53 91 / 0.06), 0 18px 40px -18px rgb(18 53 91 / 0.22);
+  /* Quiet by default: hairline borders carry structure, shadows only hint. */
+  --shadow-soft: 0 1px 2px rgb(18 53 91 / 0.04), 0 4px 14px -8px rgb(18 53 91 / 0.1);
+  --shadow-lift: 0 2px 4px rgb(18 53 91 / 0.05), 0 14px 32px -16px rgb(18 53 91 / 0.2);
 
   --animate-fade-in: fade-in 0.5s ease-out both;
   --animate-fade-up: fade-up 0.5s ease-out both;
@@ -382,6 +414,74 @@ body {
     center 35%;
   background-size: cover, cover;
   background-repeat: no-repeat;
+}
+
+/*
+ * Scroll reveal — a CSS scroll-driven fade-up. Content is never hidden by
+ * script: browsers without scroll timelines (and anyone who prefers reduced
+ * motion) simply see it in place.
+ */
+@supports (animation-timeline: view()) {
+  @media (prefers-reduced-motion: no-preference) {
+    .wasel-reveal {
+      animation: fade-up linear both;
+      animation-timeline: view();
+      animation-range: entry 0% entry 35%;
+    }
+  }
+}
+
+/* Small section label — an emerald rule followed by the text. */
+@utility eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.75rem;
+  line-height: 1rem;
+  font-weight: 600;
+  color: var(--color-primary);
+
+  &::before {
+    content: '';
+    width: 1rem;
+    height: 2px;
+    border-radius: 999px;
+    background: currentColor;
+    opacity: 0.7;
+  }
+}
+
+/* The dashboard rail: brand navy with the network artwork rising from below. */
+.wasel-sidebar {
+  background-color: var(--sidebar);
+  background-image:
+    linear-gradient(
+      to bottom,
+      var(--sidebar) 40%,
+      color-mix(in srgb, var(--sidebar) 82%, transparent) 100%
+    ),
+    url('/brand/hero-bg-dark.png');
+  background-position:
+    center,
+    center bottom;
+  background-size:
+    cover,
+    220% auto;
+  background-repeat: no-repeat;
+}
+
+/* The emerald ring would vanish on navy; use the rail's own indicator colour. */
+.wasel-sidebar :focus-visible {
+  outline-color: var(--sidebar-indicator);
+}
+
+/*
+ * For user content shown with dir="auto": the text keeps its own direction
+ * (an Arabic title stays RTL) but aligns with the surrounding layout, so an
+ * Arabic title in the English interface doesn't jump to the far edge.
+ */
+@utility text-match-parent {
+  text-align: match-parent;
 }
 
 /* Tabular figures for statistics and reference numbers. */

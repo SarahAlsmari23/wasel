@@ -6,7 +6,6 @@ import { useState } from 'react'
 import { deleteConversationAction } from '@/app/wasal/conversation-actions'
 import { GovernmentLogo } from '@/components/government/government-logo'
 import { Button, buttonClasses } from '@/components/ui/button'
-import { Card } from '@/components/ui/card'
 import { EmptyState } from '@/components/ui/empty-state'
 import { Modal } from '@/components/ui/modal'
 import { RelativeTime } from '@/components/ui/relative-time'
@@ -103,31 +102,31 @@ export function DraftsList({ drafts }: DraftsListProps) {
 
   return (
     <>
-      <div className="flex flex-col gap-4">
+      <ul className="bg-surface border-border divide-border divide-y overflow-hidden rounded-2xl border">
         {items.map((draft) => {
           const entity = draft.entityName ? getGovernmentEntityByName(draft.entityName) : undefined
           return (
-            <Card
+            <li
               key={draft.id}
-              interactive
-              className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center"
+              className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:gap-5 sm:px-5"
             >
-              <GovernmentLogo iconKey={entity?.iconKey} size="sm" />
-
-              <div className="min-w-0 flex-1">
-                <h3 dir="auto" className="text-heading text-sm font-semibold text-balance">
-                  {localizeTitle(draft.title, locale)}
-                </h3>
-                <p className="text-muted-foreground mt-1 text-xs">
-                  {entityDisplayName(draft.entityName, locale)} · {copy.lastEdited}{' '}
-                  <RelativeTime iso={draft.updatedAt} />
-                </p>
+              <div className="flex min-w-0 flex-1 items-center gap-3.5">
+                <GovernmentLogo iconKey={entity?.iconKey} size="sm" />
+                <div className="min-w-0 flex-1">
+                  <h3 dir="auto" className="text-match-parent text-heading text-sm font-semibold">
+                    {localizeTitle(draft.title, locale)}
+                  </h3>
+                  <p className="text-muted-foreground mt-1 text-xs">
+                    {entityDisplayName(draft.entityName, locale)} · {copy.lastEdited}{' '}
+                    <RelativeTime iso={draft.updatedAt} />
+                  </p>
+                </div>
               </div>
 
-              <div className="flex shrink-0 items-center gap-1">
+              <div className="flex shrink-0 items-center gap-1 self-end sm:self-auto">
                 <Link
                   href={`/wasal?conversationId=${draft.id}`}
-                  className="text-foreground hover:bg-primary/6 inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium transition-colors"
+                  className={buttonClasses('subtle', 'sm')}
                 >
                   {copy.continue}
                   {locale === 'ar' ? (
@@ -139,16 +138,17 @@ export function DraftsList({ drafts }: DraftsListProps) {
                 <button
                   type="button"
                   onClick={() => setPendingDelete(draft)}
-                  className="text-danger hover:bg-danger/6 inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium transition-colors"
+                  aria-label={`${copy.delete}: ${localizeTitle(draft.title, locale)}`}
+                  className="text-muted-foreground hover:text-danger hover:bg-danger/6 inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium transition-colors"
                 >
                   <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
                   {copy.delete}
                 </button>
               </div>
-            </Card>
+            </li>
           )
         })}
-      </div>
+      </ul>
 
       <Modal
         isOpen={pendingDelete !== null}

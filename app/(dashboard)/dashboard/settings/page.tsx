@@ -27,7 +27,7 @@ export default async function SettingsPage() {
   }
 
   return (
-    <div className="animate-fade-in mx-auto flex w-full max-w-2xl flex-col gap-6">
+    <div className="animate-fade-in mx-auto flex w-full max-w-5xl flex-col gap-8">
       <PageHeader title={copy.title} description={copy.description} />
       <SettingsView />
     </div>

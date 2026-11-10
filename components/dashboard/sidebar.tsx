@@ -57,19 +57,19 @@ export function Sidebar({ isOpen, onClose, onSignOutClick }: SidebarProps) {
       <aside
         id="dashboard-sidebar"
         className={cn(
-          'bg-surface border-border fixed inset-y-0 start-0 z-50 flex w-72 flex-col border-e p-4 transition-transform duration-300 ease-[var(--ease-out-soft)] lg:sticky lg:top-0 lg:z-auto lg:h-dvh lg:w-64 lg:translate-x-0',
+          'wasel-sidebar border-sidebar-border text-sidebar-foreground fixed inset-y-0 start-0 z-50 flex w-72 flex-col border-e px-3 py-4 transition-transform duration-300 ease-[var(--ease-out-soft)] lg:sticky lg:top-0 lg:z-auto lg:h-dvh lg:w-64 lg:translate-x-0',
           isOpen ? 'translate-x-0' : 'max-lg:ltr:-translate-x-full max-lg:rtl:translate-x-full',
         )}
       >
-        <div className="mb-6 flex items-center justify-between px-2 pt-1">
-          <Link href="/" aria-label={copy.homeAria}>
-            <WaselLogo variant="horizontal" size="sm" />
+        <div className="mb-7 flex items-center justify-between px-2.5 pt-1">
+          <Link href="/" aria-label={copy.homeAria} className="rounded-lg">
+            <WaselLogo variant="horizontal" size="sm" tone="inverse" />
           </Link>
           <button
             type="button"
             onClick={onClose}
             aria-label={copy.closeMenu}
-            className="text-muted-foreground hover:bg-primary/6 hover:text-foreground rounded-lg p-1.5 transition-colors lg:hidden"
+            className="text-sidebar-muted hover:bg-sidebar-hover rounded-lg p-1.5 transition-colors hover:text-white lg:hidden"
           >
             <X className="h-4 w-4" aria-hidden="true" />
           </button>
@@ -86,7 +86,7 @@ export function Sidebar({ isOpen, onClose, onSignOutClick }: SidebarProps) {
                   key={item.href}
                   href={item.href}
                   onClick={onClose}
-                  className="bg-primary text-primary-foreground shadow-soft hover:bg-primary-hover active:bg-primary-pressed mb-3 flex items-center gap-3 rounded-xl px-3.5 py-3 text-sm font-medium transition-colors duration-200"
+                  className="bg-sidebar-cta text-sidebar-cta-foreground hover:bg-sidebar-cta-hover mb-5 flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm font-semibold transition-colors duration-200"
                 >
                   <Icon className="h-4 w-4" aria-hidden="true" />
                   {item.label[locale]}
@@ -101,24 +101,27 @@ export function Sidebar({ isOpen, onClose, onSignOutClick }: SidebarProps) {
                 onClick={onClose}
                 aria-current={isActive ? 'page' : undefined}
                 className={cn(
-                  'relative flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm font-medium transition-colors duration-200',
+                  'relative flex items-center gap-3 rounded-lg px-3.5 py-2.5 text-sm font-medium transition-colors duration-200',
                   isActive
-                    ? 'bg-surface-tint text-primary before:bg-primary before:absolute before:inset-y-2 before:start-0 before:w-0.5 before:rounded-full'
-                    : 'text-muted-foreground hover:bg-primary/5 hover:text-foreground',
+                    ? 'bg-sidebar-active before:bg-sidebar-indicator text-white before:absolute before:inset-y-2 before:-start-3 before:w-[3px] before:rounded-e-full'
+                    : 'text-sidebar-muted hover:bg-sidebar-hover hover:text-white',
                 )}
               >
-                <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
+                <Icon
+                  className={cn('h-4 w-4 shrink-0', isActive && 'text-sidebar-indicator')}
+                  aria-hidden="true"
+                />
                 {item.label[locale]}
               </Link>
             )
           })}
         </nav>
 
-        <div className="border-border mt-4 flex flex-col gap-1 border-t pt-4">
+        <div className="border-sidebar-border mt-4 flex flex-col gap-0.5 border-t pt-4">
           <Link
             href="/"
             onClick={onClose}
-            className="text-muted-foreground hover:bg-primary/5 hover:text-foreground flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm font-medium transition-colors duration-200"
+            className="text-sidebar-muted hover:bg-sidebar-hover flex items-center gap-3 rounded-lg px-3.5 py-2.5 text-sm font-medium transition-colors duration-200 hover:text-white"
           >
             <Globe className="h-4 w-4" aria-hidden="true" />
             {copy.website}
@@ -126,7 +129,7 @@ export function Sidebar({ isOpen, onClose, onSignOutClick }: SidebarProps) {
           <button
             type="button"
             onClick={onSignOutClick}
-            className="text-muted-foreground hover:bg-danger/6 hover:text-danger flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm font-medium transition-colors duration-200"
+            className="text-sidebar-muted hover:bg-sidebar-hover flex items-center gap-3 rounded-lg px-3.5 py-2.5 text-sm font-medium transition-colors duration-200 hover:text-[#ff9a9e]"
           >
             <LogOut className="h-4 w-4" aria-hidden="true" />
             {copy.signOut}
