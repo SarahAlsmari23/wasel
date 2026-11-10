@@ -184,6 +184,88 @@ export async function generateWithLlama({ prompt }: AiGenerateInput): Promise<Ll
     : new AiProviderError('The AI provider request failed.')
 }
 
+export type LlamaJsonUsage = { promptTokens: number; completionTokens: number }
+export type LlamaJsonResult = {
+  json: unknown
+  model: string
+  usage: LlamaJsonUsage | null
+  ms: number
+}
+
+/**
+ * One structured (JSON-schema) completion from the primary Llama model only,
+ * for server-side tasks other than the chat answer (complaint fact extraction
+ * and drafting). No fallback model: the caller owns its own deterministic
+ * fallback, which is better than a weaker model's Arabic. Bounded by
+ * `timeoutMs`; one short retry on a transient HTTP status when time allows.
+ * Returns the token usage Cloudflare reports, for cost observability.
+ */
+export async function runLlamaJson(input: {
+  system: string
+  user: string
+  schema: { name: string; schema: Record<string, unknown> }
+  maxTokens: number
+  timeoutMs: number
+  temperature?: number
+}): Promise<LlamaJsonResult> {
+  const { accountId, apiToken } = getCredentials()
+  const model = configuredLlamaModels()[0]
+  const url = `${apiBase(accountId)}/chat/completions`
+  const body = {
+    model,
+    messages: [
+      { role: 'system', content: input.system },
+      { role: 'user', content: input.user },
+    ],
+    response_format: { type: 'json_schema', json_schema: input.schema },
+    temperature: input.temperature ?? 0.2,
+    max_tokens: input.maxTokens,
+  }
+  const started = Date.now()
+  const deadline = started + input.timeoutMs
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    const remaining = deadline - Date.now()
+    if (remaining <= 500) throw new AiProviderError('Request to the AI provider timed out.')
+    try {
+      const raw = (await postJson(url, apiToken, body, remaining)) as {
+        choices?: { message?: { content?: unknown } }[]
+        usage?: { prompt_tokens?: number; completion_tokens?: number }
+      } | null
+      const content = raw?.choices?.[0]?.message?.content
+      const json =
+        typeof content === 'string' && content
+          ? parseModelJson(content)
+          : typeof content === 'object' && content !== null
+            ? content
+            : undefined
+      if (json === undefined) {
+        throw new AiProviderError('The AI provider returned an empty or non-JSON response.')
+      }
+      const usage =
+        raw?.usage && typeof raw.usage.prompt_tokens === 'number'
+          ? {
+              promptTokens: raw.usage.prompt_tokens,
+              completionTokens: raw.usage.completion_tokens ?? 0,
+            }
+          : null
+      return { json, model, usage, ms: Date.now() - started }
+    } catch (error) {
+      const retryable =
+        error instanceof HttpStatusError && RETRYABLE_HTTP_STATUSES.has(error.status)
+      if (!retryable || attempt === 2) {
+        if (error instanceof AiProviderError) throw error
+        throw new AiProviderError(
+          error instanceof HttpStatusError
+            ? `The AI provider returned HTTP ${error.status}.`
+            : 'The AI provider request failed.',
+        )
+      }
+      await sleep(RETRY_DELAY_MS)
+    }
+  }
+  throw new AiProviderError('The AI provider request failed.')
+}
+
 async function embed(text: string): Promise<number[]> {
   try {
     const { accountId, apiToken } = getCredentials()

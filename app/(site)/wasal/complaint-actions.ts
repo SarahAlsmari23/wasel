@@ -5,12 +5,15 @@ import { getRequiredFieldsForComplaintType } from '@/lib/ai/missing-fields'
 import { hydrateSavedRouting } from '@/lib/ai/routing'
 import { sanitizeCollectedFields } from '@/lib/complaints/collected-fields'
 import { isMeaningfulTitle } from '@/lib/complaints/display'
+import { COMPLAINT_FIELD_LABELS, type FormalLetterResult } from '@/lib/complaints/formal-letter'
 import {
-  buildFormalComplaintLetter,
-  COMPLAINT_FIELD_LABELS,
-  type FormalLetterResult,
-} from '@/lib/complaints/formal-letter'
-import { buildEnglishFormalComplaintLetter } from '@/lib/complaints/formal-letter-en'
+  buildRulesLetter,
+  draftComplaintLetter,
+  isAiDraftingEnabled,
+  parseDraftStyle,
+  type DraftInput,
+  type DraftingPath,
+} from '@/lib/complaints/drafting/pipeline'
 import {
   getCollectedInformationForConversation,
   saveCollectedFieldAsServiceRole,
@@ -81,13 +84,43 @@ async function resolveActionLocale(requested: unknown): Promise<Locale> {
   return requested === undefined ? getLocale() : resolveLocale(requested)
 }
 
-function buildLetter(
-  locale: Locale,
-  input: Parameters<typeof buildFormalComplaintLetter>[0],
-): FormalLetterResult {
-  if (locale === 'en') return buildEnglishFormalComplaintLetter(input)
-  const letter = buildFormalComplaintLetter(input)
-  return { ...letter, generatedFromData: { language: 'ar', ...letter.generatedFromData } }
+type ComposedLetter = FormalLetterResult & { draftingPath: DraftingPath }
+
+/**
+ * The letter for a complaint version. With AI drafting enabled
+ * (AI_COMPLAINT_DRAFTING=enabled), Llama 4 Scout drafts from user-grounded
+ * facts and an independent validator accepts or rejects the draft, falling
+ * back to the deterministic builder; otherwise the deterministic builder is
+ * used directly. Logs only the path, timings and usage — never content.
+ */
+async function composeLetter(locale: Locale, input: DraftInput): Promise<ComposedLetter> {
+  if (!isAiDraftingEnabled()) {
+    const letter = buildRulesLetter({ ...input, locale })
+    return {
+      ...letter,
+      generatedFromData: { ...letter.generatedFromData, drafting: { path: 'rules' } },
+      draftingPath: 'rules',
+    }
+  }
+  const { letter, meta } = await draftComplaintLetter({ ...input, locale })
+  console.info(
+    `[complaint-drafting] ${JSON.stringify({
+      path: meta.path,
+      reason: meta.fallbackReason,
+      rejected: meta.rejectedIssues,
+      calls: meta.calls,
+      ms: meta.ms,
+      tokens: meta.tokens,
+      neurons: meta.neurons,
+      factsReused: meta.factsReused,
+    })}`,
+  )
+  return { ...letter, draftingPath: meta.path }
+}
+
+/** True when AI drafting was on but this letter came from the fallback. */
+function aiDraftUnavailable(letter: ComposedLetter): boolean {
+  return letter.draftingPath === 'fallback'
 }
 
 /**
@@ -130,6 +163,8 @@ export type ComplaintPayload = {
   officialUrl: string
   subject: string
   complaintText: string
+  /** AI drafting was enabled but unavailable; the standard letter was used. */
+  aiDraftUnavailable?: boolean
 }
 
 export type CreateComplaintResult =
@@ -203,13 +238,15 @@ export async function createComplaintAction(
     const relevantFieldKeys = new Set(requiredFields.map((field) => field.key))
     const sanitizedFields = sanitizeCollectedFields(collectedFields, relevantFieldKeys)
 
-    const { subject, complaintText, generatedFromData } = buildLetter(locale, {
+    const composed = await composeLetter(locale, {
+      locale,
       entityName: hydratedRouting.entityName,
       fullName,
       collectedFields: sanitizedFields,
       conversationTitle: title,
       userMessages,
     })
+    const { subject, complaintText, generatedFromData } = composed
 
     // Best-effort, non-blocking — only ever upgrades a still-generic title.
     if (!isMeaningfulTitle(title)) {
@@ -303,6 +340,7 @@ export async function createComplaintAction(
         officialUrl: hydratedRouting.officialUrl,
         subject,
         complaintText,
+        aiDraftUnavailable: aiDraftUnavailable(composed),
       },
     }
   } catch {
@@ -319,7 +357,13 @@ export type ComplaintEditableField = {
 }
 
 export type GetComplaintEditDataResult =
-  | { success: true; fields: ComplaintEditableField[]; versionCount: number }
+  | {
+      success: true
+      fields: ComplaintEditableField[]
+      versionCount: number
+      /** Wording options are only offered when AI drafting is enabled. */
+      wordingOptionsAvailable: boolean
+    }
   | { success: false; error: string }
 
 /**
@@ -365,7 +409,7 @@ export async function getComplaintEditDataAction(
       multiline: field.key === 'problem_description',
     }))
 
-    return { success: true, fields, versionCount }
+    return { success: true, fields, versionCount, wordingOptionsAvailable: isAiDraftingEnabled() }
   } catch {
     return { success: false, error: errors.unexpected }
   }
@@ -376,6 +420,7 @@ export type UpdateComplaintResult =
       success: true
       complaint: Pick<ComplaintPayload, 'subject' | 'complaintText' | 'updatedAt' | 'status'>
       versionNumber: number
+      aiDraftUnavailable?: boolean
     }
   | { success: false; error: string }
 
@@ -393,6 +438,8 @@ export async function updateComplaintAction(
   complaintId: string,
   editedFields: Record<string, string> | null,
   requestedLocale?: Locale,
+  /** Wording only ("shorter", "more_formal"); never changes the facts. */
+  requestedStyle?: unknown,
 ): Promise<UpdateComplaintResult> {
   const locale = await resolveActionLocale(requestedLocale)
   const errors = ERRORS[locale]
@@ -410,15 +457,23 @@ export async function updateComplaintAction(
     const savedRouting = await getSavedRouting(supabase, conversationId, user.id)
     if (!savedRouting) return { success: false, error: errors.routingIncomplete }
 
-    const [hydratedRouting, requiredFields, existingValues, fullName, title, userMessages] =
-      await Promise.all([
-        hydrateSavedRouting(supabase, savedRouting),
-        getRequiredFieldsForComplaintType(supabase, savedRouting.complaintTypeId),
-        loadComplaintDetails(supabase, complaintId, conversationId),
-        getProfileFullName(supabase, user.id),
-        getOwnedConversationTitle(supabase, conversationId, user.id),
-        getUserMessageContents(supabase, conversationId),
-      ])
+    const [
+      hydratedRouting,
+      requiredFields,
+      existingValues,
+      fullName,
+      title,
+      userMessages,
+      currentVersionData,
+    ] = await Promise.all([
+      hydrateSavedRouting(supabase, savedRouting),
+      getRequiredFieldsForComplaintType(supabase, savedRouting.complaintTypeId),
+      loadComplaintDetails(supabase, complaintId, conversationId),
+      getProfileFullName(supabase, user.id),
+      getOwnedConversationTitle(supabase, conversationId, user.id),
+      getUserMessageContents(supabase, conversationId),
+      getCurrentComplaintVersionData(supabase, complaintId),
+    ])
 
     if (!hydratedRouting?.entityName) return { success: false, error: errors.routingIncomplete }
     if (!fullName) return { success: false, error: errors.profileNameMissing }
@@ -461,12 +516,17 @@ export async function updateComplaintAction(
     // When the description itself changed, the letter must follow the new
     // text — the earlier chat messages no longer describe the case.
     const descriptionChanged = 'problem_description' in changes
-    const letter = buildLetter(locale, {
+    // Edited facts are re-extracted from the edited fields only; unchanged
+    // facts are reused (the pipeline checks they still match the sources).
+    const letter = await composeLetter(locale, {
+      locale,
       entityName: hydratedRouting.entityName,
       fullName,
       collectedFields: sanitizedFields,
       conversationTitle: title ?? undefined,
       userMessages: descriptionChanged ? [] : userMessages,
+      style: parseDraftStyle(requestedStyle),
+      previousFacts: Object.keys(changes).length > 0 ? null : currentVersionData?.facts,
     })
 
     const version = await createNextComplaintVersion({
@@ -486,6 +546,7 @@ export async function updateComplaintAction(
         status: 'generated',
       },
       versionNumber: version.versionNumber,
+      aiDraftUnavailable: aiDraftUnavailable(letter),
     }
   } catch {
     return { success: false, error: errors.unexpected }

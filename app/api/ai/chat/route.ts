@@ -727,7 +727,20 @@ export async function POST(request: Request) {
   // side question (handled separately above).
   const genericStarterSector = (() => {
     if (complaintInterruption === 'complaint_side_question') return null
-    if (missingFieldsResult?.readyToGenerateComplaint) return null
+    // Readiness is not "every required field has a value": a description
+    // that states no problem at all ("وين أشتكي على الموية؟") plus a city is
+    // not enough to write a letter. Once ready, the gate only re-opens for
+    // such a description — any genuine problem statement keeps it ready.
+    const readyDescription =
+      sanitizedComplaintContext?.collectedFields?.problem_description ||
+      sanitizedComplaintContext?.description ||
+      ''
+    if (
+      missingFieldsResult?.readyToGenerateComplaint &&
+      (readyDescription === '' || describesProblem(readyDescription))
+    ) {
+      return null
+    }
     // A plain information question ("ما رقم بلاغات وزارة التجارة؟") is
     // answered, never met with "what exactly is the problem?" (evals).
     if (!hasActiveComplaintContext && isInformationQuestion(sanitizedMessage)) return null

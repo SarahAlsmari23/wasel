@@ -7,6 +7,7 @@
  * omitted, never guessed or filled in with a plausible-looking placeholder.
  */
 
+import { normalizeArabicInput } from '@/lib/ai/arabic-normalize'
 import { isMeaningfulTitle } from '@/lib/complaints/display'
 import { ENTITY_NAME_TO_SECTOR, type Sector } from '@/lib/complaints/sectors'
 import { renderComplaintBody } from '@/lib/complaints/narrative'
@@ -114,7 +115,7 @@ const SECTOR_SUBJECT_RULES: Record<Sector, SubjectRule[]> = {
   water: [
     { keywords: ['انقطاع', 'انقطعت', 'منقطعة', 'منقطع'], subject: 'شكوى بشأن انقطاع خدمة المياه' },
     { keywords: ['توصيل', 'تركيب', 'خط مياه'], subject: 'شكوى بشأن خدمة توصيل المياه' },
-    { keywords: ['فاتورة', 'فواتير'], subject: 'اعتراض على فاتورة مياه' },
+    { keywords: ['فاتور', 'فواتير'], subject: 'اعتراض على فاتورة مياه' },
   ],
   telecom: [
     // Emergency release fix — interruption and weak coverage are now two
@@ -175,8 +176,16 @@ const SECTOR_SUBJECT_RULES: Record<Sector, SubjectRule[]> = {
   electricity: [
     { keywords: ['انقطاع', 'انقطعت', 'منقطعة'], subject: 'بلاغ عن انقطاع الكهرباء' },
     { keywords: ['عداد'], subject: 'شكوى بشأن عداد الكهرباء' },
-    { keywords: ['فاتورة', 'فواتير'], subject: 'اعتراض على فاتورة كهرباء' },
+    { keywords: ['فاتور', 'فواتير'], subject: 'اعتراض على فاتورة كهرباء' },
   ],
+}
+
+const SECTOR_GENERIC_SUBJECT: Record<Sector, string> = {
+  water: 'شكوى بشأن خدمة المياه',
+  telecom: 'شكوى بشأن خدمة الاتصالات',
+  commerce: 'شكوى ضد جهة تجارية',
+  municipality: 'بلاغ بشأن الخدمات البلدية',
+  electricity: 'شكوى بشأن خدمة الكهرباء',
 }
 
 /** telecom-only: when no text keyword matched but the user did name a
@@ -199,8 +208,15 @@ function matchSectorSubject(
   const sector = ENTITY_NAME_TO_SECTOR[entityName]
   if (!sector) return null
 
+  const normalized = normalizeArabicInput(problemDescription)
   for (const rule of SECTOR_SUBJECT_RULES[sector]) {
-    if (rule.keywords.some((keyword) => problemDescription.includes(keyword))) {
+    if (
+      rule.keywords.some(
+        (keyword) =>
+          problemDescription.includes(keyword) ||
+          normalized.includes(normalizeArabicInput(keyword)),
+      )
+    ) {
       return rule.subject
     }
   }
@@ -231,6 +247,9 @@ function deriveSubject(
   const ruleSubject = matchSectorSubject(entityName, problemDescription, collectedFields)
   if (ruleSubject) return ruleSubject
 
+  // Never the user's own (often colloquial) words as a formal subject.
+  const sector = ENTITY_NAME_TO_SECTOR[entityName]
+  if (sector) return SECTOR_GENERIC_SUBJECT[sector]
   return truncateSubjectAtWordBoundary(`شكوى بشأن ${shortIssuePhrase(problemDescription)}`)
 }
 

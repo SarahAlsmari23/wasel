@@ -8,7 +8,7 @@ import {
 } from '@/app/(site)/wasal/complaint-actions'
 import { useCopy, useLocale } from '@/components/i18n/locale-provider'
 import { Button } from '@/components/ui/button'
-import { Field, TextArea, TextInput } from '@/components/ui/field'
+import { Field, Select, TextArea, TextInput } from '@/components/ui/field'
 import { Modal } from '@/components/ui/modal'
 import { Spinner } from '@/components/ui/spinner'
 import { useToast } from '@/components/ui/toast'
@@ -26,6 +26,10 @@ const COPY = defineCopy({
     updated: (version: number) => `تم تحديث البلاغ (النسخة ${version}).`,
     loadFailed: 'تعذر تحميل تفاصيل البلاغ.',
     missingRequired: 'يرجى تعبئة الحقول المطلوبة.',
+    wording: 'صياغة الخطاب',
+    wordingHint: 'تغيّر الأسلوب فقط، ولا تغيّر المعلومات.',
+    wordingOptions: { standard: 'قياسية', shorter: 'أقصر', more_formal: 'أكثر رسمية' },
+    fallbackUsed: 'تعذرت الصياغة الذكية مؤقتاً، فأُنشئ البلاغ بالصيغة القياسية.',
   },
   en: {
     title: 'Edit complaint details',
@@ -38,6 +42,10 @@ const COPY = defineCopy({
     updated: (version: number) => `Complaint updated (version ${version}).`,
     loadFailed: "Couldn't load the complaint details.",
     missingRequired: 'Please fill in the required fields.',
+    wording: 'Letter wording',
+    wordingHint: 'Changes the style only, never the details.',
+    wordingOptions: { standard: 'Standard', shorter: 'Shorter', more_formal: 'More formal' },
+    fallbackUsed: 'Smart drafting is temporarily unavailable, so the standard letter was used.',
   },
 })
 
@@ -70,6 +78,8 @@ export function ComplaintEditor({ complaintId, isOpen, onClose, onUpdated }: Com
   const [loadError, setLoadError] = useState<string | null>(null)
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [isSaving, setIsSaving] = useState(false)
+  const [wordingAvailable, setWordingAvailable] = useState(false)
+  const [wording, setWording] = useState<'standard' | 'shorter' | 'more_formal'>('standard')
 
   useEffect(() => {
     if (!isOpen) return
@@ -82,6 +92,8 @@ export function ComplaintEditor({ complaintId, isOpen, onClose, onUpdated }: Com
         if (cancelled) return
         if (result.success) {
           setFields(result.fields)
+          setWordingAvailable(result.wordingOptionsAvailable)
+          setWording('standard')
           setValues(Object.fromEntries(result.fields.map((field) => [field.key, field.value])))
         } else {
           setLoadError(result.error)
@@ -108,7 +120,7 @@ export function ComplaintEditor({ complaintId, isOpen, onClose, onUpdated }: Com
     setIsSaving(true)
     setSubmitError(null)
     try {
-      const result = await updateComplaintAction(complaintId, values, locale)
+      const result = await updateComplaintAction(complaintId, values, locale, wording)
       if (result.success) {
         onUpdated({
           subject: result.complaint.subject,
@@ -116,7 +128,9 @@ export function ComplaintEditor({ complaintId, isOpen, onClose, onUpdated }: Com
           updatedAt: result.complaint.updatedAt,
           versionNumber: result.versionNumber,
         })
-        showToast(copy.updated(result.versionNumber))
+        showToast(
+          result.aiDraftUnavailable ? copy.fallbackUsed : copy.updated(result.versionNumber),
+        )
         onClose()
       } else {
         setSubmitError(result.error)
@@ -181,6 +195,23 @@ export function ComplaintEditor({ complaintId, isOpen, onClose, onUpdated }: Com
               </Field>
             )
           })}
+
+          {wordingAvailable ? (
+            <Field htmlFor="complaint-wording" label={copy.wording} hint={copy.wordingHint}>
+              <Select
+                id="complaint-wording"
+                value={wording}
+                onChange={(event) => setWording(event.target.value as typeof wording)}
+                disabled={isSaving}
+              >
+                {(['standard', 'shorter', 'more_formal'] as const).map((option) => (
+                  <option key={option} value={option}>
+                    {copy.wordingOptions[option]}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+          ) : null}
 
           {submitError ? (
             <p role="alert" className="text-danger text-sm">
