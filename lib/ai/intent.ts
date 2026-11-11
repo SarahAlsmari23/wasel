@@ -96,7 +96,7 @@ const OUT_OF_SCOPE_TOPICS: { code: string; pattern: RegExp }[] = [
 ]
 
 const INJECTION =
-  /(?:تجاهل|انس|انسى)\s+(?:كل\s+|جميع\s+)?(?:التعليمات|الاوامر)|(?:اظهر|اعرض|اكتب)\s+(?:لي\s+)?(?:تعليمات|برومبت)\s*(?:النظام)?|برومبت|البرومبت|system\s*prompt|ignore\s+(?:all\s+)?(?:previous|prior|above)\s+instructions|you are now|act as (?:a|an) (?!citizen)/i
+  /(?:تجاهل|انس|انسى)\s+(?:كل\s+|جميع\s+)?(?:التعليمات|الاوامر)|(?:اظهر|اعرض|اكتب)\s+(?:لي\s+)?(?:تعليمات|برومبت)\s*(?:النظام)?|برومبت|البرومبت|system\s*prompt|ignore\s+(?:all\s+)?(?:previous|prior|above)\s+instructions|you are now|act as (?:a|an) (?!citizen)|pretend (?:to be|you are)|تقمص|تقمّص|(?:تكلم|رد|ترد|جاوب|تصرف)\s+(?:علي\s+)?(?:ك|وك)ان(?:ك|ه)\s+(?:موظف|مسوول|جهه|منهم)|انتحل/i
 
 /** Supported authorities, by name (normalised), mapped to their sector. */
 const AUTHORITY_NAMES: { sector: Sector; pattern: RegExp }[] = [

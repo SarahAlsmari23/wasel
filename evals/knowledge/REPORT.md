@@ -49,7 +49,7 @@ Offline, deterministic (no model, no retrieval). "Before" is the previous keywor
 
 The fresh split (55 cases) was written after tuning and never used to tune. Two holdout/fresh misses were seen while building the knowledge evaluation and fixed generally («مشكلتي», "power is out") — the holdout is therefore not fully unseen.
 
-**Earlier 313-case chat dataset** (routing turn): authority when none due 0/60 → 0/60; no authority when due 41/215 → 45/215. The remaining misses are mostly intentional (one-word follow-ups such as «الكهرباء», «متجر» — never routed from a single keyword) or phrasings the shared keyword detector also missed before.
+**Earlier 313-case chat dataset** (routing turn): authority when none due 0/60 → 0/60; no authority when due 38/215 → 44/215 (both columns include the shared keyword-detector fixes below). The remaining misses are mostly intentional (one-word follow-ups such as «الكهرباء», «متجر» — never routed from a single keyword) or phrasings the shared keyword detector also missed before.
 
 **Route level** (local build, guest requests, stub model): 9/9 — the production sequence gives no authority, no sources, no links, no progress; an inquiry routes without collection; informal complaints (incl. the original water-bill message) still route and ask the city; an off-topic message mid-complaint is an interruption with the same pending question; «عندي مشكلة» selects nothing; injection is out of scope.
 
@@ -118,3 +118,22 @@ Out-of-scope and injection messages now return without retrieval or a model call
 - **Ready to deploy after review:** intent routing, card, prompt grounding, answer check — no new external data flow, no reference-data change.
 - **Needs your approval:** applying the knowledge update to production (backup → 01 → ingest with credentials → 02 → 03); the water-company name.
 - **Blockers / unknowns:** live retrieval and answer quality are unmeasured; the official sources do not publish many complaint details (processing times, tracking, escalation for water/electricity); data residency (unchanged from the previous report).
+
+## 12. Live production evaluation (real model, 46 cases, guest requests)
+
+Same 46 cases, same inputs, run against production before (PR #5 code, 2026-11-10 18:32 UTC) and after PRs #6–#7 (2026-11-11 00:05 UTC, after the daily allowance reset; 47 requests each, about 100 neurons each by Cloudflare's published rates). This measures the deployed code, **not this branch**.
+
+|                                             | Before                               | After         |
+| ------------------------------------------- | ------------------------------------ | ------------- |
+| Cases passed                                | 30/46                                | **40/46**     |
+| Checks passed                               | 411/429                              | 422/429       |
+| Invented authority names (critical)         | 2 («وزارة الكهرباء», «إدارة المرور») | **0**         |
+| No repeated "what exactly is the problem?"  | 30/39                                | 38/39         |
+| Correct authority                           | 38/42                                | 40/42         |
+| Invented links / numbers / deadlines / fees | 0 / 0 / 0                            | 0 / 0 / 0     |
+| Arabic / English checks                     | 95.8% / 95.6%                        | 98.3% / 98.5% |
+| Median / p90 latency                        | 11.1 s / 18.8 s                      | 5.1 s / 7.5 s |
+
+Scorer correction (applied to both runs identically, by re-scoring the saved answers — no new calls): the authority-name check flagged «الشركة لمشكلتك» (ordinary prose) and «شركة الوطنية» (from «للشركة الوطنية للمياه»). It now requires a definite second word and ignores a leading «ال». Raw scorer: after-run 38/46 with those 2 false criticals; the baseline's 2 real criticals are still caught.
+
+The remaining live failures were checked against this branch: CST-016 and NWC-038 pass (NWC-038 — production said the unified number "is not available"; this branch now supplies the verified 8004411110 with its source). Four general gaps found in those live inputs were fixed here (unit-tested): a wrong destination authority hid the real problem («أبي أشتكي للبلدية إن فاتورة الموية غلط» — «للبلدية» was not recognised as a destination), English plurals («power outages»), building violations («ملحق مخالف وسادين الطريق»), and Arabic role-play requests («تقمص دور موظف…»). X-088 (three sectors in one message) intentionally selects no authority and asks which to start with.

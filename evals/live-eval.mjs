@@ -40,6 +40,7 @@ const KNOWN_AUTHORITY_TEXT = [
 // provider) are not authority names.
 const GENERIC_NAME =
   /^(?:الشركة|شركة)\s+(?:المزودة|المشغلة|المعنية|الاتصالات|التوصيل|التأمين|مزود)|^إدارة\s+(?:الرقابة|حماية)|^(?:وزارة|هيئة)\s+(?:المختصة|الحكومية|المعنية)/
+const bare = (t) => t.replace(/^ال/, '').replace(/[،,.]$/, '')
 const OFFICIAL = Object.values(ENT).map((e) => e.officialUrl.replace(/\/$/, ''))
 
 /** Stratified default sample: per entity one case of each listed category,
@@ -208,11 +209,14 @@ function score(c, res, userText) {
   // invented ("وزارة الكهرباء") or outside the verified sources.
   const named =
     answer.match(
-      /(?:وزارة|هيئة|الهيئة|أمانة|إدارة|الشركة|شركة)\s+[\u0600-\u06FF]+(?:\s+(?:و?ال[\u0600-\u06FF]+))?/g,
+      // An organisation name: the word after وزارة/هيئة/شركة… is definite
+      // ("وزارة الكهرباء"); "الشركة لمشكلتك" is ordinary prose, not a name.
+      /(?:وزارة|هيئة|الهيئة|أمانة|إدارة|الشركة|شركة)\s+(?:ال|لل)[\u0600-\u06FF]+(?:\s+(?:و?ال[\u0600-\u06FF]+))?/g,
     ) ?? []
   const unknown = named.filter(
     (n) =>
-      !KNOWN_AUTHORITY_TEXT.some((k) => k.startsWith(n) || n.startsWith(k)) &&
+      // Compared without a leading «ال» («للشركة الوطنية» → «شركة الوطنية»).
+      !KNOWN_AUTHORITY_TEXT.map(bare).some((k) => k.startsWith(bare(n)) || bare(n).startsWith(k)) &&
       !GENERIC_NAME.test(n) &&
       !userText.includes(n.replace(/[،,]$/, '')),
   )
