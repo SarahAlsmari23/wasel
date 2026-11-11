@@ -26,7 +26,7 @@ export const ENTITIES = {
     ],
   },
   nwc: {
-    nameAr: 'الشركة الوطنية للمياه',
+    nameAr: 'شركة المياه الوطنية',
     nameEn: 'National Water Company (NWC)',
     officialUrl: 'https://www.nwc.com.sa',
     complaintType: 'water_general',

@@ -28,8 +28,12 @@ if (!base) {
 const dataset = JSON.parse(readFileSync(new URL('./dataset.json', import.meta.url), 'utf8'))
 const ENT = dataset.entities
 const NAME_TO_CODE = Object.fromEntries(Object.entries(ENT).map(([code, e]) => [e.nameAr, code]))
+// Production keeps returning the historical water-authority spelling until the
+// approved reference-data rename; both name the same authority.
+NAME_TO_CODE['الشركة الوطنية للمياه'] = 'nwc'
 const KNOWN_AUTHORITY_TEXT = [
   ...Object.values(ENT).map((e) => e.nameAr),
+  'الشركة الوطنية للمياه', // historical spelling of شركة المياه الوطنية
   'الشركة السعودية للكهرباء', // legacy name used in the knowledge documents
   'وزارة الشؤون البلدية والقروية', // legacy name used in the knowledge documents
   'هيئة الاتصالات',

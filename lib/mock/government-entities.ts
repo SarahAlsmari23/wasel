@@ -1,3 +1,4 @@
+import { canonicalEntityName } from '@/lib/government/entity-names'
 /**
  * Single source of truth for the government authorities Wasal supports.
  * Replaces the previously separate marketing/complaint entity lists.
@@ -25,7 +26,7 @@ export type GovernmentIconKey = 'municipality' | 'water' | 'electricity' | 'tele
  */
 export const GOVERNMENT_LOGOS: Record<GovernmentIconKey, string> = {
   municipality: '/logos/balady.png', // وزارة البلديات والإسكان
-  water: '/logos/nwc.png', // الشركة الوطنية للمياه
+  water: '/logos/nwc.png', // شركة المياه الوطنية
   electricity: '/logos/sec.png', // السعودية للطاقة
   telecom: '/logos/cst.png', // هيئة الاتصالات والفضاء والتقنية
   commerce: '/logos/mc.png', // وزارة التجارة
@@ -97,7 +98,7 @@ export const GOVERNMENT_ENTITIES: GovernmentEntity[] = [
   },
   {
     id: 'nwc',
-    name: 'الشركة الوطنية للمياه',
+    name: 'شركة المياه الوطنية',
     sector: 'المياه',
     description: 'الجهة المسؤولة عن خدمات المياه والصرف الصحي والفوترة.',
     officialUrl: 'https://www.nwc.com.sa',
@@ -109,7 +110,7 @@ export const GOVERNMENT_ENTITIES: GovernmentEntity[] = [
       'قراءة العداد الحالية',
     ],
     submissionSteps: [
-      'تسجيل الدخول إلى حسابك في منصة الشركة الوطنية للمياه.',
+      'تسجيل الدخول إلى حسابك في منصة شركة المياه الوطنية.',
       'اختيار «تقديم شكوى» وتحديد نوع الشكوى.',
       'إرفاق الفاتورة وبيانات الحساب.',
       'متابعة حالة الشكوى عبر الرقم المرجعي.',
@@ -252,7 +253,8 @@ export function getGovernmentEntityById(id: string): GovernmentEntity | undefine
 }
 
 export function getGovernmentEntityByName(name: string): GovernmentEntity | undefined {
-  return GOVERNMENT_ENTITIES.find((entity) => entity.name === name)
+  const current = canonicalEntityName(name)
+  return GOVERNMENT_ENTITIES.find((entity) => entity.name === current)
 }
 
 /** The entity's display fields in the requested language (Arabic = as stored). */
@@ -273,6 +275,6 @@ export function entityDisplayName(
   locale: 'ar' | 'en',
 ): string {
   if (!arabicName) return ''
-  if (locale === 'ar') return arabicName
+  if (locale === 'ar') return canonicalEntityName(arabicName)
   return getGovernmentEntityByName(arabicName)?.en.name ?? arabicName
 }

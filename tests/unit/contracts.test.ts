@@ -20,7 +20,8 @@ describe('validateChatRequest', () => {
     assert.equal(result.valid, true)
     if (result.valid) {
       assert.equal(result.value.locale, 'en')
-      assert.equal(result.value.activeEntityName, 'الشركة الوطنية للمياه')
+      // A conversation started under the historical name continues under the official one.
+      assert.equal(result.value.activeEntityName, 'شركة المياه الوطنية')
     }
   })
 

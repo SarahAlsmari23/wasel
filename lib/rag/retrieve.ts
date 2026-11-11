@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { cloudflareProvider } from '@/lib/ai/cloudflare'
 import type { RetrievalFilters, RetrievedDocument } from '@/lib/rag/types'
+import { canonicalEntityName } from '@/lib/government/entity-names'
 
 const RPC_TIMEOUT_MS = 10_000
 const MAX_RESULTS = 5
@@ -133,7 +134,7 @@ async function buildServiceEnrichment(
 
   const entityNameById = new Map<string, string>()
   for (const entity of entitiesResult.data ?? []) {
-    entityNameById.set(entity.id, entity.name_ar)
+    entityNameById.set(entity.id, canonicalEntityName(entity.name_ar as string))
   }
 
   const sourcesByServiceId = new Map<

@@ -11,6 +11,7 @@
  * Facts listed under `notPublished` are never stated.
  */
 import data from '@/data/government/authorities.json'
+import { canonicalEntityName } from '@/lib/government/entity-names'
 
 export type Localized = { ar: string; en: string }
 type LocalizedList = { ar: string[]; en: string[] }
@@ -56,7 +57,10 @@ export type ServiceLevel = {
 }
 export type AuthorityProfile = {
   code: string
+  /** The authority's current official name (government_entities.name_ar after the 2026-11 rename). */
   dbName: string
+  /** Earlier spellings still accepted on input (lib/government/entity-names.ts). */
+  historicalNames?: string[]
   officialNameAr: { value: string; source: string; quote: string }
   officialNameEn: { value: string; source: string; quote: string } | null
   website: string
@@ -84,7 +88,8 @@ const SOURCES = new Map(RAW.sources.map((s) => [s.id, s]))
 export function getAuthorityProfile(
   entityName: string | null | undefined,
 ): AuthorityProfile | null {
-  return entityName ? (BY_DB_NAME.get(entityName) ?? null) : null
+  // Historical spellings (e.g. «الشركة الوطنية للمياه») resolve to the same profile.
+  return entityName ? (BY_DB_NAME.get(canonicalEntityName(entityName)) ?? null) : null
 }
 
 export function getProfileSource(id: string): ProfileSource | null {

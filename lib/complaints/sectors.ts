@@ -10,6 +10,9 @@ export type Sector = 'water' | 'telecom' | 'commerce' | 'municipality' | 'electr
  * produce. An unrecognized name (should not happen in practice) simply
  * skips every sector-specific rule in both callers. */
 export const ENTITY_NAME_TO_SECTOR: Record<string, Sector> = {
+  // Current official name; the historical spelling stays accepted
+  // (lib/government/entity-names.ts).
+  'شركة المياه الوطنية': 'water',
   'الشركة الوطنية للمياه': 'water',
   'هيئة الاتصالات والفضاء والتقنية': 'telecom',
   'وزارة التجارة': 'commerce',

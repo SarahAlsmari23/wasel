@@ -61,8 +61,13 @@ const GENERIC_SUBJECTS = new Set(
 const WRONG_AUTHORITIES =
   /(?:وزاره الكهرباء|وزاره المياه|وزاره الاتصالات|الشركه السعوديه للكهرباء|الشركه السعوديه للطاقه|وزاره الشوون البلديه|هييه حمايه المستهلك|وزاره الداخليه|اداره المرور|saudi electricity company|ministry of electricity|ministry of water)/
 
+// Scenarios may name the water authority by its historical spelling; letters
+// must use the current official name (lib/government/entity-names.ts).
+const CURRENT_NAME = { 'الشركة الوطنية للمياه': 'شركة المياه الوطنية' }
+const current = (name) => CURRENT_NAME[name] ?? name
+
 const EN_NAMES = {
-  'الشركة الوطنية للمياه': 'National Water Company',
+  'شركة المياه الوطنية': 'National Water Company',
   'السعودية للطاقة': 'Saudi Energy (SE)',
   'هيئة الاتصالات والفضاء والتقنية': 'Communications, Space & Technology Commission (CST)',
   'وزارة التجارة': 'Ministry of Commerce',
@@ -101,7 +106,8 @@ export function scoreLetter(c, letterText) {
   const add = (name, ok, severity, detail = '') => checks.push({ name, ok, severity, detail })
 
   // Authority
-  const expectedTo = locale === 'en' ? `To: ${EN_NAMES[c.entityName]}` : `إلى: ${c.entityName}`
+  const expectedTo =
+    locale === 'en' ? `To: ${EN_NAMES[current(c.entityName)]}` : `إلى: ${current(c.entityName)}`
   add('authority-exact', letterText.startsWith(expectedTo), 'critical', letterText.split('\n')[0])
   add('no-wrong-authority', !WRONG_AUTHORITIES.test(letterNorm), 'critical')
 

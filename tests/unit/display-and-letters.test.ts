@@ -46,7 +46,9 @@ describe('display helpers', () => {
 
   it('uses official English authority names', () => {
     assert.equal(entityDisplayName('السعودية للطاقة', 'en'), 'Saudi Energy (SE)')
-    assert.equal(entityDisplayName('الشركة الوطنية للمياه', 'ar'), 'الشركة الوطنية للمياه')
+    assert.equal(entityDisplayName('الشركة الوطنية للمياه', 'ar'), 'شركة المياه الوطنية')
+    assert.equal(entityDisplayName('شركة المياه الوطنية', 'ar'), 'شركة المياه الوطنية')
+    assert.equal(entityDisplayName('الشركة الوطنية للمياه', 'en'), 'National Water Company')
   })
 
   it('localizes deterministic field questions', () => {
@@ -89,6 +91,7 @@ describe('formal letters', () => {
     const a = buildFormalComplaintLetter({ ...input, fullName: 'سارة' })
     const b = buildFormalComplaintLetter({ ...input, fullName: 'سارة' })
     assert.equal(a.complaintText, b.complaintText)
-    assert.match(a.complaintText, /^إلى: الشركة الوطنية للمياه/)
+    // Built from the historical name, addressed with the official one.
+    assert.match(a.complaintText, /^إلى: شركة المياه الوطنية/)
   })
 })
