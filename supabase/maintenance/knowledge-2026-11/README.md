@@ -11,9 +11,11 @@ Source of truth: `data/government/authorities.json` — every fact read on the a
    cd ~/Projects/wasel
    read -s "CLOUDFLARE_API_TOKEN?Workers AI token: " && export CLOUDFLARE_API_TOKEN
    read "CLOUDFLARE_ACCOUNT_ID?Cloudflare account ID: " && export CLOUDFLARE_ACCOUNT_ID
-   npm run kb:preflight            # ≈46 Scout calls, hard stop at 5,000 neurons
+   npm run kb:preflight            # ≈46 Scout calls, hard stop at 2,500 neurons (see warning)
    unset CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID
    ```
+   **The Workers AI allowance is shared with production** (free plan: 10,000 neurons/day, reset 00:00 UTC). On 2026-11-11 a full preflight plus same-day testing exhausted it and production chat returned HTTP 429 until the reset. Run `--phase embed` (cheap) separately, run the latency/answer phases only when today's usage leaves ample room, or on a paid plan.
+   Alternative to a custom token: `wrangler login --use-keyring --scopes account:read user:read ai:write workers_scripts:write` (one browser click), then pass `wrangler auth token --json` to the script's environment without printing it.
    Output: `.kb-preflight/` (git-ignored) — real 768-dim `@cf/google/embeddinggemma-300m` vectors for the 36 passages and 460 evaluation queries, the controlled latency benchmark, and the answer check. `--phase embed` alone costs only the embeddings.
 2. `npx tsx scripts/build-passages-sql.ts` → `04_verified_passages.sql` (git-ignored) with exactly those vectors; prints its SHA-256. Refuses stale, malformed or constant vectors.
 3. Fresh production backup, restore-tested into an isolated container (procedure: `supabase/maintenance/launch-cleanup/README.md`).

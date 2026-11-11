@@ -18,7 +18,9 @@ import { execSync } from 'node:child_process'
 import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import data from '../data/government/authorities.json'
-import { resolveRouting } from '@/lib/ai/routing'
+import { preferProblemSector, resolveRouting } from '@/lib/ai/routing'
+import { allowsRouting, assessIntent } from '@/lib/ai/intent'
+import { detectSectorByKeyword } from '@/lib/ai/entity-detection'
 import type { RetrievedDocument } from '@/lib/rag/types'
 
 const PSQL = process.env.KB_TEST_PSQL ?? ''
@@ -49,6 +51,56 @@ const emb = JSON.parse(
 ) as { queries: Query[] }
 const queries = emb.queries
 const LEGACY = /الشركة السعودية للكهرباء|وزارة الشؤون البلدية والقروية/
+
+const SECTOR: Record<string, string> = {
+  nwc: 'water',
+  sec: 'electricity',
+  cst: 'telecom',
+  mc: 'commerce',
+  balady: 'municipality',
+}
+const CODE_OF_SECTOR = Object.fromEntries(Object.entries(SECTOR).map(([c, s]) => [s, c]))
+const dataset = JSON.parse(readFileSync(join(process.cwd(), 'evals', 'dataset.json'), 'utf8')) as {
+  cases: { id: string; expected: { route: unknown } }[]
+}
+const EXPECTED = new Map(dataset.cases.map((c) => [c.id, c.expected.route]))
+
+/** The chat route's authority decision for a first message (no active context):
+ * intent gate → retrieval routing (medium/high) → else the intent's sector.
+ * 'intentFirst' additionally prefers the intent's deterministic sector when
+ * retrieval names a different authority. */
+function finalRoute(
+  text: string,
+  ragCode: string | null,
+  rule: 'current' | 'intentFirst' | 'problemFirst',
+  ragConfidence?: string,
+): string | null {
+  const a = assessIntent(text)
+  if (!allowsRouting(a.kind)) return null
+  const evidence = a.sector ? CODE_OF_SECTOR[a.sector] : null
+  const kw = detectSectorByKeyword(text)
+  const problem = kw ? CODE_OF_SECTOR[kw] : null
+  if (
+    rule === 'problemFirst' &&
+    preferProblemSector(ragCode && SECTOR[ragCode], ragConfidence as never, kw)
+  )
+    return problem
+  if (ragCode && !(rule === 'intentFirst' && evidence && evidence !== ragCode)) return ragCode
+  return evidence
+}
+function verdict(
+  expected: unknown,
+  final: string | null,
+): 'correct' | 'wrong' | 'missed' | 'extra' {
+  if (typeof expected === 'string' && SECTOR[expected])
+    return final === expected ? 'correct' : final ? 'wrong' : 'missed'
+  if (expected && typeof expected === 'object' && 'anyOf' in expected) {
+    const any = (expected as { anyOf: string[] }).anyOf
+    return final === null || any.includes(final) ? 'correct' : 'wrong'
+  }
+  if (expected === 'none') return final ? 'extra' : 'correct'
+  return 'correct' // 'clarify' / 'any': routing alone does not decide these
+}
 
 type Row = {
   id: string
@@ -125,19 +177,17 @@ async function score(label: string, map: Map<string, Row[]>) {
       factQuestions: 0,
       sourceVerified: 0,
     },
-    chat313: {
-      n: 0,
-      routedCorrect: 0,
-      routedWrong: 0,
-      routedNone: 0,
-      noAuthorityExpected: 0,
-      routedWhenNoneExpected: 0,
-    },
     outdatedReturned: 0,
     inactiveReturned: 0,
     perAuthority: {} as Record<string, { n: number; ok: number }>,
     perLang: {} as Record<string, { n: number; ok: number }>,
     misses: [] as string[],
+    chatFinal: {} as Record<
+      string,
+      { correct: number; wrong: number; missed: number; extra: number; n: number }
+    >,
+    chatFinalWrong: [] as string[],
+    knowledgeFinal: {} as Record<string, { correct: number; n: number }>,
   }
   const verifiedSources = new Set(
     (data as unknown as { sources: { id: string; authority: string }[] }).sources.map((x) => x.id),
@@ -164,6 +214,12 @@ async function score(label: string, map: Map<string, Row[]>) {
         ? (rows.find((r) => r.service_id === routing.serviceId)?.code ?? null)
         : null
     if (q.set === 'knowledge') {
+      for (const rule of ['current', 'intentFirst', 'problemFirst'] as const) {
+        const final = finalRoute(q.text, routed, rule, routing?.confidence)
+        const t = (s.knowledgeFinal[rule] ??= { correct: 0, n: 0 })
+        t.n++
+        if (final === q.authority) t.correct++
+      }
       s.knowledge.n++
       const ok = rows[0]?.code === q.authority
       if (ok) s.knowledge.top1Authority++
@@ -186,13 +242,19 @@ async function score(label: string, map: Map<string, Row[]>) {
           `${q.id} ${q.authority} top1=${rows[0]?.code ?? 'none'} :: ${q.text.slice(0, 60)}`,
         )
     } else if (q.set === 'chat313') {
-      s.chat313.n++
-      if (!q.authority) {
-        s.chat313.noAuthorityExpected++
-        if (routed) s.chat313.routedWhenNoneExpected++
-      } else if (routed === q.authority) s.chat313.routedCorrect++
-      else if (routed) s.chat313.routedWrong++
-      else s.chat313.routedNone++
+      const expected = EXPECTED.get(q.id)
+      const ragCode = routed
+      for (const rule of ['current', 'intentFirst', 'problemFirst'] as const) {
+        const final = finalRoute(q.text, ragCode, rule, routing?.confidence)
+        const v = verdict(expected, final)
+        const t = (s.chatFinal[rule] ??= { correct: 0, wrong: 0, missed: 0, extra: 0, n: 0 })
+        t.n++
+        t[v]++
+        if (v === 'wrong' || v === 'extra')
+          s.chatFinalWrong.push(
+            `${rule} ${q.id} expected=${JSON.stringify(expected)} final=${final} rag=${ragCode}(${routing?.confidence}) :: ${q.text.slice(0, 70)}`,
+          )
+      }
     }
   }
   return s
@@ -214,17 +276,18 @@ async function main() {
   )
   for (const s of [before, after]) {
     console.log(`\n== ${s.label}`)
-    const k = s.knowledge,
-      c = s.chat313
+    const k = s.knowledge
     console.log(
       `knowledge (${k.n}): top-1 correct authority ${k.top1Authority}, verified passage of that authority in top-5 ${k.verifiedInTop5}, top-1 cites a verified source ${k.sourceVerified}, expected fact in retrieved excerpts ${k.factInExcerpts}/${k.factQuestions}`,
     )
     console.log(
       `  per language ${JSON.stringify(s.perLang)}  per authority ${JSON.stringify(s.perAuthority)}`,
     )
-    console.log(
-      `chat313 RAG routing (${c.n}): correct ${c.routedCorrect}, wrong ${c.routedWrong}, none ${c.routedNone}; no-authority cases ${c.noAuthorityExpected} → routed anyway ${c.routedWhenNoneExpected}`,
-    )
+    console.log(`knowledge final authority decision ${JSON.stringify(s.knowledgeFinal)}`)
+    for (const [rule, t] of Object.entries(s.chatFinal))
+      console.log(
+        `chat313 final authority decision [${rule}] (${t.n}): correct ${t.correct}, wrong authority ${t.wrong}, authority when none due ${t.extra}, missed ${t.missed}`,
+      )
     console.log(
       `outdated passages returned ${s.outdatedReturned}, inactive returned ${s.inactiveReturned}`,
     )

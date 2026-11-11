@@ -15,6 +15,23 @@ const SAVED_ROUTING_REASON = 'استناداً إلى التصنيف الذي ت
 // all; two or more retrieved results agreeing on the same service is the
 // strongest signal and can reach 'high' confidence at the same bar.
 const STRONG_SIMILARITY = 0.6
+
+/**
+ * Whether the sector of the problem the user describes should replace a
+ * retrieval-based authority: only when that match is not high-confidence and
+ * names a different sector. Measured on the 313-case set with the verified
+ * knowledge base and real embeddings: wrong authority 14 → 8, knowledge
+ * questions 154 → 157 of 157 (scripts/kb-retrieval-test.ts).
+ */
+export function preferProblemSector(
+  routingSector: string | null | undefined,
+  confidence: ChatRouting['confidence'] | undefined,
+  problemSector: string | null | undefined,
+): boolean {
+  return Boolean(
+    routingSector && problemSector && confidence !== 'high' && routingSector !== problemSector,
+  )
+}
 // Two different services, each backed by exactly one weak result, with
 // similarities this close together, are treated as genuinely ambiguous
 // evidence rather than arbitrarily picking one.

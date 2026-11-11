@@ -19,7 +19,8 @@
  * database and only calls the official Cloudflare API (any
  * CLOUDFLARE_API_BASE_URL override is ignored). Results go to .kb-preflight/
  * (git-ignored; embeddings and timings only — no credentials, no user data).
- * Hard stop at --max-neurons (default 5000) using the usage Cloudflare reports.
+ * Hard stop at --max-neurons (default 2500) using the usage Cloudflare reports.
+ * WARNING: the allowance is shared with production — see MAX_NEURONS below.
  *
  *   --phase embed,latency,answers   (default: all three)
  *   --reps 2                        (latency repetitions per message and arm)
@@ -52,7 +53,12 @@ const arg = (n: string) => {
 }
 const PHASES = (arg('phase') ?? 'embed,latency,answers').split(',')
 const REPS = Number(arg('reps') ?? 2)
-const MAX_NEURONS = Number(arg('max-neurons') ?? 5000)
+// The Workers AI allowance is SHARED with production (10,000 neurons/day on the
+// free plan, reset 00:00 UTC). This cap only counts this run's own usage; on
+// 2026-11-11 a run within its cap still exhausted the shared daily allowance
+// and production chat returned HTTP 429 until the reset. Keep it small and run
+// only when today's account usage leaves room for production traffic.
+const MAX_NEURONS = Number(arg('max-neurons') ?? 2500)
 
 const accountId = process.env.CLOUDFLARE_ACCOUNT_ID?.trim()
 const token = process.env.CLOUDFLARE_API_TOKEN?.trim()

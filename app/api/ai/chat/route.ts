@@ -26,6 +26,7 @@ import { entityDisplayName } from '@/lib/mock/government-entities'
 import { getCollectedInformationForConversation } from '@/lib/db/collected-information'
 import { getSavedRouting, updateConversationRouting } from '@/lib/db/conversations'
 import {
+  preferProblemSector,
   hydrateSavedRouting,
   mergeRouting,
   resolveRouting,
@@ -340,6 +341,29 @@ export async function POST(request: Request) {
   let deferredRouting: ChatRouting | null = null
   try {
     routing = await resolveRouting(supabase, retrievedDocuments)
+    // The problem the user describes decides the authority over a retrieval
+    // match that is not high-confidence: «أشتكي لهيئة الاتصالات إن الكهرباء
+    // مقطوعة» is an electricity problem even when the wording resembles the
+    // telecom complaint-procedure passages. keywordSector ignores authority
+    // names used only as a destination (entity-detection.ts).
+    if (
+      routing?.entityName &&
+      keywordSector &&
+      preferProblemSector(
+        ENTITY_NAME_TO_SECTOR[routing.entityName],
+        routing.confidence,
+        keywordSector,
+      )
+    ) {
+      const problemRouting = await resolveRoutingByEntityName(
+        supabase,
+        getEntityNameForSector(keywordSector),
+      )
+      if (problemRouting) {
+        routing = problemRouting
+        debugLog('[chat] routing-problem-sector-over-retrieval')
+      }
+    }
     if (!freshRoutingAllowed) {
       deferredRouting =
         (assessment.kind === 'unclear' || assessment.kind === 'ambiguous_problem') &&
