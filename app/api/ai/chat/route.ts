@@ -2,6 +2,9 @@ import { NextResponse } from 'next/server'
 import { validateChatRequest } from '@/lib/ai/contracts'
 import { AiProviderError } from '@/lib/ai/generation-shared'
 import { generateAnswer } from '@/lib/ai/provider'
+import { allowsRouting, assessIntent } from '@/lib/ai/intent'
+import { getAuthorityProfile, profilePromptBlock } from '@/lib/government/profiles'
+import { scrubUnverifiedContacts } from '@/lib/government/contact-check'
 import {
   describesProblem,
   isInformationQuestion,
@@ -32,7 +35,6 @@ import {
   detectSectorByKeyword,
   getEntityNameForSector,
   hasCorrectionMarker,
-  mentionsSupportedSector,
 } from '@/lib/ai/entity-detection'
 import { sanitizeComplaintContext, sanitizeHistory, sanitizeMessage } from '@/lib/ai/sanitize'
 import { retrieveRelevantDocuments, RetrievalError } from '@/lib/rag/retrieve'
@@ -249,18 +251,42 @@ export async function POST(request: Request) {
   // to also match — an obvious entity mention is its own sufficient signal,
   // never dependent on also guessing every possible grievance verb form.
   const keywordSector = detectSectorByKeyword(sanitizedMessage)
+  const assessment = assessIntent(sanitizedMessage)
   const likelyComplaint =
     hasActiveComplaintContext ||
     intent === 'complaint_guidance' ||
     intent === 'create_complaint' ||
     intent === 'complaint_side_question' ||
     explicitCreateComplaint ||
-    grievanceSignal ||
-    // Any sector mention, even an ambiguous one (two sectors), keeps the
-    // message out of the greeting/identity/out-of-scope shortcuts.
-    mentionsSupportedSector(sanitizedMessage)
+    // Intent-first (lib/ai/intent.ts): a stated service problem, or a problem
+    // whose service is still unknown. A sector word alone is not enough
+    // (production defect: «كيف اقدر اسوي كبسة من الموية» started a water
+    // complaint), and an everyday topic never counts.
+    (grievanceSignal && assessment.kind !== 'out_of_scope') ||
+    assessment.kind === 'complaint' ||
+    assessment.kind === 'ambiguous_problem'
+  // A service inquiry is governmental (no shortcut, may be routed) but does
+  // not start complaint collection by itself.
+  const governmental = likelyComplaint || assessment.kind === 'service_inquiry'
+  // Fresh authority selection needs governmental evidence (or an active
+  // complaint, whose own state machine decides).
+  const freshRoutingAllowed = hasActiveComplaintContext || allowsRouting(assessment.kind)
 
-  if (!hasActiveComplaintContext && !likelyComplaint) {
+  // An everyday topic or an injection attempt outside a complaint flow gets
+  // the fixed scope answer — no retrieval, no authority, no model call —
+  // unless the user explicitly asked to create a complaint.
+  if (
+    !hasActiveComplaintContext &&
+    assessment.kind === 'out_of_scope' &&
+    !explicitCreateComplaint
+  ) {
+    debugLog(`[chat] intent out_of_scope reasons=${assessment.reasons.join(',')}`)
+    return NextResponse.json<ChatSuccessResponse>(
+      fixedIntentResponse('out_of_scope', sc.outOfScope),
+      { status: 200 },
+    )
+  }
+  if (!hasActiveComplaintContext && !governmental) {
     if (isGreetingOnly(sanitizedMessage)) {
       return NextResponse.json<ChatSuccessResponse>(fixedIntentResponse('greeting', sc.greeting), {
         status: 200,
@@ -304,8 +330,21 @@ export async function POST(request: Request) {
   debugLog('[chat] routing-start')
   const routingStart = Date.now()
   let routing: ChatRouting | null = null
+  // No governmental evidence yet ("unclear"): retrieval may still suggest an
+  // authority, but it is only shown if the model also treats the message as
+  // governmental and the match is highly confident (checked after
+  // generation). It never drives complaint collection or persistence.
+  let deferredRouting: ChatRouting | null = null
   try {
     routing = await resolveRouting(supabase, retrievedDocuments)
+    if (!freshRoutingAllowed) {
+      deferredRouting =
+        (assessment.kind === 'unclear' || assessment.kind === 'ambiguous_problem') &&
+        routing?.confidence === 'high'
+          ? routing
+          : null
+      routing = null
+    }
     debugLog(
       `[chat] routing-${routing ? 'resolved' : 'null'} elapsedMs=${Date.now() - routingStart}`,
     )
@@ -323,11 +362,16 @@ export async function POST(request: Request) {
   // only ever engages when RAG itself didn't produce a usable match
   // (`routing` is null or 'low' confidence), and never overrides a
   // trustworthy RAG result. Non-fatal, same as retrieval/routing above.
-  if ((!routing || routing.confidence === 'low') && keywordSector) {
+  // Only on governmental evidence: the assessed sector (a sector word with
+  // an issue or service context, or a named authority), never a bare word.
+  const evidenceSector = freshRoutingAllowed
+    ? (assessment.sector ?? (hasActiveComplaintContext ? keywordSector : null))
+    : null
+  if ((!routing || routing.confidence === 'low') && evidenceSector) {
     try {
       const keywordRouting = await resolveRoutingByEntityName(
         supabase,
-        getEntityNameForSector(keywordSector),
+        getEntityNameForSector(evidenceSector),
       )
       if (keywordRouting) {
         routing = keywordRouting
@@ -354,7 +398,14 @@ export async function POST(request: Request) {
   // while still being about the same water complaint — exactly the
   // production case that switched to CST. A different sector only wins when
   // the message also describes a problem (grievance / complaint signal).
-  if (activeEntityName && ENTITY_NAME_TO_SECTOR[activeEntityName]) {
+  if (
+    activeEntityName &&
+    ENTITY_NAME_TO_SECTOR[activeEntityName] &&
+    // An everyday topic never re-routes — but inside an active complaint the
+    // complaint's own authority is kept, so the message is handled as an
+    // interruption of the pending question.
+    (assessment.kind !== 'out_of_scope' || hasActiveComplaintContext)
+  ) {
     const keywordEntityName = keywordSector ? getEntityNameForSector(keywordSector) : null
     const describesNewProblemElsewhere =
       keywordEntityName !== null &&
@@ -376,6 +427,15 @@ export async function POST(request: Request) {
         // Non-fatal — fall back to this turn's fresh routing.
       }
     }
+  }
+
+  // Without governmental evidence and without an authority already in this
+  // conversation, retrieved passages are not context for this message: the
+  // model answers generally and no official link or source is shown, unless
+  // retrieval found a highly confident match (deferredRouting, re-checked
+  // against the model's own reading after generation).
+  if (!routing && !freshRoutingAllowed && !deferredRouting) {
+    retrievedDocuments = []
   }
 
   // Phase 4D.1 — persist and reuse routing across turns. Only ever keyed by
@@ -464,7 +524,11 @@ export async function POST(request: Request) {
   // the city) rather than ask the user to describe what they just described.
   const knownFieldKeysThisTurn = (): Set<string> => {
     const known = buildKnownFieldKeysFromComplaintContext(sanitizedComplaintContext)
-    if (!hasActiveComplaintContext && describesProblem(sanitizedMessage)) {
+    if (
+      !hasActiveComplaintContext &&
+      assessment.kind === 'complaint' &&
+      describesProblem(sanitizedMessage)
+    ) {
       known.add('problem_description')
     }
     return known
@@ -594,7 +658,7 @@ export async function POST(request: Request) {
           ? 'greeting'
           : isIdentityQuestion(sanitizedMessage)
             ? 'identity_question'
-            : isObviousOutOfScope(sanitizedMessage)
+            : isObviousOutOfScope(sanitizedMessage) || assessment.kind === 'out_of_scope'
               ? 'out_of_scope'
               : // A problem description that ends in a question ("الفاتورة
                 // ارتفعت … وين أشتكي؟") answers the pending description — it
@@ -859,6 +923,13 @@ export async function POST(request: Request) {
                 : undefined,
           }
         : undefined,
+    officialFacts:
+      routing?.entityName && routing.confidence !== 'low'
+        ? (() => {
+            const profile = getAuthorityProfile(routing.entityName)
+            return profile ? profilePromptBlock(profile, sanitizedMessage, locale) : undefined
+          })()
+        : undefined,
   })
   debugLog(
     `[chat] prompt-built length=${prompt.length} retrievedDocumentCount=${retrievedDocuments.length}`,
@@ -897,7 +968,13 @@ export async function POST(request: Request) {
     } else {
       const modelIntent = coerceModelIntent(result.intent)
       finalIntent =
-        modelIntent === 'out_of_scope' && routing && routing.confidence !== 'low'
+        // The safety net only applies on deterministic governmental evidence:
+        // a routing that came from nearest-document retrieval alone must never
+        // overrule the model's correct "out of scope" (production defect).
+        modelIntent === 'out_of_scope' &&
+        routing &&
+        routing.confidence !== 'low' &&
+        allowsRouting(assessment.kind)
           ? grievanceSignal
             ? 'complaint_guidance'
             : 'government_service_question'
@@ -919,6 +996,32 @@ export async function POST(request: Request) {
         fixedIntentResponse('out_of_scope', sc.outOfScope),
         { status: 200 },
       )
+    }
+
+    if (
+      !routing &&
+      deferredRouting &&
+      (finalIntent === 'government_service_question' ||
+        finalIntent === 'entity_information' ||
+        finalIntent === 'complaint_guidance')
+    ) {
+      routing = deferredRouting
+    }
+
+    // Contact details the model wrote that are not verified (official
+    // profiles, reference-data URLs, or the user's own words) are removed.
+    const scrub = scrubUnverifiedContacts(result.answer, {
+      officialUrls: [routing?.officialUrl, ...retrievedDocuments.map((doc) => doc.officialUrl)],
+      userText: [
+        sanitizedMessage,
+        ...sanitizeHistory(history)
+          .filter((item) => item.role === 'user')
+          .map((item) => item.content),
+      ].join('\n'),
+    })
+    if (scrub.removed.length > 0) {
+      console.info(`[chat] removed-unverified-contacts count=${scrub.removed.length}`)
+      result.answer = scrub.text
     }
 
     const isComplaint = isComplaintIntent(finalIntent)

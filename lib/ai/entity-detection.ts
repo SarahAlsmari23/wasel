@@ -66,7 +66,7 @@ const re = (parts: string[]) => new RegExp(parts.join('|'))
 
 // Written in normalised form (ة→ه, أ/إ/آ→ا, ى→ي).
 const ARABIC: Record<Sector, Patterns> = {
-  water: { strong: re([stem('مياه'), word('مويه'), 'صرف صحي', stem('مجاري')]) },
+  water: { strong: re([stem('مياه'), word('مويه'), '(?:ال)?صرف (?:ال)?صحي', stem('مجاري')]) },
   telecom: {
     strong: re([
       word('نت'),
@@ -110,6 +110,12 @@ const ARABIC: Record<Sector, Patterns> = {
       'اعمده الاناره',
       'اناره الشوارع',
       'اناره الشارع',
+      'بناء مخالف',
+      'ملحق مخالف',
+      'مخالفات البناء',
+      'مخالفه بناء',
+      stem('سادين الطريق'),
+      'سد الطريق',
     ]),
     weak: re([word('بلدي'), stem('اناره')]),
   },
@@ -132,7 +138,7 @@ const ENGLISH: Record<Sector, Patterns> = {
   },
   electricity: {
     strong:
-      /\b(electricity|electric|power outage|power cut|blackout|electricity meter|power (keeps|went|is) (cutting|out|off))\b/i,
+      /\b(electricity|electric|power outages?|power cuts?|blackouts?|electricity meter|power (keeps|went|is) (cutting|out|off))\b/i,
   },
 }
 
@@ -141,7 +147,7 @@ const ENGLISH_CORRECTION = /\b(?:I mean|I meant|actually|no wait|sorry,? I meant
 
 const ARABIC_AUTHORITIES =
   // "هيئة" normalises to "هييه" (ئ→ي).
-  '(?:وزاره التجاره|هييه الاتصالات(?: والفضاء والتقنيه)?|البلديه|الامانه|شركه الكهربا\\S*|الكهربا\\S*|شركه المياه|المياه الوطنيه|شركه الاتصالات)'
+  '(?:وزاره التجاره|هييه الاتصالات(?: والفضاء والتقنيه)?|(?:ال)?بلديه|(?:ال)?امانه|شركه الكهربا\\S*|(?:ال)?كهربا\\S*|شركه المياه|المياه الوطنيه|شركه الاتصالات)'
 /** "…لوزارة التجارة", "إلى هيئة الاتصالات", "هل البلدية مسؤولة عن …". */
 const ARABIC_DESTINATION = new RegExp(
   `(?:(?<![${AR}])(?:لل|ل)(?=${ARABIC_AUTHORITIES.replace('(?:', '(?:ال|')})|(?:الي|عند)\\s+)${ARABIC_AUTHORITIES}|(?<=هل\\s)${ARABIC_AUTHORITIES}(?=\\s+(?:مسوول|مسووله|المسووله|المسوول|تختص|مختص|مختصه))`,

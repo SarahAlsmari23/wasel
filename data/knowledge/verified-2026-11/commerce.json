@@ -1,0 +1,54 @@
+[
+  {
+    "title": "اختصاص وزارة التجارة",
+    "content": "وزارة التجارة (وزارة التجارة): استقبال البلاغات التجارية من المستهلكين على المتاجر الإلكترونية والمحلات التجارية.",
+    "entity": "وزارة التجارة",
+    "sector": "commerce",
+    "documentType": "general_info",
+    "sourceUrl": "https://mc.gov.sa/ar/eservices/Pages/ServiceDetails.aspx?sID=55",
+    "sourceLabel": "إستقبال بلاغ تجاري",
+    "reviewedAt": "2026-11-11",
+    "sourceId": "mc-report-service",
+    "quote": "تحديد نوع البلاغ اذا كان متجر الكتروني او محل تجاري.",
+    "kbVersion": "verified-2026-11"
+  },
+  {
+    "title": "قنوات التواصل الرسمية — وزارة التجارة",
+    "content": "القنوات الرسمية المنشورة لدى وزارة التجارة: خدمة إستقبال بلاغ تجاري: https://mc.gov.sa/ar/eservices/Pages/ServiceDetails.aspx?sID=55. تطبيق بلاغ تجاري: بلاغ تجاري. مركز الاتصال الموحد (8 ص – 12 منتصف الليل طوال الأسبوع): 1900. البريد الإلكتروني (عند تعثر الخدمة الإلكترونية): cs@mc.gov.sa.",
+    "entity": "وزارة التجارة",
+    "sector": "commerce",
+    "documentType": "official_channel",
+    "sourceUrl": "https://mc.gov.sa/ar/eservices/Pages/ServiceDetails.aspx?sID=55",
+    "sourceLabel": "إستقبال بلاغ تجاري",
+    "reviewedAt": "2026-11-11",
+    "sourceId": "mc-report-service",
+    "quote": "تتيح للمستفيدين تقديم بلاغ تجاري - والاستعلام - ومتابعة حالة البلاغ . إلكترونيًا",
+    "kbVersion": "verified-2026-11"
+  },
+  {
+    "title": "تقديم بلاغ تجاري — وزارة التجارة",
+    "content": "تقديم بلاغ تجاري لدى وزارة التجارة: 1) تحميل تطبيق بلاغ تجاري. 2) تسجيل الدخول عبر النفاذ الوطني. 3) اختيار «بلاغ جديد». 4) تحديد نوع البلاغ: متجر إلكتروني أو محل تجاري (وللمتجر الإلكتروني: هل هو موثق في منصة المركز السعودي للأعمال أو لديه سجل تجاري). 5) تحديد نوع المخالفة. 6) تعبئة بيانات المنشأة. 7) تعبئة وصف البلاغ واسم السلعة. 8) إرفاق المستندات المطلوبة حسب نوع البلاغ. 9) الموافقة والإقرار ثم تقديم البلاغ. المدة المنشورة: 7 أيام عمل. الرسوم: مجانية.",
+    "entity": "وزارة التجارة",
+    "sector": "commerce",
+    "documentType": "procedure",
+    "sourceUrl": "https://mc.gov.sa/ar/eservices/Pages/ServiceDetails.aspx?sID=55",
+    "sourceLabel": "إستقبال بلاغ تجاري",
+    "reviewedAt": "2026-11-11",
+    "sourceId": "mc-report-service",
+    "quote": "مدة تنفيذ الخدمة 7 أيام عمل",
+    "kbVersion": "verified-2026-11"
+  },
+  {
+    "title": "معلومات غير منشورة رسمياً — وزارة التجارة",
+    "content": "لم تُنشر في المصادر الرسمية التي تمت مراجعتها لدى وزارة التجارة المعلومات التالية، ولا ينبغي ذكرها أو تخمينها: official English name (English pages not verified)، the list of required documents per report type (tab not readable)، FAQ answers. للتحقق منها يُرجع إلى الموقع الرسمي: https://mc.gov.sa.",
+    "entity": "وزارة التجارة",
+    "sector": "commerce",
+    "documentType": "not_published",
+    "sourceUrl": "https://mc.gov.sa/ar/Pages/default.aspx",
+    "sourceLabel": "وزارة التجارة",
+    "reviewedAt": "2026-11-11",
+    "sourceId": "mc-home-ar",
+    "quote": "وزارة التجارة",
+    "kbVersion": "verified-2026-11"
+  }
+]

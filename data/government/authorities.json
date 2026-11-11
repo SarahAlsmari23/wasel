@@ -1,0 +1,965 @@
+{
+  "schemaVersion": 1,
+  "verifiedAt": "2026-11-11",
+  "verificationNote": "Every fact below was read on the authority's own official site on the verification date (Asia/Riyadh). `quote` is copied verbatim from the cited page (short excerpt). Facts not found on an official page are listed under `notPublished` and must never be stated. Translations in `ar`/`en` are paraphrases of the quote, not official text, unless the quote itself is in that language.",
+  "sources": [
+    {
+      "id": "nwc-home-ar",
+      "authority": "nwc",
+      "url": "https://www.nwc.com.sa/ar",
+      "title": "شركة المياه الوطنية",
+      "language": "ar",
+      "pageUpdated": "تاريخ آخر تحديث لمحتوى الصفحة : 12/11/2025 12:02 م",
+      "status": "verified"
+    },
+    {
+      "id": "nwc-home-en",
+      "authority": "nwc",
+      "url": "https://www.nwc.com.sa/en",
+      "title": "NWC Website",
+      "language": "en",
+      "pageUpdated": "Last Update Date For Page Content : 2/20/2026 4:00 AM",
+      "status": "verified"
+    },
+    {
+      "id": "nwc-help",
+      "authority": "nwc",
+      "url": "https://www.nwc.com.sa/EN/HowWeCanHelp/Pages/default.aspx",
+      "title": "How We Can Help",
+      "language": "en",
+      "pageUpdated": "1/23/2023 1:00 AM",
+      "status": "verified"
+    },
+    {
+      "id": "nwc-outage-service",
+      "authority": "nwc",
+      "url": "https://www.nwc.com.sa/EN/ServiceCatalog/Pages/Service7.aspx",
+      "title": "submittal of a water outage complaint",
+      "language": "en",
+      "pageUpdated": "3/12/2026 5:07 PM",
+      "status": "verified"
+    },
+    {
+      "id": "nwc-incidents-service",
+      "authority": "nwc",
+      "url": "https://www.nwc.com.sa/EN/ServiceCatalog/Pages/service27.aspx",
+      "title": "Water Incidents",
+      "language": "en",
+      "pageUpdated": "3/12/2026 5:08 PM",
+      "status": "verified"
+    },
+    {
+      "id": "nwc-app",
+      "authority": "nwc",
+      "url": "https://www.nwc.com.sa/EN/HowWeCanHelp/Pages/application.aspx",
+      "title": "Mobile application for national water services",
+      "language": "en",
+      "pageUpdated": "11/10/2024 10:17 AM",
+      "status": "verified"
+    },
+    {
+      "id": "nwc-faq",
+      "authority": "nwc",
+      "url": "https://ebranch.nwc.com.sa/faqs",
+      "title": "الخدمات الإلكترونية للأفراد | شركة المياه الوطنية - eBranch",
+      "language": "ar",
+      "pageUpdated": null,
+      "status": "unverified",
+      "note": "Page is script-rendered; no FAQ text could be read."
+    },
+
+    {
+      "id": "se-home-en",
+      "authority": "sec",
+      "url": "https://www.se.com.sa/en",
+      "title": "Saudi Energy",
+      "language": "en",
+      "pageUpdated": null,
+      "status": "verified"
+    },
+    {
+      "id": "se-home-ar",
+      "authority": "sec",
+      "url": "https://www.se.com.sa/",
+      "title": "Saudi Energy",
+      "language": "ar",
+      "pageUpdated": null,
+      "status": "verified",
+      "note": "Arabic header reads «السعودية للطاقة». Several /ar/ sub-pages returned server error pages during verification."
+    },
+    {
+      "id": "se-channels",
+      "authority": "sec",
+      "url": "https://www.se.com.sa/en/Support/Service-Channels/",
+      "title": "Service Channels",
+      "language": "en",
+      "pageUpdated": null,
+      "status": "verified",
+      "note": "Rendered with JavaScript (headless browser)."
+    },
+    {
+      "id": "se-faq-cs",
+      "authority": "sec",
+      "url": "https://www.se.com.sa/en/Support/FAQs/FAQs/Customer-Service/",
+      "title": "Customer Service",
+      "language": "en",
+      "pageUpdated": null,
+      "status": "verified",
+      "note": "Rendered with JavaScript (headless browser)."
+    },
+
+    {
+      "id": "cst-home-ar",
+      "authority": "cst",
+      "url": "https://www.cst.gov.sa/ar",
+      "title": "هيئة الاتصالات والفضاء والتقنية | CST",
+      "language": "ar",
+      "pageUpdated": null,
+      "status": "verified"
+    },
+    {
+      "id": "cst-about",
+      "authority": "cst",
+      "url": "https://www.cst.gov.sa/en/about/who-we-are",
+      "title": "About CST: Who We Are, Vision & Mission | CST",
+      "language": "en",
+      "pageUpdated": null,
+      "status": "verified"
+    },
+    {
+      "id": "cst-escalation",
+      "authority": "cst",
+      "url": "https://mutasilind.cst.gov.sa/Services/Details/4ka4tx4nLdejNUrQDGL9zA",
+      "title": "تصعيد شكاوى الاتصالات - منصة متصل",
+      "language": "ar",
+      "pageUpdated": null,
+      "status": "verified",
+      "note": "Footer 'تاريخ آخر تعديل: 04/12/2026' is ambiguous (day/month order) and is not used."
+    },
+    {
+      "id": "cst-no-ticket",
+      "authority": "cst",
+      "url": "https://mutasilind.cst.gov.sa/Services/Details/oikr9x91JhV6P8CPrsRT.A",
+      "title": "بلاغ عدم فتح تذكرة شكوى في أنظمة مقدم الخدمة",
+      "language": "ar",
+      "pageUpdated": null,
+      "status": "verified"
+    },
+    {
+      "id": "cst-services",
+      "authority": "cst",
+      "url": "https://mutasilind.cst.gov.sa/Services/Index",
+      "title": "منصة متصل - الخدمات",
+      "language": "ar",
+      "pageUpdated": null,
+      "status": "verified"
+    },
+    {
+      "id": "cst-portal-faq",
+      "authority": "cst",
+      "url": "https://mutasil.cst.gov.sa/FAQ",
+      "title": "الاسئلة الشائعة",
+      "language": "ar",
+      "pageUpdated": null,
+      "status": "verified"
+    },
+    {
+      "id": "cst-support",
+      "authority": "cst",
+      "url": "https://mutasil.cst.gov.sa/SupportAndAssistance",
+      "title": "الدعم والمساعدة",
+      "language": "ar",
+      "pageUpdated": null,
+      "status": "verified"
+    },
+
+    {
+      "id": "mc-home-ar",
+      "authority": "mc",
+      "url": "https://mc.gov.sa/ar/Pages/default.aspx",
+      "title": "وزارة التجارة",
+      "language": "ar",
+      "pageUpdated": null,
+      "status": "verified"
+    },
+    {
+      "id": "mc-report-service",
+      "authority": "mc",
+      "url": "https://mc.gov.sa/ar/eservices/Pages/ServiceDetails.aspx?sID=55",
+      "title": "إستقبال بلاغ تجاري",
+      "language": "ar",
+      "pageUpdated": "آخر تعديل 04 ربيع الثاني 1448",
+      "status": "verified",
+      "note": "Rendered with JavaScript (headless browser)."
+    },
+
+    {
+      "id": "momah-home-ar",
+      "authority": "balady",
+      "url": "https://momah.gov.sa/ar",
+      "title": "وزارة البلديات والإسكان",
+      "language": "ar",
+      "pageUpdated": "آخر تحديث: 2026/11/10",
+      "status": "verified"
+    },
+    {
+      "id": "momah-home-en",
+      "authority": "balady",
+      "url": "https://momah.gov.sa/en",
+      "title": "Ministry of Municipalities and Housing",
+      "language": "en",
+      "pageUpdated": "Last updated: 2026/11/10",
+      "status": "verified"
+    },
+    {
+      "id": "balady-about",
+      "authority": "balady",
+      "url": "https://balady.gov.sa/ar/about-balady/about-us",
+      "title": "من نحن | منصة بلدي",
+      "language": "ar",
+      "pageUpdated": "2026/10/11 - 11:57",
+      "status": "verified"
+    },
+    {
+      "id": "balady-home-ar",
+      "authority": "balady",
+      "url": "https://balady.gov.sa/ar",
+      "title": "الرئيسية | منصة بلدي",
+      "language": "ar",
+      "pageUpdated": "2026/11/02 - 16:12",
+      "status": "verified"
+    },
+    {
+      "id": "balady-report-service",
+      "authority": "balady",
+      "url": "https://balady.gov.sa/services/10532",
+      "title": "تقديم بلاغ | منصة بلدي",
+      "language": "ar",
+      "pageUpdated": null,
+      "status": "verified"
+    },
+    {
+      "id": "balady-report-service-en",
+      "authority": "balady",
+      "url": "https://balady.gov.sa/en/services/submitting-report",
+      "title": "Submitting a Report | Balady Platform",
+      "language": "en",
+      "pageUpdated": "2026/10/22 - 01:37",
+      "status": "verified"
+    },
+    {
+      "id": "balady-contact",
+      "authority": "balady",
+      "url": "https://balady.gov.sa/ar/help-and-support/contact-us",
+      "title": "اتصل بنا | منصة بلدي",
+      "language": "ar",
+      "pageUpdated": "2026/05/04 - 12:28",
+      "status": "verified"
+    },
+    {
+      "id": "momah-faq",
+      "authority": "balady",
+      "url": "https://momah.gov.sa/ar/faqs",
+      "title": "الأسئلة الشائعة | وزارة البلديات والإسكان",
+      "language": "ar",
+      "pageUpdated": "2026/11/10",
+      "status": "verified"
+    }
+  ],
+  "authorities": {
+    "nwc": {
+      "dbName": "الشركة الوطنية للمياه",
+      "officialNameAr": {
+        "value": "شركة المياه الوطنية",
+        "source": "nwc-home-ar",
+        "quote": "شركة المياه الوطنية (شركة مساهمة سعودية ، مملوكة بالكامل للدولة متمثلة في صندوق الاستثمارات العامة) تأسست عام 2008"
+      },
+      "officialNameEn": {
+        "value": "National Water Company",
+        "source": "nwc-home-en",
+        "quote": "The National Water Company (a Saudi joint stock company, wholly owned by the state represented by the Public Investment Fund) was established in 2008"
+      },
+      "website": "https://www.nwc.com.sa",
+      "scope": {
+        "ar": "تقديم خدمات المياه والصرف الصحي.",
+        "en": "Water and wastewater services.",
+        "source": "nwc-home-en",
+        "quote": "providing water and wastewater services on sound commercial bases in accordance with the international best practices."
+      },
+      "channels": [
+        {
+          "kind": "phone",
+          "value": "8004411110",
+          "label": { "ar": "مركز الاتصال الموحد", "en": "Unified call centre" },
+          "source": "nwc-help",
+          "quote": "Call Center 8004411110"
+        },
+        {
+          "kind": "phone",
+          "value": "931",
+          "label": {
+            "ar": "مركز بلاغات المياه (على مدار الساعة)",
+            "en": "Water reporting centre (24/7)"
+          },
+          "source": "nwc-help",
+          "quote": "Water Reporting Center 931 with immediate 24/7 response"
+        },
+        {
+          "kind": "url",
+          "value": "https://ebranch.nwc.com.sa/submit-complaint",
+          "label": {
+            "ar": "خدمة تقديم شكوى (الفرع الإلكتروني)",
+            "en": "Submit a complaint (e-branch)"
+          },
+          "source": "nwc-outage-service",
+          "quote": "Start service"
+        },
+        {
+          "kind": "url",
+          "value": "https://ebranch.nwc.com.sa/water-incidents/submit-incident",
+          "label": {
+            "ar": "بلاغ حوادث المياه (طفح، تسرب)",
+            "en": "Report a water incident (overflow, leak)"
+          },
+          "source": "nwc-home-en",
+          "quote": "Water Incidents"
+        },
+        {
+          "kind": "app",
+          "value": "تطبيق المياه الوطنية / NWC Mobile App",
+          "label": { "ar": "تطبيق الجوال", "en": "Mobile app" },
+          "source": "nwc-app",
+          "quote": "introduces its application, which includes more than 35 services for beneficiaries of water and sanitation"
+        }
+      ],
+      "procedures": [
+        {
+          "topic": "water_outage_complaint",
+          "title": { "ar": "تقديم شكوى انقطاع المياه", "en": "Water outage complaint" },
+          "steps": {
+            "ar": [
+              "الدخول عبر القنوات الإلكترونية",
+              "اختيار «الدعم والمساعدة» ثم «تقديم شكوى»",
+              "اختيار «إمداد المياه» ثم «انقطاع المياه»",
+              "إرسال الشكوى"
+            ],
+            "en": [
+              "Log on through the e-channels",
+              "Select Support and assistance, then File a complaint",
+              "Select Water supply, then Water outage",
+              "Lodge the complaint"
+            ]
+          },
+          "conditions": {
+            "ar": [
+              "أن تكون الشكوى في وقت ضخ المياه",
+              "ألا تكون ضمن نطاق الصيانة الدورية أو الطارئة",
+              "ألا تصل المياه إلى عداد العميل من الشبكة أو يكون الضخ ضعيفاً",
+              "التحقق من أن العداد يعمل"
+            ],
+            "en": [
+              "At the time of pumping",
+              "Outside regular or emergency maintenance",
+              "Water does not reach the meter, or pumping is weak",
+              "Verify the meter is running"
+            ]
+          },
+          "source": "nwc-outage-service",
+          "quote": "The complaint should be at the time of pumping the water"
+        },
+        {
+          "topic": "water_incident_report",
+          "title": {
+            "ar": "بلاغ طفح الصرف الصحي أو تسرب العداد أو الشبكة",
+            "en": "Report sewage overflow or meter/network leakage"
+          },
+          "steps": {
+            "ar": [
+              "الدخول عبر القنوات الإلكترونية",
+              "اختيار «الدعم والمساعدة»",
+              "تحديد المنطقة والمدينة والموقع",
+              "إرفاق صور وتحديد الموقع على الخريطة",
+              "إرسال البلاغ"
+            ],
+            "en": [
+              "Log on through the e-channels",
+              "Select Support and assistance",
+              "Locate region, city and location",
+              "Upload photos and mark the site on the map",
+              "Send the notification"
+            ]
+          },
+          "source": "nwc-incidents-service",
+          "quote": "report sewage overflow, and meter or network leakage"
+        }
+      ],
+      "hours": {
+        "ar": "المركز الافتراضي ومراكز الخدمة: أيام العمل الرسمية من 10:00 إلى 18:00",
+        "en": "Virtual and service centres: official business days 10:00–18:00",
+        "source": "nwc-help",
+        "quote": "Virtual center and service centers are open on official business days from 10:00 to 18:00 hrs."
+      },
+      "notPublished": [
+        "complaint processing time",
+        "complaint tracking method",
+        "escalation to a regulator",
+        "billing objection procedure",
+        "required documents for a complaint",
+        "email address"
+      ]
+    },
+    "sec": {
+      "dbName": "السعودية للطاقة",
+      "officialNameAr": {
+        "value": "السعودية للطاقة",
+        "source": "se-home-ar",
+        "quote": "السعودية للطاقة"
+      },
+      "officialNameEn": {
+        "value": "Saudi Energy",
+        "source": "se-home-en",
+        "quote": "Saudi Energy"
+      },
+      "website": "https://www.se.com.sa",
+      "channels": [
+        {
+          "kind": "phone",
+          "value": "933",
+          "label": {
+            "ar": "مركز الاتصال والطوارئ (على مدار الساعة)",
+            "en": "Call centre and emergency (24/7)"
+          },
+          "source": "se-channels",
+          "quote": "Call Center 933 Work hours: 24/7 - Responded: immediately"
+        },
+        {
+          "kind": "channel",
+          "value": "WhatsApp",
+          "label": { "ar": "واتساب (على مدار الساعة)", "en": "WhatsApp (24/7)" },
+          "source": "se-channels",
+          "quote": "WhatsApp Work hours: 24/7 - Responded: immediately"
+        },
+        {
+          "kind": "channel",
+          "value": "Live Chat",
+          "label": { "ar": "المحادثة المباشرة (على مدار الساعة)", "en": "Live chat (24/7)" },
+          "source": "se-channels",
+          "quote": "Live Chat Work hours: 24/7 - Responded: 30 Sec"
+        },
+        {
+          "kind": "channel",
+          "value": "Services Offices",
+          "label": {
+            "ar": "مكاتب الخدمات: الأحد إلى الخميس 7 ص – 3 م",
+            "en": "Service offices: Sunday–Thursday 7 am–3 pm"
+          },
+          "source": "se-channels",
+          "quote": "Services Offices Work hours: From Sunday to Thursday from 7 am to 3 pm"
+        },
+        {
+          "kind": "url",
+          "value": "https://www.se.com.sa/en/Support/Service-Channels/",
+          "label": { "ar": "قنوات الخدمة", "en": "Service channels" },
+          "source": "se-channels",
+          "quote": "We are here to help you"
+        }
+      ],
+      "procedures": [
+        {
+          "topic": "power_outage",
+          "title": { "ar": "عند انقطاع الكهرباء", "en": "When the power goes out" },
+          "steps": {
+            "ar": [
+              "فصل الأجهزة عالية الاستهلاك",
+              "التحقق من القواطع في لوحة التوزيع",
+              "إذا كانت القواطع في المنزل وفي صندوق عداد الشركة في وضع التشغيل فالانقطاع عام أو بسبب صيانة: الاتصال بالرقم 933 مع رقم الحساب ورقم العداد وموقع المنزل"
+            ],
+            "en": [
+              "Turn off high-load appliances",
+              "Check the circuit breakers",
+              "If the breakers in the house and in the company's meter box are ON, call 933 with the account number, meter number and house location"
+            ]
+          },
+          "source": "se-faq-cs",
+          "quote": "please call emergency number 933 and provide them with the details of account number, meter number, and the house location"
+        },
+        {
+          "topic": "high_bill",
+          "title": { "ar": "فاتورة مرتفعة", "en": "High bill" },
+          "steps": {
+            "ar": [
+              "مراجعة تحليل الاستهلاك الشهري عبر الموقع أو تطبيق السعودية للطاقة",
+              "أو الاتصال بالرقم 933 للتحقق من مبلغ الفاتورة وتفاصيل الاستهلاك"
+            ],
+            "en": [
+              "Review the monthly consumption analysis on the website or the Saudi Energy app",
+              "Or contact 933 to verify the bill amount and consumption details"
+            ]
+          },
+          "source": "se-faq-cs",
+          "quote": "You may also contact 933 to verify the bill amount and consumption details."
+        },
+        {
+          "topic": "meter_fault",
+          "title": { "ar": "عطل العداد (توقف أو بطء)", "en": "Meter malfunction" },
+          "steps": {
+            "ar": ["تقديم طلب فحص العداد، ويتولاه الفريق الفني المختص"],
+            "en": ["Submit a meter inspection request, handled by the specialised technical team"]
+          },
+          "source": "se-faq-cs",
+          "quote": "You can submit a request for a meter inspection, which will be handled by the specialized technical team."
+        }
+      ],
+      "serviceLevels": [
+        {
+          "item": { "ar": "إعادة الخدمة بعد الانقطاع", "en": "Restoration after an outage" },
+          "value": {
+            "ar": "خلال 6 ساعات كحد أقصى من وقت الانقطاع",
+            "en": "Within a maximum of six (6) hours from the outage"
+          },
+          "compensation": {
+            "ar": "200 ريال، و50 ريالاً عن كل ساعة إضافية",
+            "en": "SAR 200, plus SAR 50 per additional hour"
+          },
+          "source": "se-channels",
+          "quote": "The service will be restored within a maximum of six (6) hours from the time of the power outage."
+        },
+        {
+          "item": { "ar": "إعادة الخدمة بعد السداد", "en": "Restoration after payment" },
+          "value": {
+            "ar": "ساعتان من استلام إشعار السداد",
+            "en": "Two hours from the payment notification"
+          },
+          "compensation": {
+            "ar": "100 ريال، و100 ريال عن كل ساعة إضافية",
+            "en": "SAR 100, plus SAR 100 per additional hour"
+          },
+          "source": "se-channels",
+          "quote": "Two hours from the time the payment notification is received."
+        },
+        {
+          "item": { "ar": "الإشعار بالانقطاع المجدول", "en": "Notice of a planned outage" },
+          "value": { "ar": "قبل يومين على الأقل", "en": "At least two days before" },
+          "compensation": { "ar": "100 ريال", "en": "SAR 100" },
+          "source": "se-channels",
+          "quote": "At least two days prior to the outage"
+        },
+        {
+          "item": { "ar": "تحديث عوامل الفوترة", "en": "Updating billing factors" },
+          "value": { "ar": "5 أيام عمل", "en": "5 working days" },
+          "compensation": {
+            "ar": "100 ريال، و50 ريالاً عن كل يوم عمل إضافي",
+            "en": "SAR 100, plus SAR 50 per additional working day"
+          },
+          "source": "se-channels",
+          "quote": "Duration for Updating Billing Factors 10 Working Days 5 Working Days"
+        },
+        {
+          "item": { "ar": "تكرار الانقطاعات", "en": "Repeated outages" },
+          "value": {
+            "ar": "أكثر من انقطاعين تزيد مدة كل منهما على ساعتين خلال السنة",
+            "en": "More than two outages of over two hours each in a calendar year"
+          },
+          "compensation": {
+            "ar": "400 ريال، و50 ريالاً عن كل انقطاع إضافي",
+            "en": "SAR 400, plus SAR 50 per additional outage"
+          },
+          "source": "se-channels",
+          "quote": "If a power outage occurs for the consumer more than twice, with each outage lasting more than two hours within a calendar year"
+        }
+      ],
+      "serviceLevelNote": {
+        "ar": "اتفاقية مستوى الخدمة للشكاوى المتعلقة بالخدمة منشورة في صفحة قنوات الخدمة، وتذكر «10 أيام عمل» عموداً للتسجيل/الإلغاء دون شرح منشور لمعناه.",
+        "en": "The published SLA table lists '10 Working Days' under a registration/cancellation column whose meaning is not explained on the page."
+      },
+      "notPublished": [
+        "Arabic page content (Arabic sub-pages returned errors)",
+        "complaint e-service URL",
+        "email address",
+        "official statement of the rename from الشركة السعودية للكهرباء",
+        "escalation to a regulator",
+        "official app name (only a URL slug 'Alkahraba-App')"
+      ]
+    },
+    "cst": {
+      "dbName": "هيئة الاتصالات والفضاء والتقنية",
+      "officialNameAr": {
+        "value": "هيئة الاتصالات والفضاء والتقنية",
+        "source": "cst-home-ar",
+        "quote": "هيئة الاتصالات والفضاء والتقنية | CST"
+      },
+      "officialNameEn": {
+        "value": "Communications, Space & Technology Commission",
+        "source": "cst-about",
+        "quote": "changing its title to Communications, Space & Technology Commission (CST)"
+      },
+      "website": "https://www.cst.gov.sa",
+      "rename": {
+        "from": "Communications and Information Technology Commission (CITC)",
+        "to": "Communications, Space & Technology Commission (CST)",
+        "date": "2022-11-10 (Council of Ministers decree No. 235)",
+        "source": "cst-about",
+        "quote": "On the 10th of November 2022 the cabinet issued decree No. 235 dated 07/04/1444H"
+      },
+      "scope": {
+        "ar": "حماية المستفيدين من قطاعات الاتصالات والفضاء والتقنية وحماية المنافسة العادلة بين مقدمي الخدمة.",
+        "en": "Protecting beneficiaries of the sectors and fair competition among providers.",
+        "source": "cst-portal-faq",
+        "quote": "وتهدف إلى حماية المستفيدين من هذه القطاعات، وتحفيز الاستثمار فيها، وحماية المنافسة العادلة بين مقدمي الخدمة."
+      },
+      "channels": [
+        {
+          "kind": "phone",
+          "value": "19966",
+          "label": { "ar": "الرقم الموحد للهيئة", "en": "CST unified number" },
+          "source": "cst-escalation",
+          "quote": "19966"
+        },
+        {
+          "kind": "email",
+          "value": "info@cst.gov.sa",
+          "label": { "ar": "البريد الإلكتروني", "en": "Email" },
+          "source": "cst-escalation",
+          "quote": "info@cst.gov.sa"
+        },
+        {
+          "kind": "url",
+          "value": "https://mutasilind.cst.gov.sa/Services/Details/4ka4tx4nLdejNUrQDGL9zA",
+          "label": {
+            "ar": "تصعيد شكاوى الاتصالات (منصة متصل)",
+            "en": "Escalate a telecom complaint (Mutasil)"
+          },
+          "source": "cst-escalation",
+          "quote": "تصعيد شكاوى الاتصالات - منصة متصل"
+        },
+        {
+          "kind": "app",
+          "value": "هيئة الاتصالات",
+          "label": { "ar": "تطبيق الجوال", "en": "Mobile app" },
+          "source": "cst-escalation",
+          "quote": "تطبيق الجوال"
+        }
+      ],
+      "procedures": [
+        {
+          "topic": "complaint_escalation",
+          "title": {
+            "ar": "تصعيد شكوى ضد مقدم خدمة الاتصالات",
+            "en": "Escalating a complaint against a telecom provider"
+          },
+          "prerequisites": {
+            "ar": [
+              "التقدم بالشكوى إلى مقدم الخدمة أولاً عبر قنواته",
+              "التصعيد إلى الهيئة إذا أُغلقت الشكوى دون معالجة أو مرت 5 أيام دون حل",
+              "ألا تتجاوز فترة التصعيد 180 يوماً من إغلاق مقدم الخدمة للشكوى"
+            ],
+            "en": [
+              "Complain to the provider first through its channels",
+              "Escalate if the provider closed it unresolved or 5 days passed without resolution",
+              "Within 180 days of the provider closing the complaint"
+            ]
+          },
+          "steps": {
+            "ar": [
+              "الضغط على «ابدأ الخدمة»",
+              "تسجيل الدخول عبر النفاذ الوطني الموحد",
+              "تعبئة نموذج تصعيد الشكوى"
+            ],
+            "en": [
+              "Press Start service",
+              "Log in via the National Single Sign-On (Nafath)",
+              "Fill in the complaint escalation form"
+            ]
+          },
+          "documents": {
+            "ar": [
+              "نسخة من أي مستندات مؤيدة للشكوى، مثل الفواتير وعقد الخدمة وإشعارات السداد",
+              "وكالة شرعية عند التقديم نيابة عن المستفيد"
+            ],
+            "en": [
+              "Copies of supporting documents, e.g. bills, service contract, payment notices",
+              "A legal power of attorney when filing on someone's behalf"
+            ]
+          },
+          "fee": { "ar": "لا يوجد", "en": "None" },
+          "serviceTime": {
+            "ar": "زمن تقديم الخدمة: 30 يوماً (كما هو منشور)",
+            "en": "Published service time: 30 days"
+          },
+          "source": "cst-escalation",
+          "quote": "تتيح الخدمة للمستفيد تصعيد الشكوى لدى الهيئة في حال إغلاق الشكوى من قبل مقدم الخدمة دون معالجة أو في حال مرور 5 أيام ولم يتم حلها"
+        },
+        {
+          "topic": "provider_did_not_open_ticket",
+          "title": {
+            "ar": "بلاغ عدم فتح تذكرة شكوى لدى مقدم الخدمة",
+            "en": "Report that the provider did not open a complaint ticket"
+          },
+          "steps": {
+            "ar": ["تعبئة نموذج الشكوى", "إرسال الشكوى للهيئة"],
+            "en": ["Fill in the complaint form", "Send it to the Commission"]
+          },
+          "serviceTime": { "ar": "7 أيام عمل", "en": "7 working days" },
+          "source": "cst-no-ticket",
+          "quote": "هي خدمة تتيح للمستخدمين من اشعار الهيئة بعدم تجاوب مقدم الخدمة في فتح تذكرة شكوى عبر أحد قنواته"
+        }
+      ],
+      "inScopeServices": {
+        "ar": [
+          "تصعيد شكاوى الاتصالات",
+          "تصعيد شكاوى عدم إيصال الألياف الضوئية",
+          "شكاوى التعرض للمجالات الكهرومغناطيسية",
+          "بلاغات الإزعاج"
+        ],
+        "source": "cst-services",
+        "quote": "تصعيد شكاوى عدم إيصال الألياف الضوئية"
+      },
+      "notPublished": [
+        "whether the 5 days are working or calendar days",
+        "whether a provider complaint reference number is required",
+        "complaint status tracking specific to escalations",
+        "billing / coverage / number-portability complaint scope"
+      ]
+    },
+    "mc": {
+      "dbName": "وزارة التجارة",
+      "officialNameAr": {
+        "value": "وزارة التجارة",
+        "source": "mc-home-ar",
+        "quote": "وزارة التجارة"
+      },
+      "officialNameEn": null,
+      "website": "https://mc.gov.sa",
+      "scope": {
+        "ar": "استقبال البلاغات التجارية من المستهلكين على المتاجر الإلكترونية والمحلات التجارية.",
+        "en": "Receives consumers' commercial reports about online stores and shops.",
+        "source": "mc-report-service",
+        "quote": "تحديد نوع البلاغ اذا كان متجر الكتروني او محل تجاري."
+      },
+      "channels": [
+        {
+          "kind": "url",
+          "value": "https://mc.gov.sa/ar/eservices/Pages/ServiceDetails.aspx?sID=55",
+          "label": { "ar": "خدمة إستقبال بلاغ تجاري", "en": "Commercial report service" },
+          "source": "mc-report-service",
+          "quote": "تتيح للمستفيدين تقديم بلاغ تجاري - والاستعلام - ومتابعة حالة البلاغ . إلكترونيًا"
+        },
+        {
+          "kind": "app",
+          "value": "بلاغ تجاري",
+          "label": { "ar": "تطبيق بلاغ تجاري", "en": "Balagh Tijari app" },
+          "source": "mc-report-service",
+          "quote": "تحميل تطبيق بلاغ تجاري."
+        },
+        {
+          "kind": "phone",
+          "value": "1900",
+          "label": {
+            "ar": "مركز الاتصال الموحد (8 ص – 12 منتصف الليل طوال الأسبوع)",
+            "en": "Unified call centre (8 am–midnight, all week)"
+          },
+          "source": "mc-report-service",
+          "quote": "مركز الإتصال الموحد في وزارة التجارة 1900 من الساعة 8:00 صباحًا وحتى 12:00 منتصف الليل على مدار الأسبوع"
+        },
+        {
+          "kind": "email",
+          "value": "cs@mc.gov.sa",
+          "label": {
+            "ar": "البريد الإلكتروني (عند تعثر الخدمة الإلكترونية)",
+            "en": "Email (if the e-service fails)"
+          },
+          "source": "mc-report-service",
+          "quote": "cs@mc.gov.sa"
+        }
+      ],
+      "procedures": [
+        {
+          "topic": "commercial_report",
+          "title": { "ar": "تقديم بلاغ تجاري", "en": "Submitting a commercial report" },
+          "steps": {
+            "ar": [
+              "تحميل تطبيق بلاغ تجاري",
+              "تسجيل الدخول عبر النفاذ الوطني",
+              "اختيار «بلاغ جديد»",
+              "تحديد نوع البلاغ: متجر إلكتروني أو محل تجاري (وللمتجر الإلكتروني: هل هو موثق في منصة المركز السعودي للأعمال أو لديه سجل تجاري)",
+              "تحديد نوع المخالفة",
+              "تعبئة بيانات المنشأة",
+              "تعبئة وصف البلاغ واسم السلعة",
+              "إرفاق المستندات المطلوبة حسب نوع البلاغ",
+              "الموافقة والإقرار ثم تقديم البلاغ"
+            ],
+            "en": [
+              "Download the Balagh Tijari app",
+              "Log in via Nafath",
+              "Choose New report",
+              "Choose online store or shop",
+              "Choose the violation type",
+              "Enter the business details",
+              "Describe the report and the product name",
+              "Attach the documents required for the report type",
+              "Agree and submit"
+            ]
+          },
+          "serviceTime": { "ar": "7 أيام عمل", "en": "7 working days" },
+          "fee": { "ar": "مجانية", "en": "Free" },
+          "source": "mc-report-service",
+          "quote": "مدة تنفيذ الخدمة 7 أيام عمل"
+        }
+      ],
+      "notPublished": [
+        "official English name (English pages not verified)",
+        "the list of required documents per report type (tab not readable)",
+        "FAQ answers"
+      ]
+    },
+    "balady": {
+      "dbName": "وزارة البلديات والإسكان",
+      "officialNameAr": {
+        "value": "وزارة البلديات والإسكان",
+        "source": "momah-home-ar",
+        "quote": "وزارة البلديات والإسكان"
+      },
+      "officialNameEn": {
+        "value": "Ministry of Municipalities and Housing",
+        "source": "momah-home-en",
+        "quote": "Ministry of Municipalities and Housing"
+      },
+      "website": "https://balady.gov.sa",
+      "rename": {
+        "from": "وزارة الشؤون البلدية والقروية (ثم والإسكان)",
+        "to": "وزارة البلديات والإسكان",
+        "date": "1446هـ (royal order; no Gregorian date published)",
+        "source": "balady-about",
+        "quote": "وفي عام 1446هـ صدر الأمر الملكي بتعديل مسماها إلى \"وزارة البلديات والإسكان\""
+      },
+      "channels": [
+        {
+          "kind": "phone",
+          "value": "940",
+          "label": { "ar": "بلاغات البلدية", "en": "Municipality reports" },
+          "source": "balady-home-ar",
+          "quote": "بلاغات البلدية 940"
+        },
+        {
+          "kind": "phone",
+          "value": "199040",
+          "label": { "ar": "مركز العناية بالعملاء", "en": "Customer care centre" },
+          "source": "balady-contact",
+          "quote": "199040"
+        },
+        {
+          "kind": "url",
+          "value": "https://balady.gov.sa/services/10532",
+          "label": { "ar": "خدمة تقديم بلاغ (منصة بلدي)", "en": "Submit a report (Balady)" },
+          "source": "balady-report-service",
+          "quote": "تقديم بلاغ | منصة بلدي"
+        },
+        {
+          "kind": "app",
+          "value": "بلدي",
+          "label": { "ar": "تطبيق بلدي", "en": "Balady app" },
+          "source": "balady-contact",
+          "quote": "يمكنك تقديم البلاغات عبر تطبيق بلدي أو عبر الدخول إلى خدمة رفع البلاغات"
+        },
+        {
+          "kind": "email",
+          "value": "infocs@momah.gov.sa",
+          "label": { "ar": "البريد الإلكتروني", "en": "Email" },
+          "source": "balady-contact",
+          "quote": "infocs@momah.gov.sa"
+        }
+      ],
+      "procedures": [
+        {
+          "topic": "municipal_report",
+          "title": {
+            "ar": "تقديم بلاغ بلدي (إنارة، طرق وأرصفة، …)",
+            "en": "Submitting a municipal report (lighting, roads and sidewalks, …)"
+          },
+          "steps": {
+            "ar": [
+              "تسجيل الدخول بتطبيق بلدي أو بوابة بلدي",
+              "اختيار خدمة البلاغات ثم تحديد نوع البلاغ",
+              "تأكيد الموقع على الخريطة",
+              "اختيار التصنيف (مثل: إنارة، طرق وأرصفة)",
+              "كتابة الوصف",
+              "إرفاق صورة أو أكثر للوضع الحالي",
+              "التأكد من صحة البيانات والإرسال",
+              "استلام رسالة برقم البلاغ"
+            ],
+            "en": [
+              "Log in to the Balady app or portal",
+              "Choose the reports service and the report type",
+              "Confirm the location on the map",
+              "Choose the classification (e.g. lighting, roads and sidewalks)",
+              "Enter a description",
+              "Attach one or more photos",
+              "Confirm and submit",
+              "Receive a message with the report number"
+            ]
+          },
+          "requirements": {
+            "ar": ["رقم جوال صالح", "التسجيل في بوابة بلدي (ويمكن للزائر تقديم بلاغ دون حساب)"],
+            "en": [
+              "A valid mobile number",
+              "Registration on Balady (guests can submit reports without an account)"
+            ]
+          },
+          "fee": { "ar": "مجانية", "en": "Free" },
+          "publishedTimes": {
+            "ar": "تذكر صفحة الخدمة «المدة الزمنية للمرحلة: 5 أيام» و«وقت الاستجابة: 24 ساعة» دون توضيح ما تقيسه كل منهما",
+            "en": "The service page lists '5 Days' (stage duration) and '24 hours' (response time) without defining them"
+          },
+          "tip": {
+            "ar": "لمعالجة البلاغ بسرعة: دقة البيانات وخاصة موقع البلاغ والتصنيف المطابق",
+            "en": "For fast processing: accurate data, especially the location and the matching classification"
+          },
+          "source": "balady-report-service",
+          "quote": "ضرورة دقة وصحة البيانات خاصة موقع البلاغ والتصنيف المطابق للحالة المرصودة"
+        }
+      ],
+      "notPublished": [
+        "what 940 handles in detail and its hours",
+        "complete list of report categories",
+        "report status tracking URL"
+      ]
+    }
+  },
+  "nameFindings": [
+    {
+      "authority": "nwc",
+      "database": "الشركة الوطنية للمياه",
+      "official": "شركة المياه الوطنية",
+      "evidence": "nwc-home-ar",
+      "action": "Proposal only — the database name differs from the Arabic name on the company's own site. Renaming changes the key used across routing, letters and stored complaints; needs owner approval."
+    },
+    {
+      "authority": "sec",
+      "database": "السعودية للطاقة",
+      "official": "السعودية للطاقة / Saudi Energy",
+      "evidence": "se-home-ar, se-home-en",
+      "action": "Database name is current. Six knowledge documents still label the entity «الشركة السعودية للكهرباء» (legacy). No rename statement was found on the official site; the current name is what the site shows."
+    },
+    {
+      "authority": "balady",
+      "database": "وزارة البلديات والإسكان",
+      "official": "وزارة البلديات والإسكان",
+      "evidence": "balady-about",
+      "action": "Database name is current (renamed 1446هـ). Knowledge documents using «وزارة الشؤون البلدية والقروية» are outdated."
+    },
+    {
+      "authority": "cst",
+      "database": "هيئة الاتصالات والفضاء والتقنية",
+      "official": "هيئة الاتصالات والفضاء والتقنية",
+      "evidence": "cst-about",
+      "action": "Current (renamed from CITC in Nov 2022)."
+    },
+    {
+      "authority": "mc",
+      "database": "وزارة التجارة",
+      "official": "وزارة التجارة",
+      "evidence": "mc-home-ar",
+      "action": "Current."
+    }
+  ]
+}
