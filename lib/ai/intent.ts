@@ -270,3 +270,16 @@ export function assessIntent(message: string): IntentAssessment {
 export function allowsRouting(kind: MessageIntentKind): boolean {
   return kind === 'complaint' || kind === 'service_inquiry'
 }
+
+/**
+ * Whether a first complaint message already IS the problem description, so
+ * the next question moves on (e.g. to the city) instead of asking the user
+ * to describe what they just described. A complaint naming a sector-specific
+ * issue counts («متجر أخذ فلوسي وما وصل الطلب», «حفريات متروكة بدون إنارة»),
+ * unless it only asks where to complain («وين أشتكي على الموية؟»).
+ */
+export function describesComplaintProblem(message: string, a: IntentAssessment): boolean {
+  if (a.kind !== 'complaint') return false
+  if (describesProblem(message)) return true
+  return a.reasons.includes('sector-issue') && !isOnlyComplaintRequest(message)
+}

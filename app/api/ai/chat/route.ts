@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { validateChatRequest } from '@/lib/ai/contracts'
 import { AiProviderError } from '@/lib/ai/generation-shared'
 import { generateAnswer } from '@/lib/ai/provider'
-import { allowsRouting, assessIntent } from '@/lib/ai/intent'
+import { describesComplaintProblem, allowsRouting, assessIntent } from '@/lib/ai/intent'
 import { getAuthorityProfile, profilePromptBlock } from '@/lib/government/profiles'
 import { scrubUnverifiedContacts } from '@/lib/government/contact-check'
 import {
@@ -551,11 +551,7 @@ export async function POST(request: Request) {
   // the city) rather than ask the user to describe what they just described.
   const knownFieldKeysThisTurn = (): Set<string> => {
     const known = buildKnownFieldKeysFromComplaintContext(sanitizedComplaintContext)
-    if (
-      !hasActiveComplaintContext &&
-      assessment.kind === 'complaint' &&
-      describesProblem(sanitizedMessage)
-    ) {
+    if (!hasActiveComplaintContext && describesComplaintProblem(sanitizedMessage, assessment)) {
       known.add('problem_description')
     }
     return known
