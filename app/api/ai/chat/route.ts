@@ -312,13 +312,16 @@ export async function POST(request: Request) {
   debugLog('[chat] retrieval-start')
   const retrievalStart = Date.now()
   let retrievedDocuments: RetrievedDocument[] = []
+  let retrievalMs = 0
   try {
     retrievedDocuments = await retrieveRelevantDocuments(sanitizedMessage)
+    retrievalMs = Date.now() - retrievalStart
     debugLog(
       `[chat] retrieval-success count=${retrievedDocuments.length} elapsedMs=${Date.now() - retrievalStart}`,
     )
   } catch (error) {
     retrievedDocuments = []
+    retrievalMs = Date.now() - retrievalStart
     debugLog(
       `[chat] retrieval-fallback category=${categorizeRetrievalFailure(error)} elapsedMs=${Date.now() - retrievalStart}`,
     )
@@ -906,6 +909,13 @@ export async function POST(request: Request) {
         }
       : undefined
 
+  const officialFacts =
+    routing?.entityName && routing.confidence !== 'low'
+      ? (() => {
+          const profile = getAuthorityProfile(routing.entityName)
+          return profile ? profilePromptBlock(profile, sanitizedMessage, locale) : undefined
+        })()
+      : undefined
   const prompt = buildPrompt({
     sanitizedMessage,
     sanitizedHistory: sanitizeHistory(history),
@@ -923,13 +933,7 @@ export async function POST(request: Request) {
                 : undefined,
           }
         : undefined,
-    officialFacts:
-      routing?.entityName && routing.confidence !== 'low'
-        ? (() => {
-            const profile = getAuthorityProfile(routing.entityName)
-            return profile ? profilePromptBlock(profile, sanitizedMessage, locale) : undefined
-          })()
-        : undefined,
+    officialFacts,
   })
   debugLog(
     `[chat] prompt-built length=${prompt.length} retrievedDocumentCount=${retrievedDocuments.length}`,
@@ -943,7 +947,7 @@ export async function POST(request: Request) {
     // One structural line per generated turn — model, latency, outcome.
     // Never message content, prompts, identifiers or provider bodies.
     console.info(
-      `[chat] generated provider=${generation.provider} model=${generation.model} genMs=${Date.now() - generationStart} totalMs=${Date.now() - requestStart} docs=${retrievedDocuments.length} locale=${locale}`,
+      `[chat] generated provider=${generation.provider} model=${generation.model} genMs=${Date.now() - generationStart} totalMs=${Date.now() - requestStart} docs=${retrievedDocuments.length} locale=${locale} retrievalMs=${retrievalMs} promptChars=${prompt.length} factsChars=${officialFacts?.length ?? 0} inTok=${generation.usage?.promptTokens ?? '-'} outTok=${generation.usage?.completionTokens ?? '-'} attempts=${generation.attempts ?? '-'} modelIndex=${generation.modelIndex ?? '-'}`,
     )
 
     // Phase 7.1/7.2 — server-authoritative final intent. Deterministic

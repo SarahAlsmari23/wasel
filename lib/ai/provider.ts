@@ -58,6 +58,10 @@ export type GenerationResult = {
   provider: GenerationProviderId
   /** The concrete model that produced the answer (for logs and evaluation). */
   model: string
+  /** Observability only (Llama): reported tokens, HTTP attempts, fallback index. */
+  usage?: { promptTokens: number; completionTokens: number } | null
+  attempts?: number
+  modelIndex?: number
 }
 
 async function generateWith(
@@ -65,8 +69,8 @@ async function generateWith(
   input: AiGenerateInput,
 ): Promise<GenerationResult> {
   if (provider === 'llama') {
-    const { output, model } = await generateWithLlama(input)
-    return { output, provider, model }
+    const { output, model, usage, attempts, modelIndex } = await generateWithLlama(input)
+    return { output, provider, model, usage, attempts, modelIndex }
   }
   if (provider === 'gemini') {
     return { output: await geminiProvider.generate(input), provider, model: 'gemini' }

@@ -98,6 +98,21 @@ async function postJson(url: string, apiToken: string, body: unknown, timeoutMs:
   }
 }
 
+/** Token usage as reported by Workers AI (absent from some responses). */
+export type LlamaUsage = { promptTokens: number; completionTokens: number }
+
+function extractUsage(json: unknown): LlamaUsage | null {
+  const usage = (
+    json as { usage?: { prompt_tokens?: unknown; completion_tokens?: unknown } } | null
+  )?.usage
+  return usage && typeof usage.prompt_tokens === 'number'
+    ? {
+        promptTokens: usage.prompt_tokens,
+        completionTokens: typeof usage.completion_tokens === 'number' ? usage.completion_tokens : 0,
+      }
+    : null
+}
+
 function extractOutput(json: unknown): AiGenerateOutput {
   const content = (json as { choices?: { message?: { content?: unknown } }[] } | null)?.choices?.[0]
     ?.message?.content
@@ -124,7 +139,7 @@ async function generateWithModel(
   model: string,
   prompt: string,
   deadline: number,
-): Promise<AiGenerateOutput> {
+): Promise<{ output: AiGenerateOutput; usage: LlamaUsage | null; attempts: number }> {
   const { accountId, apiToken } = getCredentials()
   const url = `${apiBase(accountId)}/chat/completions`
   const body = {
@@ -139,7 +154,8 @@ async function generateWithModel(
     const remaining = deadline - Date.now()
     if (remaining <= 500) throw new AiProviderError('Request to the AI provider timed out.')
     try {
-      return extractOutput(await postJson(url, apiToken, body, remaining))
+      const json = await postJson(url, apiToken, body, remaining)
+      return { output: extractOutput(json), usage: extractUsage(json), attempts: attempt }
     } catch (error) {
       const retryable =
         error instanceof HttpStatusError && RETRYABLE_HTTP_STATUSES.has(error.status)
@@ -157,7 +173,15 @@ async function generateWithModel(
   throw new AiProviderError('The AI provider request failed.')
 }
 
-export type LlamaGeneration = { output: AiGenerateOutput; model: string }
+export type LlamaGeneration = {
+  output: AiGenerateOutput
+  model: string
+  /** Observability only: tokens reported by Workers AI, HTTP attempts on the
+   * answering model, and how many models were tried before it. */
+  usage: LlamaUsage | null
+  attempts: number
+  modelIndex: number
+}
 
 /**
  * Tries each configured Llama model in order within one shared time budget.
@@ -173,7 +197,8 @@ export async function generateWithLlama({ prompt }: AiGenerateInput): Promise<Ll
     const isLast = index === models.length - 1
     const deadline = isLast ? budgetDeadline : Math.min(budgetDeadline, Date.now() + PRIMARY_MAX_MS)
     try {
-      return { output: await generateWithModel(model, prompt, deadline), model }
+      const result = await generateWithModel(model, prompt, deadline)
+      return { ...result, model, modelIndex: index }
     } catch (error) {
       lastError = error
     }
