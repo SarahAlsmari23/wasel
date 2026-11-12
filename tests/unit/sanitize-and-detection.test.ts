@@ -53,7 +53,7 @@ describe('detectSectorByKeyword', () => {
   }
 
   it('maps sectors to the official Arabic authority names', () => {
-    assert.equal(getEntityNameForSector('water'), 'الشركة الوطنية للمياه')
+    assert.equal(getEntityNameForSector('water'), 'شركة المياه الوطنية')
   })
 })
 

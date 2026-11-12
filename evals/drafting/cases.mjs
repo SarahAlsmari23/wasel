@@ -14,6 +14,7 @@
 
 const S = {
   nwc: {
+    // Historical spelling on purpose: exercises the backward-compatible path.
     entity: 'الشركة الوطنية للمياه',
     city: ['الرياض', 'جدة', 'الدمام', 'أبها', 'المدينة المنورة', 'الطائف'],
     dialect: [

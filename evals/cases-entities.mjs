@@ -5,7 +5,7 @@
 //   expect.clarify: the reply should ask the user for something
 //   expect.letter: complaint-letter fixture (deterministic builder)
 // Entities (from the production reference data): sec = السعودية للطاقة,
-// nwc = الشركة الوطنية للمياه, cst = هيئة الاتصالات والفضاء والتقنية,
+// nwc = شركة المياه الوطنية (historically «الشركة الوطنية للمياه»), cst = هيئة الاتصالات والفضاء والتقنية,
 // mc = وزارة التجارة, balady = وزارة البلديات والإسكان.
 
 const sec = [

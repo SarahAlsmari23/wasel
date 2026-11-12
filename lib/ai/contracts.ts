@@ -8,6 +8,7 @@ import type {
   ChatRouting,
   ChatSuccessResponse,
 } from '@/types/ai'
+import { canonicalEntityName } from '@/lib/government/entity-names'
 
 const MAX_MESSAGE_LENGTH = 2000
 const MAX_HISTORY_ITEMS = 10
@@ -210,7 +211,9 @@ export function validateChatRequest(
       history: history as ChatHistoryItem[] | undefined,
       intent: intent as ChatIntent | undefined,
       complaintContext: complaintContext as ChatComplaintContext | undefined,
-      activeEntityName: (activeEntityName as string | undefined)?.trim() || undefined,
+      activeEntityName: canonicalEntityName(
+        (activeEntityName as string | undefined)?.trim() || undefined,
+      ),
       locale,
     },
   }

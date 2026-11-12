@@ -65,12 +65,14 @@ const SECTOR_ISSUE_SIGNAL_PATTERNS: Partial<Record<Sector, RegExp>> = {
  * missing Arabic stems and an English equivalent per sector.
  */
 const EXTRA_ARABIC_ISSUE_SIGNALS: Partial<Record<Sector, RegExp>> = {
-  telecom: /بطي|فاصل|فصل|طافي|ما\s*يجيب|ما\s*تشتغل|خلصت|مسحوب|خصم|رصيد|الغاء|اشتراك|تحولني/,
+  // An unresolved earlier complaint is the escalation case (CST); «نت ما في» is an outage.
+  telecom:
+    /بطي|فاصل|فصل|طافي|ما\s*يجيب|ما\s*تشتغل|خلصت|مسحوب|خصم|رصيد|الغاء|اشتراك|تحولني|عدم\s*معالجه|لم\s*(?:يتم\s*)?(?:يعالج|معالجه|تعالج|تحل|يحل)|ما\s*(?:عالجو|حلو|حلوها|ردو)|بلاغي\s*السابق|شكواي\s*السابقه|(?:ما\s*في|مافي|ما\s*فيه)\s*نت|نت\s*(?:ما\s*في|مافي)/,
   commerce: /وصل|غش|مقلد|نصب|نصاب|ضمان|سعر|تخفيض|وهمي|ما\s*رد|حظر|بلوك|غلط|ركبوه|تركيب|يصلح|صيانه/,
 }
 const ENGLISH_ISSUE_SIGNALS: Partial<Record<Sector, RegExp>> = {
   telecom:
-    /\b(slow|outages?|down|cut|cutting|drop\w*|dead|died|no (signal|internet|service)|coverage|signal|bill\w*|charged|deducted|cancel\w*|subscription|not working)\b/i,
+    /\b(slow|outages?|down|cut|cutting|drop\w*|dead|died|no (signal|internet|service)|coverage|signal|bill\w*|charged|deducted|cancel\w*|subscription|not working|back and forth|for weeks|unresolved|not resolved|ignor\w*|no response)\b/i,
   commerce:
     /\b(refund\w*|deliver\w*|arriv\w*|defect\w*|faulty|fake|counterfeit|broken|damaged|charged|return\w*|warranty|exchange|order|scam\w*|blocked|overcharg\w*|price)\b/i,
 }

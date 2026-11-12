@@ -30,9 +30,9 @@ export const MOCK_KNOWLEDGE_DOCUMENTS: MockKnowledgeDocument[] = [
   },
   {
     id: 'k4',
-    title: 'دور الشركة الوطنية للمياه',
+    title: 'دور شركة المياه الوطنية',
     excerpt: 'تختص الشركة بتقديم خدمات المياه والصرف الصحي للمشتركين.',
-    entity: 'الشركة الوطنية للمياه',
+    entity: 'شركة المياه الوطنية',
     sector: 'المياه',
     status: 'active',
     updatedAt: '2026-07-21T08:45:00.000Z',

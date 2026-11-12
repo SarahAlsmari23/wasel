@@ -84,7 +84,12 @@ for (const p of allProfiles()) {
   if (p.scope) {
     add(
       `اختصاص ${p.dbName}`,
-      `${p.dbName} (${name}${p.officialNameEn ? ` / ${p.officialNameEn.value}` : ''}): ${p.scope.ar}`,
+      `${p.dbName}${(() => {
+        const alt = [name !== p.dbName ? name : null, p.officialNameEn?.value ?? null].filter(
+          Boolean,
+        )
+        return alt.length ? ` (${alt.join(' / ')})` : ''
+      })()}: ${p.scope.ar}`,
       'general_info',
       p.scope.source,
       p.scope.quote,

@@ -268,7 +268,8 @@
   ],
   "authorities": {
     "nwc": {
-      "dbName": "الشركة الوطنية للمياه",
+      "dbName": "شركة المياه الوطنية",
+      "historicalNames": ["الشركة الوطنية للمياه"],
       "officialNameAr": {
         "value": "شركة المياه الوطنية",
         "source": "nwc-home-ar",
@@ -928,10 +929,10 @@
   "nameFindings": [
     {
       "authority": "nwc",
-      "database": "الشركة الوطنية للمياه",
+      "database": "شركة المياه الوطنية (historical: الشركة الوطنية للمياه)",
       "official": "شركة المياه الوطنية",
       "evidence": "nwc-home-ar",
-      "action": "Proposal only — the database name differs from the Arabic name on the company's own site. Renaming changes the key used across routing, letters and stored complaints; needs owner approval."
+      "action": "Corrected in code 2026-11: the official name is used everywhere and the historical spelling is still accepted. Reference-data rename: supabase/maintenance/nwc-name-2026-11 (owner approval required)."
     },
     {
       "authority": "sec",

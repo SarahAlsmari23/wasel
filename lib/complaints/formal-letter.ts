@@ -11,6 +11,7 @@ import { normalizeArabicInput } from '@/lib/ai/arabic-normalize'
 import { isMeaningfulTitle } from '@/lib/complaints/display'
 import { ENTITY_NAME_TO_SECTOR, type Sector } from '@/lib/complaints/sectors'
 import { renderComplaintBody } from '@/lib/complaints/narrative'
+import { canonicalEntityName } from '@/lib/government/entity-names'
 
 const MAX_SUBJECT_LENGTH = 60
 
@@ -316,7 +317,7 @@ function collectAdditionalFields(
  * call repeatedly with the same inputs and get the same result.
  */
 export function buildFormalComplaintLetter(input: BuildFormalLetterInput): FormalLetterResult {
-  const entityName = cleanText(input.entityName)
+  const entityName = canonicalEntityName(cleanText(input.entityName))
   const fullName = cleanText(input.fullName)
   const problemDescription = cleanText(input.collectedFields.problem_description)
   const city = cleanText(input.collectedFields.city)

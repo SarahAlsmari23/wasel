@@ -1,6 +1,7 @@
 import { getDisplayTitle } from '@/lib/complaints/display'
 import type { createClient } from '@/lib/supabase/server'
 import type { MockConversation, MockMessage } from '@/types/conversation'
+import { canonicalEntityName } from '@/lib/government/entity-names'
 
 type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>
 
@@ -348,7 +349,7 @@ export async function getUserDrafts(supabase: SupabaseServerClient): Promise<Dra
     .map((row) => ({
       id: row.id,
       title: getDisplayTitle({ title: row.title }),
-      entityName: row.government_entities?.name_ar ?? null,
+      entityName: canonicalEntityName(row.government_entities?.name_ar ?? null),
       updatedAt: row.updated_at,
     }))
 }

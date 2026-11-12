@@ -177,7 +177,7 @@ describe('drafting pipeline (mocked Llama)', () => {
     const result = await draftComplaintLetter(waterInput, llm.fn)
     assert.equal(result.meta.path, 'ai')
     assert.equal(result.meta.calls, 2)
-    assert.match(result.letter.complaintText, /^إلى: الشركة الوطنية للمياه/)
+    assert.match(result.letter.complaintText, /^إلى: شركة المياه الوطنية/)
     assert.match(result.letter.complaintText, /الاسم: سارة أحمد$/)
     assert.ok(!result.letter.complaintText.includes('وين أشتكي'))
     assert.ok(result.meta.neurons > 0)
@@ -215,7 +215,7 @@ describe('drafting pipeline (mocked Llama)', () => {
     )
     assert.equal(b.meta.fallbackReason, 'draft_failed')
     for (const r of [a, b]) {
-      assert.match(r.letter.complaintText, /^إلى: الشركة الوطنية للمياه/)
+      assert.match(r.letter.complaintText, /^إلى: شركة المياه الوطنية/)
       assert.ok(!r.letter.complaintText.includes('وين أشتكي'))
     }
   })

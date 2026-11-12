@@ -45,6 +45,7 @@ import {
   extractionUserPrompt,
   type DraftStyle,
 } from '@/lib/complaints/drafting/prompts'
+import { canonicalEntityName } from '@/lib/government/entity-names'
 import { validateDraft, type ValidationIssue } from '@/lib/complaints/drafting/validate'
 import { cleanSpaces } from '@/lib/complaints/drafting/text'
 
@@ -233,6 +234,7 @@ export async function draftComplaintLetter(
   input: DraftInput,
   call: LlamaCaller = runLlamaJson,
 ): Promise<DraftResult> {
+  input = { ...input, entityName: canonicalEntityName(input.entityName) }
   const started = Date.now()
   const style = input.style ?? 'standard'
   const sector = ENTITY_NAME_TO_SECTOR[input.entityName] ?? null

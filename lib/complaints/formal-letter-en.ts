@@ -14,6 +14,7 @@ import {
   supersededValues,
   norm,
 } from '@/lib/complaints/drafting/text'
+import { canonicalEntityName } from '@/lib/government/entity-names'
 
 /*
  * English formal complaint letter — the counterpart of the Arabic builder in
@@ -206,7 +207,7 @@ function sentence(text: string): string {
 export function buildEnglishFormalComplaintLetter(
   input: BuildFormalLetterInput,
 ): FormalLetterResult {
-  const entityNameArabic = clean(input.entityName)
+  const entityNameArabic = canonicalEntityName(clean(input.entityName))
   const entityName = entityDisplayName(entityNameArabic, 'en')
   const fullName = clean(input.fullName)
   const fields = input.collectedFields

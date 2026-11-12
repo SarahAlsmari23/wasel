@@ -25,6 +25,7 @@
 
 import { normalizeArabicInput } from '@/lib/ai/arabic-normalize'
 import { ENTITY_NAME_TO_SECTOR, type Sector } from '@/lib/complaints/sectors'
+import { canonicalEntityName } from '@/lib/government/entity-names'
 
 /*
  * Evaluation-driven revision (evals/, 2026-11): the previous version returned
@@ -50,8 +51,12 @@ import { ENTITY_NAME_TO_SECTOR, type Sector } from '@/lib/complaints/sectors'
  */
 /** The single sector-to-entity-name mapping already used elsewhere
  * (lib/complaints/sectors.ts) is entity-name → sector; this is its reverse. */
+// Historical spellings map to the same sector; only current official names
+// are produced here (lib/government/entity-names.ts).
 const SECTOR_TO_ENTITY_NAME = Object.fromEntries(
-  Object.entries(ENTITY_NAME_TO_SECTOR).map(([entityName, sector]) => [sector, entityName]),
+  Object.entries(ENTITY_NAME_TO_SECTOR)
+    .filter(([entityName]) => canonicalEntityName(entityName) === entityName)
+    .map(([entityName, sector]) => [sector, entityName]),
 ) as Record<Sector, string>
 
 const AR = '\\u0600-\\u06FF'

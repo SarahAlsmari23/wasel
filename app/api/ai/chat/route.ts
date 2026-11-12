@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { validateChatRequest } from '@/lib/ai/contracts'
 import { AiProviderError } from '@/lib/ai/generation-shared'
 import { generateAnswer } from '@/lib/ai/provider'
-import { allowsRouting, assessIntent } from '@/lib/ai/intent'
+import { describesComplaintProblem, allowsRouting, assessIntent } from '@/lib/ai/intent'
 import { getAuthorityProfile, profilePromptBlock } from '@/lib/government/profiles'
 import { scrubUnverifiedContacts } from '@/lib/government/contact-check'
 import {
@@ -26,6 +26,7 @@ import { entityDisplayName } from '@/lib/mock/government-entities'
 import { getCollectedInformationForConversation } from '@/lib/db/collected-information'
 import { getSavedRouting, updateConversationRouting } from '@/lib/db/conversations'
 import {
+  preferProblemSector,
   hydrateSavedRouting,
   mergeRouting,
   resolveRouting,
@@ -312,13 +313,16 @@ export async function POST(request: Request) {
   debugLog('[chat] retrieval-start')
   const retrievalStart = Date.now()
   let retrievedDocuments: RetrievedDocument[] = []
+  let retrievalMs = 0
   try {
     retrievedDocuments = await retrieveRelevantDocuments(sanitizedMessage)
+    retrievalMs = Date.now() - retrievalStart
     debugLog(
       `[chat] retrieval-success count=${retrievedDocuments.length} elapsedMs=${Date.now() - retrievalStart}`,
     )
   } catch (error) {
     retrievedDocuments = []
+    retrievalMs = Date.now() - retrievalStart
     debugLog(
       `[chat] retrieval-fallback category=${categorizeRetrievalFailure(error)} elapsedMs=${Date.now() - retrievalStart}`,
     )
@@ -337,6 +341,29 @@ export async function POST(request: Request) {
   let deferredRouting: ChatRouting | null = null
   try {
     routing = await resolveRouting(supabase, retrievedDocuments)
+    // The problem the user describes decides the authority over a retrieval
+    // match that is not high-confidence: «أشتكي لهيئة الاتصالات إن الكهرباء
+    // مقطوعة» is an electricity problem even when the wording resembles the
+    // telecom complaint-procedure passages. keywordSector ignores authority
+    // names used only as a destination (entity-detection.ts).
+    if (
+      routing?.entityName &&
+      keywordSector &&
+      preferProblemSector(
+        ENTITY_NAME_TO_SECTOR[routing.entityName],
+        routing.confidence,
+        keywordSector,
+      )
+    ) {
+      const problemRouting = await resolveRoutingByEntityName(
+        supabase,
+        getEntityNameForSector(keywordSector),
+      )
+      if (problemRouting) {
+        routing = problemRouting
+        debugLog('[chat] routing-problem-sector-over-retrieval')
+      }
+    }
     if (!freshRoutingAllowed) {
       deferredRouting =
         (assessment.kind === 'unclear' || assessment.kind === 'ambiguous_problem') &&
@@ -524,11 +551,7 @@ export async function POST(request: Request) {
   // the city) rather than ask the user to describe what they just described.
   const knownFieldKeysThisTurn = (): Set<string> => {
     const known = buildKnownFieldKeysFromComplaintContext(sanitizedComplaintContext)
-    if (
-      !hasActiveComplaintContext &&
-      assessment.kind === 'complaint' &&
-      describesProblem(sanitizedMessage)
-    ) {
+    if (!hasActiveComplaintContext && describesComplaintProblem(sanitizedMessage, assessment)) {
       known.add('problem_description')
     }
     return known
@@ -906,6 +929,13 @@ export async function POST(request: Request) {
         }
       : undefined
 
+  const officialFacts =
+    routing?.entityName && routing.confidence !== 'low'
+      ? (() => {
+          const profile = getAuthorityProfile(routing.entityName)
+          return profile ? profilePromptBlock(profile, sanitizedMessage, locale) : undefined
+        })()
+      : undefined
   const prompt = buildPrompt({
     sanitizedMessage,
     sanitizedHistory: sanitizeHistory(history),
@@ -923,13 +953,7 @@ export async function POST(request: Request) {
                 : undefined,
           }
         : undefined,
-    officialFacts:
-      routing?.entityName && routing.confidence !== 'low'
-        ? (() => {
-            const profile = getAuthorityProfile(routing.entityName)
-            return profile ? profilePromptBlock(profile, sanitizedMessage, locale) : undefined
-          })()
-        : undefined,
+    officialFacts,
   })
   debugLog(
     `[chat] prompt-built length=${prompt.length} retrievedDocumentCount=${retrievedDocuments.length}`,
@@ -943,7 +967,7 @@ export async function POST(request: Request) {
     // One structural line per generated turn — model, latency, outcome.
     // Never message content, prompts, identifiers or provider bodies.
     console.info(
-      `[chat] generated provider=${generation.provider} model=${generation.model} genMs=${Date.now() - generationStart} totalMs=${Date.now() - requestStart} docs=${retrievedDocuments.length} locale=${locale}`,
+      `[chat] generated provider=${generation.provider} model=${generation.model} genMs=${Date.now() - generationStart} totalMs=${Date.now() - requestStart} docs=${retrievedDocuments.length} locale=${locale} retrievalMs=${retrievalMs} promptChars=${prompt.length} factsChars=${officialFacts?.length ?? 0} inTok=${generation.usage?.promptTokens ?? '-'} outTok=${generation.usage?.completionTokens ?? '-'} attempts=${generation.attempts ?? '-'} modelIndex=${generation.modelIndex ?? '-'}`,
     )
 
     // Phase 7.1/7.2 — server-authoritative final intent. Deterministic

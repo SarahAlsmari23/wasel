@@ -1,6 +1,7 @@
 import { createClient as createServiceRoleClient } from '@supabase/supabase-js'
 import { randomBytes } from 'node:crypto'
 import type { createClient } from '@/lib/supabase/server'
+import { canonicalEntityName } from '@/lib/government/entity-names'
 
 type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>
 
@@ -243,7 +244,7 @@ function toComplaintRecord(row: ComplaintRow): ComplaintRecord {
     conversationId: row.conversation_id,
     title: row.conversations?.title ?? '',
     entityId: row.entity_id,
-    entityName: row.government_entities?.name_ar ?? null,
+    entityName: canonicalEntityName(row.government_entities?.name_ar ?? null),
     referenceNumber: row.reference_number,
     status: row.status,
     submittedAt: row.submitted_at,

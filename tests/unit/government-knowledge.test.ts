@@ -9,6 +9,7 @@ import {
   profilePromptBlock,
 } from '@/lib/government/profiles'
 import { ENTITY_NAME_TO_SECTOR } from '@/lib/complaints/sectors'
+import { canonicalEntityName, entityNameVariants } from '@/lib/government/entity-names'
 
 const OFFICIAL_DOMAINS =
   /^https:\/\/(?:[\w-]+\.)*(?:nwc\.com\.sa|se\.com\.sa|cst\.gov\.sa|mc\.gov\.sa|balady\.gov\.sa|momah\.gov\.sa)(?:\/|$)/
@@ -18,7 +19,12 @@ describe('verified government profiles', () => {
     const names = allProfiles()
       .map((p) => p.dbName)
       .sort()
-    assert.deepEqual(names, Object.keys(ENTITY_NAME_TO_SECTOR).sort())
+    assert.deepEqual(
+      names,
+      Object.keys(ENTITY_NAME_TO_SECTOR)
+        .filter((n) => canonicalEntityName(n) === n)
+        .sort(),
+    )
   })
   it('every source is on an official domain and every fact cites a known source with a quote', () => {
     for (const s of (data as { sources: { url: string }[] }).sources) {
@@ -64,5 +70,25 @@ describe('unverified contact details are removed from answers', () => {
       userText: 'رقمي 0551234567',
     })
     assert.equal(r.removed.length, 0)
+  })
+})
+
+describe('water authority naming (2026-11)', () => {
+  it('uses the official name and still accepts the historical spelling', () => {
+    assert.equal(canonicalEntityName('الشركة الوطنية للمياه'), 'شركة المياه الوطنية')
+    assert.equal(canonicalEntityName('شركة المياه الوطنية'), 'شركة المياه الوطنية')
+    assert.equal(canonicalEntityName('وزارة التجارة'), 'وزارة التجارة')
+    assert.equal(canonicalEntityName(null), null)
+  })
+  it('looks the authority up by either spelling', () => {
+    assert.deepEqual(entityNameVariants('الشركة الوطنية للمياه'), [
+      'شركة المياه الوطنية',
+      'الشركة الوطنية للمياه',
+    ])
+    assert.deepEqual(entityNameVariants('وزارة التجارة'), ['وزارة التجارة'])
+    assert.equal(getAuthorityProfile('الشركة الوطنية للمياه')?.code, 'nwc')
+    assert.equal(getAuthorityProfile('شركة المياه الوطنية')?.code, 'nwc')
+    assert.equal(ENTITY_NAME_TO_SECTOR['الشركة الوطنية للمياه'], 'water')
+    assert.equal(ENTITY_NAME_TO_SECTOR['شركة المياه الوطنية'], 'water')
   })
 })

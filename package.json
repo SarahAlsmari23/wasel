@@ -19,6 +19,7 @@
     "eval:drafting": "tsx evals/drafting/run.ts",
     "eval:intent": "tsx evals/intent/run.ts",
     "eval:knowledge": "tsx evals/knowledge/run.ts",
+    "kb:preflight": "tsx scripts/kb-preflight.ts",
     "verify:sources": "tsx scripts/verify-official-sources.ts"
   },
   "dependencies": {

@@ -11,6 +11,7 @@
  * Facts listed under `notPublished` are never stated.
  */
 import data from '@/data/government/authorities.json'
+import { canonicalEntityName } from '@/lib/government/entity-names'
 
 export type Localized = { ar: string; en: string }
 type LocalizedList = { ar: string[]; en: string[] }
@@ -56,7 +57,10 @@ export type ServiceLevel = {
 }
 export type AuthorityProfile = {
   code: string
+  /** The authority's current official name (government_entities.name_ar after the 2026-11 rename). */
   dbName: string
+  /** Earlier spellings still accepted on input (lib/government/entity-names.ts). */
+  historicalNames?: string[]
   officialNameAr: { value: string; source: string; quote: string }
   officialNameEn: { value: string; source: string; quote: string } | null
   website: string
@@ -84,7 +88,8 @@ const SOURCES = new Map(RAW.sources.map((s) => [s.id, s]))
 export function getAuthorityProfile(
   entityName: string | null | undefined,
 ): AuthorityProfile | null {
-  return entityName ? (BY_DB_NAME.get(entityName) ?? null) : null
+  // Historical spellings (e.g. «الشركة الوطنية للمياه») resolve to the same profile.
+  return entityName ? (BY_DB_NAME.get(canonicalEntityName(entityName)) ?? null) : null
 }
 
 export function getProfileSource(id: string): ProfileSource | null {
@@ -116,11 +121,67 @@ export function primaryProcedure(profile: AuthorityProfile): ProfileProcedure | 
 }
 
 /**
+ * The deterministic grounding block for the chat prompt once an authority is
+ * selected: verified channels, the relevant procedure(s), published service
+ * levels when relevant, and what is not published. Every fact is kept; each
+ * official page appears once in a numbered source list and facts cite it by
+ * number, which keeps the block 13–27% smaller than repeating every
+ * URL ('verbose', kept for controlled latency comparisons).
+ */
+export function profilePromptBlock(
+  profile: AuthorityProfile,
+  message: string,
+  locale: 'ar' | 'en',
+  format: 'compact' | 'verbose' = 'compact',
+): string {
+  if (format === 'verbose') return verbosePromptBlock(profile, message, locale)
+  const L = (x: Localized) => (locale === 'en' ? x.en : x.ar)
+  const LL = (x: LocalizedList | undefined) => (x ? (locale === 'en' ? x.en : x.ar) : [])
+  const refs: string[] = []
+  const ref = (id: string) => {
+    const url = SOURCES.get(id)?.url
+    if (!url) return ''
+    let n = refs.indexOf(url)
+    if (n === -1) n = refs.push(url) - 1
+    return ` [${n + 1}]`
+  }
+  const lines: string[] = [
+    `معلومات رسمية موثّقة عن ${profile.dbName} (تحقق ${RAW.verifiedAt}؛ اذكر منها ما يلزم مع رابط مصدرها، ولا تذكر غيرها):`,
+  ]
+  if (profile.scope) lines.push(`الاختصاص${ref(profile.scope.source)}: ${L(profile.scope)}`)
+  lines.push(`الموقع الرسمي: ${profile.website}`)
+  lines.push('قنوات التواصل والتقديم:')
+  for (const c of profile.channels) lines.push(`- ${L(c.label)}: ${c.value}${ref(c.source)}`)
+  for (const p of relevantProcedures(profile, message)) {
+    lines.push(`${L(p.title)}${ref(p.source)}:`)
+    for (const x of LL(p.prerequisites)) lines.push(`- شرط: ${x}`)
+    for (const x of LL(p.conditions)) lines.push(`- شرط: ${x}`)
+    LL(p.steps).forEach((x, i) => lines.push(`${i + 1}. ${x}`))
+    for (const x of LL(p.documents)) lines.push(`- مستند: ${x}`)
+    for (const x of LL(p.requirements)) lines.push(`- متطلب: ${x}`)
+    if (p.serviceTime) lines.push(`- المدة المنشورة: ${L(p.serviceTime)}`)
+    if (p.publishedTimes) lines.push(`- المدد المنشورة: ${L(p.publishedTimes)}`)
+    if (p.fee) lines.push(`- الرسوم: ${L(p.fee)}`)
+  }
+  if (
+    profile.serviceLevels?.length &&
+    /انقطاع|انقطع|مقطوع|طاف|طفت|فاتور|تعويض|outage|cut|bill|compensat/i.test(message)
+  ) {
+    lines.push(`مستويات الخدمة المنشورة${ref(profile.serviceLevels[0].source)}:`)
+    for (const s of profile.serviceLevels)
+      lines.push(`- ${L(s.item)}: ${L(s.value)}؛ التعويض: ${L(s.compensation)}`)
+  }
+  lines.push(`غير منشور رسمياً (لا تذكره ولا تخمّنه): ${profile.notPublished.join('، ')}`)
+  lines.push(`المصادر: ${refs.map((u, i) => `[${i + 1}] ${u}`).join(' ')}`)
+  return lines.join('\n')
+}
+
+/**
  * A compact, deterministic grounding block for the chat prompt: verified
  * channels, the relevant procedure(s) and published service levels, each
  * with its source URL. Arabic labels, plus the locale's text when English.
  */
-export function profilePromptBlock(
+function verbosePromptBlock(
   profile: AuthorityProfile,
   message: string,
   locale: 'ar' | 'en',

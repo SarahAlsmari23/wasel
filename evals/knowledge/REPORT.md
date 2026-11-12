@@ -137,3 +137,38 @@ Same 46 cases, same inputs, run against production before (PR #5 code, 2026-11-1
 Scorer correction (applied to both runs identically, by re-scoring the saved answers — no new calls): the authority-name check flagged «الشركة لمشكلتك» (ordinary prose) and «شركة الوطنية» (from «للشركة الوطنية للمياه»). It now requires a definite second word and ignores a leading «ال». Raw scorer: after-run 38/46 with those 2 false criticals; the baseline's 2 real criticals are still caught.
 
 The remaining live failures were checked against this branch: CST-016 and NWC-038 pass (NWC-038 — production said the unified number "is not available"; this branch now supplies the verified 8004411110 with its source). Four general gaps found in those live inputs were fixed here (unit-tested): a wrong destination authority hid the real problem («أبي أشتكي للبلدية إن فاتورة الموية غلط» — «للبلدية» was not recognised as a destination), English plurals («power outages»), building violations («ملحق مخالف وسادين الطريق»), and Arabic role-play requests («تقمص دور موظف…»). X-088 (three sectors in one message) intentionally selects no authority and asks which to start with.
+
+## 13. Real-embedding preflight (2026-11-11, PR #9)
+
+Real `@cf/google/embeddinggemma-300m` vectors (768 dims) for the 36 verified passages and 460 evaluation queries, obtained through `wrangler login` (OAuth, scopes `account:read user:read ai:write workers_scripts:write`, credential in the macOS keychain, never printed). `04_verified_passages.sql` built from exactly those vectors — SHA-256 `061758ab2e8dd345f382def32b7a6702ed1aef487baba2e83b09fb81d93f76c4` (git-ignored; regenerate from `.kb-preflight/embeddings.json`).
+
+**Retrieval on a restored copy of production** (`match_knowledge_documents(q, 5, 0.4)`, production routing rules):
+
+|                                                                   | Before (production KB)        | After (verified update)       |
+| ----------------------------------------------------------------- | ----------------------------- | ----------------------------- |
+| Knowledge questions — correct authority ranked first by retrieval | 146/157 (ar 90/100, en 56/57) | 151/157 (ar 94/100, en 57/57) |
+| Verified passage of that authority in the top 5                   | 0/157                         | 150/157                       |
+| Top result cites a verified official source                       | 0/157                         | 143/157                       |
+| Expected verified fact inside the retrieved excerpts              | 7/113                         | 73/113                        |
+| Outdated passages returned (legacy authority names)               | 200                           | 0                             |
+| Final authority decision, knowledge questions                     | 155/157                       | 157/157*                      |
+| Final authority decision, 313-case chat set — wrong authority     | 11                            | 8*                            |
+| Authority selected when none was due                              | 0                             | 0                             |
+
+\* with the routing fix below. With the routing unchanged the update alone gave 154/157 and 14 wrong: the verified telecom complaint-procedure passages attracted "complain to CST about my power cut"-style questions. Fix (`preferProblemSector`, unit-tested): the sector of the problem the user describes (keyword detection, which ignores destination authority names) replaces a retrieval match that is not high-confidence and names another sector. A variant preferring the intent layer's sector was worse (18 wrong) because it follows the named, wrong authority. Five of the remaining 8 look like mislabelled dataset cases (e.g. «الكهربا مقطوعة» labelled water).
+
+Verify on the copy: 28 sources, 63 active passages, 36 verified, 0 active legacy-named, 0 without embedding, 1 embedding model, all 768 dims. User data fingerprint unchanged; rollback restores the reference data exactly.
+
+**Answer check (Scout, 8 questions × verbose/compact facts):** verified fact stated in every answerable case (3 are paraphrased, so a verbatim check missed them: live chat via se.com.sa, consumption-analysis review, two days' notice); unanswerable questions abstained; 0 unverified phone numbers or links; 0 numbers not present in the sources.
+
+**Latency benchmark (Scout, 5 complaints × {no facts, verbose, compact} × 2, interleaved):**
+
+| Facts block       | Median | p25–p75     | Input tokens (median) | Output tokens (median) |
+| ----------------- | ------ | ----------- | --------------------- | ---------------------- |
+| none              | 10.7 s | 6.4–13.9 s  | 2,844                 | 123                    |
+| verbose (current) | 13.5 s | 9.5–15.2 s  | 3,641                 | 130                    |
+| compact           | 13.1 s | 10.6–18.2 s | 3,505                 | 154                    |
+
+Paired with the same complaint and repetition, verbose minus none: median +1.4 s, range −3.8 to +13.8 s. The same prompt varied 8.4→13.3 s and 17.9→32.6 s between repetitions; output arrives at ~10–12 tokens/s. Conclusion: the slowdown is dominated by Workers AI inference time variance, not by the facts block or the code; no latency improvement is claimed. The compact block keeps every fact and saves ~4% input tokens (cost), not measurable time. The production log line now records retrieval time, prompt size and tokens to attribute future slowness. Query embedding: median 0.44 s.
+
+**Incident:** this preflight (≈4,300 neurons) plus same-day smoke testing and traffic exhausted the account's shared free daily allowance; production chat answers returned HTTP 429 (observed 17:49 UTC) until the 00:00 UTC reset. Letters, editing and the dashboard (rule-based) were unaffected. The preflight's default cap is now 2,500 neurons and the procedure warns that the allowance is shared.

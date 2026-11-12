@@ -2,6 +2,7 @@ import type { createClient } from '@/lib/supabase/server'
 import type { SavedRoutingIds } from '@/lib/db/conversations'
 import type { RetrievedDocument } from '@/lib/rag/types'
 import type { ChatRouting } from '@/types/ai'
+import { canonicalEntityName, entityNameVariants } from '@/lib/government/entity-names'
 
 type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>
 
@@ -14,6 +15,23 @@ const SAVED_ROUTING_REASON = 'استناداً إلى التصنيف الذي ت
 // all; two or more retrieved results agreeing on the same service is the
 // strongest signal and can reach 'high' confidence at the same bar.
 const STRONG_SIMILARITY = 0.6
+
+/**
+ * Whether the sector of the problem the user describes should replace a
+ * retrieval-based authority: only when that match is not high-confidence and
+ * names a different sector. Measured on the 313-case set with the verified
+ * knowledge base and real embeddings: wrong authority 14 → 8, knowledge
+ * questions 154 → 157 of 157 (scripts/kb-retrieval-test.ts).
+ */
+export function preferProblemSector(
+  routingSector: string | null | undefined,
+  confidence: ChatRouting['confidence'] | undefined,
+  problemSector: string | null | undefined,
+): boolean {
+  return Boolean(
+    routingSector && problemSector && confidence !== 'high' && routingSector !== problemSector,
+  )
+}
 // Two different services, each backed by exactly one weak result, with
 // similarities this close together, are treated as genuinely ambiguous
 // evidence rather than arbitrarily picking one.
@@ -118,7 +136,7 @@ export async function resolveRouting(
 
   return {
     entityId: data.entity_id as string,
-    entityName: entityRow?.name_ar ?? top.entityName ?? null,
+    entityName: canonicalEntityName(entityRow?.name_ar ?? top.entityName ?? null),
     serviceId: winner.serviceId,
     complaintTypeId,
     confidence,
@@ -156,7 +174,7 @@ export async function resolveRoutingByEntityName(
   const { data: entityData, error: entityError } = await supabase
     .from('government_entities')
     .select('id')
-    .eq('name_ar', entityName)
+    .in('name_ar', entityNameVariants(entityName))
     .maybeSingle()
 
   if (entityError || !entityData?.id) return null
@@ -173,7 +191,7 @@ export async function resolveRoutingByEntityName(
 
   return {
     entityId: entityData.id as string,
-    entityName,
+    entityName: canonicalEntityName(entityName),
     serviceId: data.id as string,
     complaintTypeId,
     confidence: 'medium',
@@ -238,7 +256,7 @@ export async function hydrateSavedRouting(
 
   return {
     entityId: saved.entityId,
-    entityName: entityResult.data.name_ar as string,
+    entityName: canonicalEntityName(entityResult.data.name_ar as string),
     serviceId: saved.serviceId,
     complaintTypeId: saved.complaintTypeId,
     confidence: 'medium',
