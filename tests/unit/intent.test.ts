@@ -143,6 +143,7 @@ describe('telecom problem types already stated', () => {
       true,
     )
     assert.equal(hasSectorIssueSignal('telecom', 'انا ما اعرف عربي كويس. نت ما في.'), true)
+    assert.equal(hasSectorIssueSignal('telecom', 'شركة النت ما حلت مشكلتي من أسبوع وش أسوي؟'), true)
   })
   it('still asks for the problem type when none is given', () => {
     assert.equal(hasSectorIssueSignal('telecom', 'عندي مشكلة مع شركة الاتصالات'), false)
