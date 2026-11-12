@@ -153,3 +153,63 @@ describe('telecom problem types already stated', () => {
     )
   })
 })
+
+describe('an unresolved earlier complaint is the problem (PR #10)', () => {
+  const sectors = (m: string) => {
+    const a = assessIntent(m)
+    return { a, described: describesComplaintProblem(m, a) }
+  }
+  const cases: [string, string][] = [
+    ['telecom', 'شركة النت ما حلت مشكلتي'],
+    ['telecom', 'شركة النت ما حلت مشكلتي من أسبوع وش أسوي؟'],
+    ['telecom', 'لم تقم شركة الاتصالات بحل مشكلتي رغم تقديم بلاغ'],
+    ['telecom', 'لم يتم حل مشكلتي مع شركة الاتصالات حتى الآن'],
+    ['telecom', 'الاتصالات للحين ما انحلت مشكلتي'],
+    ['telecom', 'اشتكيت على شركة الجوال وما سووا شي'],
+    ['telecom', 'شركة الاتصالات مطنشتني ومحد يرد علي'],
+    ['telecom', 'STC ما حلت مشكلتي'],
+    ['telecom', 'My internet provider still has not fixed my problem'],
+    ['telecom', 'STC ignored my complaint'],
+    ['commerce', 'المتجر ما حل مشكلتي'],
+    ['commerce', 'لم يقم المتجر بحل مشكلتي'],
+    ['commerce', 'اشتكيت على المتجر ومحد تجاوب'],
+    ['commerce', 'The online store never resolved my issue'],
+    ['water', 'شركة المياه ما حلت مشكلتي'],
+    ['water', 'رفعت بلاغ للمياه وللحين ما حلوها'],
+    ['water', "The water company hasn't fixed my problem"],
+    ['electricity', 'شركة الكهرباء ما حلت مشكلتي من شهر'],
+    ['electricity', 'لم يتم معالجة بلاغي عن انقطاع الكهرباء'],
+    ['electricity', 'The electricity company ignored my complaint'],
+    ['municipality', 'البلدية ما حلت مشكلة الحفرة'],
+    ['municipality', 'بلغت البلدية عن الحفرة ولم يتم إصلاحها'],
+    ['municipality', "The municipality still hasn't fixed my complaint"],
+  ]
+  for (const [sector, m] of cases) {
+    it(`${sector}: ${m}`, () => {
+      const { a, described } = sectors(m)
+      assert.equal(a.kind, 'complaint')
+      assert.equal(a.sector, sector)
+      assert.equal(described, true, 'must not ask to describe the problem again')
+      assert.equal(hasSectorIssueSignal(sector as never, m), true, 'no problem-type question')
+    })
+  }
+  it('leaves unrelated messages without an authority', () => {
+    for (const m of [
+      'تجاهلني صاحبي',
+      'ما حلوها في المسلسل',
+      'ما حليت الواجب',
+      'الهلال ما حل مشكلة الدفاع',
+      'كيف أحل مشكلة العجين اللي يلصق؟',
+      "I haven't fixed my car yet",
+      'Nobody answered my question about football',
+    ]) {
+      const a = assessIntent(m)
+      assert.equal(a.sector, null, m)
+      assert.notEqual(a.kind, 'complaint', m)
+    }
+  })
+  it('still asks what the problem is when only the authority is named', () => {
+    assert.equal(hasSectorIssueSignal('telecom', 'عندي مشكلة مع شركة الاتصالات'), false)
+    assert.equal(hasSectorIssueSignal('commerce', 'أبي أشتكي على متجر'), false)
+  })
+})

@@ -131,7 +131,7 @@ const ENGLISH: Record<Sector, Patterns> = {
   water: { strong: /\b(water|sewage|sewer|nwc)\b/i },
   telecom: {
     strong:
-      /\b(internet|telecom|mobile network|network coverage|signal|broadband|fiber|fibre|sim card|cst|wi-?fi|mobile data)\b/i,
+      /\b(internet|telecom|mobile network|network coverage|signal|broadband|fiber|fibre|sim card|cst|wi-?fi|mobile data|stc|mobily|zain)\b/i,
   },
   commerce: {
     strong:

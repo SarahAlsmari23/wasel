@@ -21,6 +21,7 @@
  */
 
 import { normalizeArabicInput } from '@/lib/ai/arabic-normalize'
+import { describesUnresolvedComplaint } from '@/lib/ai/problem-signal'
 import type { Sector } from '@/lib/complaints/sectors'
 
 const SECTOR_ISSUE_SIGNAL_PATTERNS: Partial<Record<Sector, RegExp>> = {
@@ -84,7 +85,9 @@ export function hasSectorIssueSignal(sector: Sector, message: string): boolean {
   return (
     pattern.test(normalized) ||
     (EXTRA_ARABIC_ISSUE_SIGNALS[sector]?.test(normalized) ?? false) ||
-    (ENGLISH_ISSUE_SIGNALS[sector]?.test(message) ?? false)
+    (ENGLISH_ISSUE_SIGNALS[sector]?.test(message) ?? false) ||
+    // An unresolved earlier complaint is itself the issue (escalation), in any sector.
+    describesUnresolvedComplaint(message)
   )
 }
 

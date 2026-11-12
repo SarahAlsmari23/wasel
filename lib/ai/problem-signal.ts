@@ -38,6 +38,44 @@ export function isInformationQuestion(message: string): boolean {
   return !ARABIC_FIRST_PERSON.test(arabic) && !ENGLISH_FIRST_PERSON.test(english)
 }
 
+/*
+ * An unresolved earlier complaint IS the problem being reported — the
+ * escalation case («شركة النت ما حلت مشكلتي», «لم يتم حل بلاغي», "the store
+ * never resolved my issue"). Asking the user to describe the problem again
+ * after this was the PR #10 bug. Narrow on purpose: the verb must be about
+ * resolving/answering and refer to a problem, report or complaint (or carry
+ * the object suffix «حلوها»), so "I haven't fixed my car" or «ما حليت
+ * الواجب» stay unaffected. Only consulted once a sector is known.
+ */
+const ARABIC_UNRESOLVED_PATTERN = new RegExp(
+  [
+    // «ما حلت مشكلتي», «محد حل البلاغ», «لم يتم حل المشكله», «ما عالجوا بلاغي»
+    '(?<![\\u0600-\\u06FF])[وف]?(?:ما|لم|محد|ماحد|ما\\s*احد|لا\\s*احد)\\s*(?:(?:يتم|تم)\\s*)?(?:حل|حلت|حلو|حلوا|يحل|يحلون|تحل|يحلو|عالج\\S*|يعالج\\S*|تعالج|معالجه|صلح\\S*|يصلح\\S*|اصلاح|تجاوب\\S*|يتجاوب\\S*)\\s+(?:لي\\s+)?(?:ال)?(?:مشكل|بلاغ|شكو|موضوع|خلل|عطل)',
+    // «ما انحلت», «للحين ما حلوها», «ما صلحوها»
+    '(?<![\\u0600-\\u06FF])[وف]?(?:ما|لم)\\s*(?:انحل\\S*|تنحل|ينحل|حلوها|حلوه|صلحوها|صلحوه|عالجوها|عالجوه)',
+    // «لم تقم الشركه بحل مشكلتي», «لم يقوموا بمعالجه البلاغ»
+    '(?<![\\u0600-\\u06FF])[وف]?(?:لم|ما)\\s*(?:يقم|تقم|يقوموا|يقومو|قام|قامت|قاموا)\\S*\\s+(?:\\S+\\s+){0,3}(?:بحل|بمعالجه|باصلاح|بالرد)',
+    '(?:عدم|بدون|دون|من\\s*غير)\\s*(?:حل|معالجه|اصلاح|الاستجابه|التجاوب|الرد\\s*علي)',
+    // «المشكله مازالت قايمه»
+    '(?:مازال|ما\\s*زال|لازال|لا\\s*زال|لا\\s*تزال|لا\\s*يزال)\\S*\\s+(?:\\S+\\s+)?قايم',
+    // «اشتكيت وما سووا شي», «ومحد تجاوب», «ماحد يرد علي»
+    '(?<![\\u0600-\\u06FF])[وف]?ما\\s*سوو\\S*\\s*(?:شي|اي\\s*شي)',
+    '(?<![\\u0600-\\u06FF])[وف]?(?:محد|ماحد|ما\\s*احد|لا\\s*احد)\\s*(?:تجاوب|يتجاوب|رد|يرد|عبرني|يعبرني)',
+    // ignored / stalled («طنشوني», «يتجاهلون بلاغي», «مماطله»)
+    'طنش|مطنش|تجاهل|يتجاهل|متجاهل|ماطل|يماطل|مماطل',
+  ].join('|'),
+)
+const ENGLISH_UNRESOLVED_PATTERN =
+  /\b(?:(?:has|have|had|did|does|do|is|are|was|were)n'?t|not|never|nobody|no one|no-one)\s+(?:yet\s+|even\s+|been\s+|really\s+)*(?:fix|fixed|resolv\w*|solv\w*|address\w*|handl\w*|repair\w*|respond\w* to|answer\w*)\s+(?:it|them|(?:my|the|our|this|that)\s+(?:\w+\s+)?(?:problem|issue|complaint|report|case|ticket|request|outage|fault)s?)\b|\b(?:unresolved|unsolved|still (?:not|isn'?t|hasn'?t|haven'?t) (?:been )?(?:fixed|resolved|solved)|ignor\w*|stalling|no (?:reply|response|answer) (?:to|on|for) my)\b/i
+
+/** The user reports that a provider or authority left their problem or earlier complaint unresolved. */
+export function describesUnresolvedComplaint(message: string): boolean {
+  return (
+    ARABIC_UNRESOLVED_PATTERN.test(normalizeArabicInput(message)) ||
+    ENGLISH_UNRESOLVED_PATTERN.test(message)
+  )
+}
+
 export function describesProblem(message: string): boolean {
   if (wantsToCreateComplaint(message)) return true
   if (isInformationQuestion(message)) return false

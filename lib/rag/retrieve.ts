@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { cloudflareProvider } from '@/lib/ai/cloudflare'
 import type { RetrievalFilters, RetrievedDocument } from '@/lib/rag/types'
-import { canonicalEntityName } from '@/lib/government/entity-names'
+import { canonicalEntityName, withCurrentEntityNames } from '@/lib/government/entity-names'
 
 const RPC_TIMEOUT_MS = 10_000
 const MAX_RESULTS = 5
@@ -205,8 +205,8 @@ export async function retrieveRelevantDocuments(
     const enrichment = row.service_id ? enrichmentByServiceId.get(row.service_id) : undefined
     return {
       id: row.id,
-      title: row.title,
-      excerpt: truncateExcerpt(row.content),
+      title: withCurrentEntityNames(row.title),
+      excerpt: truncateExcerpt(withCurrentEntityNames(row.content)),
       serviceId: row.service_id,
       complaintTypeId: row.complaint_type_id,
       similarity: row.similarity,

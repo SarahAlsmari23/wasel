@@ -7,6 +7,7 @@ import { getAuthorityProfile, profilePromptBlock } from '@/lib/government/profil
 import { scrubUnverifiedContacts } from '@/lib/government/contact-check'
 import {
   describesProblem,
+  describesUnresolvedComplaint,
   isInformationQuestion,
   isOnlyComplaintRequest,
 } from '@/lib/ai/problem-signal'
@@ -440,7 +441,9 @@ export async function POST(request: Request) {
       // A self-correction ("لا قصدي الموية مو الكهربا", "I mean the water")
       // naming another sector is new information too (evals SEC-032: the
       // reply understood the correction but the authority stayed unchanged).
-      (describesProblem(sanitizedMessage) || hasCorrectionMarker(sanitizedMessage))
+      (describesProblem(sanitizedMessage) ||
+        describesUnresolvedComplaint(sanitizedMessage) ||
+        hasCorrectionMarker(sanitizedMessage))
     const newInformationJustifiesChange =
       isExplicitRoutingChange(sanitizedMessage) || describesNewProblemElsewhere
     if (!newInformationJustifiesChange && routing?.entityName !== activeEntityName) {
@@ -687,7 +690,9 @@ export async function POST(request: Request) {
                 // ارتفعت … وين أشتكي؟") answers the pending description — it
                 // is not a side question (otherwise the description is lost
                 // and the next answer, e.g. the city, is stored in its place).
-                nextField.key === 'problem_description' && describesProblem(sanitizedMessage)
+                nextField.key === 'problem_description' &&
+                  (describesProblem(sanitizedMessage) ||
+                    describesUnresolvedComplaint(sanitizedMessage))
                 ? null
                 : intent === 'complaint_side_question' ||
                     isLikelySideQuestion(sanitizedMessage, nextField.key)
