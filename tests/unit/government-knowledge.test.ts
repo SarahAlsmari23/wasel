@@ -9,7 +9,11 @@ import {
   profilePromptBlock,
 } from '@/lib/government/profiles'
 import { ENTITY_NAME_TO_SECTOR } from '@/lib/complaints/sectors'
-import { canonicalEntityName, entityNameVariants } from '@/lib/government/entity-names'
+import {
+  canonicalEntityName,
+  entityNameVariants,
+  withCurrentEntityNames,
+} from '@/lib/government/entity-names'
 
 const OFFICIAL_DOMAINS =
   /^https:\/\/(?:[\w-]+\.)*(?:nwc\.com\.sa|se\.com\.sa|cst\.gov\.sa|mc\.gov\.sa|balady\.gov\.sa|momah\.gov\.sa)(?:\/|$)/
@@ -90,5 +94,12 @@ describe('water authority naming (2026-11)', () => {
     assert.equal(getAuthorityProfile('شركة المياه الوطنية')?.code, 'nwc')
     assert.equal(ENTITY_NAME_TO_SECTOR['الشركة الوطنية للمياه'], 'water')
     assert.equal(ENTITY_NAME_TO_SECTOR['شركة المياه الوطنية'], 'water')
+  })
+  it('presents passages written before the rename with the official name', () => {
+    assert.equal(
+      withCurrentEntityNames('تختص الشركة الوطنية للمياه بخدمات المياه. الشركة الوطنية للمياه'),
+      'تختص شركة المياه الوطنية بخدمات المياه. شركة المياه الوطنية',
+    )
+    assert.equal(withCurrentEntityNames('وزارة التجارة'), 'وزارة التجارة')
   })
 })

@@ -21,6 +21,7 @@
  */
 
 import { normalizeArabicInput } from '@/lib/ai/arabic-normalize'
+import { describesUnresolvedComplaint } from '@/lib/ai/problem-signal'
 import type { Sector } from '@/lib/complaints/sectors'
 
 const SECTOR_ISSUE_SIGNAL_PATTERNS: Partial<Record<Sector, RegExp>> = {
@@ -67,7 +68,7 @@ const SECTOR_ISSUE_SIGNAL_PATTERNS: Partial<Record<Sector, RegExp>> = {
 const EXTRA_ARABIC_ISSUE_SIGNALS: Partial<Record<Sector, RegExp>> = {
   // An unresolved earlier complaint is the escalation case (CST); «نت ما في» is an outage.
   telecom:
-    /بطي|فاصل|فصل|طافي|ما\s*يجيب|ما\s*تشتغل|خلصت|مسحوب|خصم|رصيد|الغاء|اشتراك|تحولني|عدم\s*معالجه|لم\s*(?:يتم\s*)?(?:يعالج|معالجه|تعالج|تحل|يحل)|ما\s*(?:عالجو|حلو|حلوها|ردو)|بلاغي\s*السابق|شكواي\s*السابقه|(?:ما\s*في|مافي|ما\s*فيه)\s*نت|نت\s*(?:ما\s*في|مافي)/,
+    /بطي|فاصل|فصل|طافي|ما\s*يجيب|ما\s*تشتغل|خلصت|مسحوب|خصم|رصيد|الغاء|اشتراك|تحولني|عدم\s*معالجه|لم\s*(?:يتم\s*)?(?:يعالج|معالجه|تعالج|تحل|يحل)|ما\s*(?:عالجو|حلو|حلوها|حلت|انحلت|ردو)|بلاغي\s*السابق|شكواي\s*السابقه|(?:ما\s*في|مافي|ما\s*فيه)\s*نت|نت\s*(?:ما\s*في|مافي)/,
   commerce: /وصل|غش|مقلد|نصب|نصاب|ضمان|سعر|تخفيض|وهمي|ما\s*رد|حظر|بلوك|غلط|ركبوه|تركيب|يصلح|صيانه/,
 }
 const ENGLISH_ISSUE_SIGNALS: Partial<Record<Sector, RegExp>> = {
@@ -84,7 +85,9 @@ export function hasSectorIssueSignal(sector: Sector, message: string): boolean {
   return (
     pattern.test(normalized) ||
     (EXTRA_ARABIC_ISSUE_SIGNALS[sector]?.test(normalized) ?? false) ||
-    (ENGLISH_ISSUE_SIGNALS[sector]?.test(message) ?? false)
+    (ENGLISH_ISSUE_SIGNALS[sector]?.test(message) ?? false) ||
+    // An unresolved earlier complaint is itself the issue (escalation), in any sector.
+    describesUnresolvedComplaint(message)
   )
 }
 

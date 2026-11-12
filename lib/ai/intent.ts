@@ -30,6 +30,7 @@ import {
   describesProblem,
   isInformationQuestion,
   isOnlyComplaintRequest,
+  describesUnresolvedComplaint,
 } from '@/lib/ai/problem-signal'
 import type { Sector } from '@/lib/complaints/sectors'
 
@@ -213,9 +214,13 @@ export function assessIntent(message: string): IntentAssessment {
     /(?<![\u0600-\u06FF])(?:مشكلت|مشاكل|ما\s*(?:حل|حلت|حلوا|انحلت|عالجوا))|\b(?:is out|went out|isn'?t working|doesn'?t work|not resolved|ignored)\b/i.test(
       normalized,
     )
+  // «شركة الاتصالات مطنشتني», "the store ignored my complaint" — an
+  // unresolved complaint is a grievance once a sector is named.
+  const unresolved = Boolean(sector) && describesUnresolvedComplaint(raw)
   if (issue) reasons.push('sector-issue')
   if (service) reasons.push('service-context')
-  if (grievance) reasons.push('grievance')
+  if (unresolved) reasons.push('unresolved')
+  if (grievance || unresolved) reasons.push('grievance')
 
   const topic = matchedTopic(normalized, raw) ?? (isObviousOutOfScope(raw) ? 'general' : null)
   // An everyday topic wins over a stray sector word; it only yields to an
@@ -232,7 +237,8 @@ export function assessIntent(message: string): IntentAssessment {
 
   // Two signals: a sector word together with a service issue, a service
   // context, or a stated problem — never the sector word alone.
-  const evidence = Boolean(authoritySector) || (Boolean(sector) && (issue || service || grievance))
+  const evidence =
+    Boolean(authoritySector) || (Boolean(sector) && (issue || service || grievance || unresolved))
   // Greetings and identity questions only when nothing governmental is said
   // (the identity matcher is fuzzy: «النت بطيء» must stay a complaint).
   if (!evidence && !grievance && !service) {
@@ -253,7 +259,7 @@ export function assessIntent(message: string): IntentAssessment {
     if (opensAsQuestion || (asksQuestion && !statesProblem)) {
       return { kind: 'service_inquiry', sector, reasons }
     }
-    if (issue || grievance) return { kind: 'complaint', sector, reasons }
+    if (issue || grievance || unresolved) return { kind: 'complaint', sector, reasons }
     return { kind: 'service_inquiry', sector, reasons }
   }
   if (grievance || isOnlyComplaintRequest(raw)) {
@@ -281,5 +287,7 @@ export function allowsRouting(kind: MessageIntentKind): boolean {
 export function describesComplaintProblem(message: string, a: IntentAssessment): boolean {
   if (a.kind !== 'complaint') return false
   if (describesProblem(message)) return true
+  // «شركة النت ما حلت مشكلتي» — the unresolved complaint is the problem.
+  if (a.reasons.includes('unresolved') || describesUnresolvedComplaint(message)) return true
   return a.reasons.includes('sector-issue') && !isOnlyComplaintRequest(message)
 }

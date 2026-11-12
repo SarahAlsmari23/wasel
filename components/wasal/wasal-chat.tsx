@@ -31,7 +31,7 @@ import { TypingIndicator } from '@/components/wasal/typing-indicator'
 import { buildComplaintAnalysisFromRouting } from '@/lib/complaints/analysis'
 import { deriveComplaintTitleFromFields } from '@/lib/complaints/formal-letter'
 import { normalizeArabicInput } from '@/lib/ai/arabic-normalize'
-import { describesProblem } from '@/lib/ai/problem-signal'
+import { describesProblem, describesUnresolvedComplaint } from '@/lib/ai/problem-signal'
 import { assessIntent } from '@/lib/ai/intent'
 import {
   inferFieldAnswerShape,
@@ -1050,7 +1050,10 @@ export function WasalChat({
       !isOutOfScopeInterruption &&
       // A problem description ending in a question ("… وين أشتكي؟") answers
       // the pending description; same rule as the chat route.
-      !(pendingKey === 'problem_description' && describesProblem(content)) &&
+      !(
+        pendingKey === 'problem_description' &&
+        (describesProblem(content) || describesUnresolvedComplaint(content))
+      ) &&
       isLikelySideQuestion(content, pendingKey)
     const isInterruption =
       isGreetingInterruption ||

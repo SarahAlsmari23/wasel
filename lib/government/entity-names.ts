@@ -39,3 +39,16 @@ export function entityNameVariants(name: string): string[] {
 export function historicalNames(currentName: string): string[] {
   return entityNameVariants(currentName).slice(1)
 }
+
+/**
+ * Replaces historical authority names inside free text with the current
+ * official name. Used on retrieved knowledge passages written before the
+ * rename (their stored text and embeddings stay unchanged), so the model and
+ * the sources list never present the old name as current. Never applied to
+ * stored complaint letters.
+ */
+export function withCurrentEntityNames(text: string): string {
+  let out = text
+  for (const [from, to] of Object.entries(HISTORICAL_TO_CURRENT)) out = out.split(from).join(to)
+  return out
+}
